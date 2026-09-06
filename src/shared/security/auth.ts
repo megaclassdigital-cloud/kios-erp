@@ -20,12 +20,10 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
-  interface JWT {
-    id: string;
-    username: string;
-    role: Role;
-  }
+interface AppToken {
+  id: string;
+  username: string;
+  role: Role;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -59,17 +57,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     jwt({ token, user }) {
+      const appToken = token as typeof token & Partial<AppToken>;
       if (user) {
-        token.id = user.id;
-        token.username = user.username;
-        token.role = user.role;
+        const appUser = user as { id: string; username: string; role: Role };
+        appToken.id = appUser.id;
+        appToken.username = appUser.username;
+        appToken.role = appUser.role;
       }
-      return token;
+      return appToken;
     },
     session({ session, token }) {
-      session.user.id = token.id;
-      session.user.username = token.username;
-      session.user.role = token.role;
+      const appToken = token as typeof token & AppToken;
+      session.user.id = appToken.id;
+      session.user.username = appToken.username;
+      session.user.role = appToken.role;
       return session;
     },
   },
