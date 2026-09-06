@@ -1,0 +1,416 @@
+// Kios-ERP database schema
+// See PRD sections 29-56, 62-65 for entity rationale.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & RBAC (PRD 4, 5, 74)
+// ---------------------------------------------------------------------------
+
+enum Role {
+  OWNER
+  ADMIN
+  KASIR
+  STAFF_STOK
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cashierShifts   CashierShift[]
+  sales           Sale[]
+  stockMovements  StockMovement[]
+  purchases       Purchase[]
+  stockOpnames    StockOpname[]      @relation("StartedBy")
+  approvedOpnames StockOpname[]      @relation("ApprovedBy")
+  expenses        Expense[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Product master (PRD 29-45)
+// ---------------------------------------------------------------------------
+
+enum ProductType {
+  PHYSICAL
+  SERVICE
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id              String      @id @default(uuid())
+  sku             String      @unique
+  name            String
+  description     String?
+  categoryId      String?
+  category        Category?   @relation(fields: [categoryId], references: [id])
+  productType     ProductType @default(PHYSICAL)
+  baseUnit        String      @default("PCS")
+  purchasePrice   Decimal     @db.Decimal(14, 2)
+  sellingPrice    Decimal     @db.Decimal(14, 2)
+  minimumStock    Int         @default(0)
+  currentStock    Decimal     @default(0) @db.Decimal(14, 3)
+  trackInventory  Boolean     @default(true)
+  active          Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  barcodes        ProductBarcode[]
+  stockMovements  StockMovement[]
+  saleItems       SaleItem[]
+  purchaseItems   PurchaseItem[]
+  opnameItems     StockOpnameItem[]
+
+  @@index([active])
+  @@map("products")
+}
+
+enum BarcodeSource {
+  MANUFACTURER
+  INTERNAL
+}
+
+enum BarcodeStatus {
+  ACTIVE
+  RETIRED
+}
+
+model ProductBarcode {
+  id               String        @id @default(uuid())
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id])
+  barcodeValue     String        @unique
+  barcodeType      String        @default("EAN13")
+  unit             String
+  conversionFactor Decimal       @default(1) @db.Decimal(14, 4)
+  source           BarcodeSource
+  status           BarcodeStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  retiredAt        DateTime?
+
+  @@index([barcodeValue])
+  @@index([productId])
+  @@map("product_barcodes")
+}
+
+// Concurrency-safe internal barcode sequence (PRD 35: no SELECT MAX()+1).
+model BarcodeSequence {
+  id          Int    @id @default(1)
+  lastValue   BigInt @default(0)
+
+  @@map("barcode_sequence")
+}
+
+// ---------------------------------------------------------------------------
+// Inventory / stock movement ledger (PRD 24-25)
+// ---------------------------------------------------------------------------
+
+enum MovementType {
+  PURCHASE
+  SALE
+  RETURN_IN
+  RETURN_OUT
+  DAMAGE
+  EXPIRED
+  ADJUSTMENT
+  STOCK_OPNAME
+  INITIAL_STOCK
+}
+
+model StockMovement {
+  id            String       @id @default(uuid())
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id])
+  quantity      Decimal      @db.Decimal(14, 3) // signed: +in / -out
+  movementType  MovementType
+  referenceType String
+  referenceId   String
+  actorId       String
+  actor         User         @relation(fields: [actorId], references: [id])
+  note          String?
+  createdAt     DateTime     @default(now())
+
+  @@index([productId, createdAt])
+  @@index([referenceType, referenceId])
+  @@map("stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// Supplier & receiving (PRD 26-27, 55)
+// ---------------------------------------------------------------------------
+
+model Supplier {
+  id        String     @id @default(uuid())
+  name      String
+  phone     String?
+  address   String?
+  notes     String?
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  purchases Purchase[]
+
+  @@map("suppliers")
+}
+
+enum PurchaseStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+model Purchase {
+  id              String         @id @default(uuid())
+  purchaseNumber  String         @unique
+  supplierId      String
+  supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  invoiceNumber   String?
+  status          PurchaseStatus @default(DRAFT)
+  receivedById    String
+  receivedBy      User           @relation(fields: [receivedById], references: [id])
+  totalAmount     Decimal        @default(0) @db.Decimal(14, 2)
+  createdAt       DateTime       @default(now())
+  confirmedAt     DateTime?
+
+  items PurchaseItem[]
+
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id             String   @id @default(uuid())
+  purchaseId     String
+  purchase       Purchase @relation(fields: [purchaseId], references: [id])
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id])
+  quantity       Decimal  @db.Decimal(14, 3)
+  purchasePrice  Decimal  @db.Decimal(14, 2)
+  subtotal       Decimal  @db.Decimal(14, 2)
+
+  @@map("purchase_items")
+}
+
+// ---------------------------------------------------------------------------
+// Cashier shift (PRD 53)
+// ---------------------------------------------------------------------------
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+model CashierShift {
+  id            String      @id @default(uuid())
+  cashierId     String
+  cashier       User        @relation(fields: [cashierId], references: [id])
+  openingCash   Decimal     @db.Decimal(14, 2)
+  expectedCash  Decimal?    @db.Decimal(14, 2)
+  actualCash    Decimal?    @db.Decimal(14, 2)
+  difference    Decimal?    @db.Decimal(14, 2)
+  status        ShiftStatus @default(OPEN)
+  openedAt      DateTime    @default(now())
+  closedAt      DateTime?
+
+  sales Sale[]
+
+  @@map("cashier_shifts")
+}
+
+// ---------------------------------------------------------------------------
+// Sales / POS (PRD 11-21, 38-39, 47-49)
+// ---------------------------------------------------------------------------
+
+enum SaleStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CASHLESS
+}
+
+model Sale {
+  id                String        @id @default(uuid())
+  transactionNumber String        @unique
+  cashierId         String
+  cashier           User          @relation(fields: [cashierId], references: [id])
+  shiftId           String
+  shift             CashierShift  @relation(fields: [shiftId], references: [id])
+  status            SaleStatus    @default(PENDING)
+  paymentMethod     PaymentMethod
+  subtotal          Decimal       @db.Decimal(14, 2)
+  discount          Decimal       @default(0) @db.Decimal(14, 2)
+  grandTotal        Decimal       @db.Decimal(14, 2)
+  cashReceived      Decimal?      @db.Decimal(14, 2)
+  changeAmount      Decimal?      @db.Decimal(14, 2)
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+  cancelledAt       DateTime?
+
+  items    SaleItem[]
+  payments Payment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("sales")
+}
+
+model SaleItem {
+  id                String  @id @default(uuid())
+  saleId            String
+  sale              Sale    @relation(fields: [saleId], references: [id])
+  productId         String
+  product           Product @relation(fields: [productId], references: [id])
+  productNameSnapshot String
+  quantity          Decimal @db.Decimal(14, 3)
+  unitPriceAtSale   Decimal @db.Decimal(14, 2)
+  costPriceAtSale   Decimal @db.Decimal(14, 2)
+  subtotal          Decimal @db.Decimal(14, 2)
+
+  @@map("sale_items")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  saleId         String
+  sale           Sale          @relation(fields: [saleId], references: [id])
+  method         PaymentMethod
+  status         PaymentStatus @default(PENDING)
+  amount         Decimal       @db.Decimal(14, 2)
+  idempotencyKey String        @unique
+  providerRef    String?
+  createdAt      DateTime      @default(now())
+  paidAt         DateTime?
+
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Stock opname (PRD 28, 79)
+// ---------------------------------------------------------------------------
+
+enum StockOpnameStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+model StockOpname {
+  id            String            @id @default(uuid())
+  opnameNumber  String            @unique
+  status        StockOpnameStatus @default(DRAFT)
+  startedById   String
+  startedBy     User              @relation("StartedBy", fields: [startedById], references: [id])
+  approvedById  String?
+  approvedBy    User?             @relation("ApprovedBy", fields: [approvedById], references: [id])
+  startedAt     DateTime          @default(now())
+  submittedAt   DateTime?
+  approvedAt    DateTime?
+
+  items StockOpnameItem[]
+
+  @@map("stock_opnames")
+}
+
+model StockOpnameItem {
+  id            String      @id @default(uuid())
+  stockOpnameId String
+  stockOpname   StockOpname @relation(fields: [stockOpnameId], references: [id])
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  systemQty     Decimal     @db.Decimal(14, 3)
+  physicalQty   Decimal     @db.Decimal(14, 3)
+  difference    Decimal     @db.Decimal(14, 3)
+
+  @@map("stock_opname_items")
+}
+
+// ---------------------------------------------------------------------------
+// Finance (PRD 50-52)
+// ---------------------------------------------------------------------------
+
+enum ExpenseCategory {
+  SUPPLIER
+  ELECTRICITY
+  TRANSPORT
+  SALARY
+  OPERATIONAL
+  OTHER
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(14, 2)
+  description String?
+  expenseDate DateTime
+  createdById String
+  createdBy   User            @relation(fields: [createdById], references: [id])
+  createdAt   DateTime        @default(now())
+
+  @@map("expenses")
+}
+
+// ---------------------------------------------------------------------------
+// Audit log (PRD 74)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  beforeValue Json?
+  afterValue  Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// Daily counter backing concurrency-safe transaction numbers (PRD 20).
+model DailyCounter {
+  scope     String  // e.g. "SALE:20260906" or "PURCHASE:20260906"
+  counter   Int     @default(0)
+
+  @@id([scope])
+  @@map("daily_counters")
+}

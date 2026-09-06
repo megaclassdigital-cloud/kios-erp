@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kios-ERP
 
-## Getting Started
+Internal retail ERP/POS for a sembako store (kasir, inventory, barcode,
+receiving, stock opname, finance, reporting). Next.js (App Router) +
+TypeScript + PostgreSQL (Prisma), modular monolith with 7 logical layers.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env   # fill in DATABASE_URL and AUTH_SECRET
+npx prisma migrate dev --name init
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Seeded accounts (password: `password123` for all):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| username    | role       |
+|-------------|------------|
+| owner       | OWNER      |
+| admin       | ADMIN      |
+| kasir       | KASIR      |
+| staffstok   | STAFF_STOK |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Architecture
 
-## Learn More
+```
+src/
+  app/                 # Presentation (pages) + Interface (API routes)
+  modules/<feature>/
+    domain/            # Value objects, domain services — no framework imports
+    application/       # Use cases orchestrating a business event
+    repository/        # Interfaces only
+    infrastructure/     # Prisma-backed repository implementations
+  shared/
+    domain/            # Money, Quantity, TransactionNumber
+    barcode/           # BarcodeValue normalization
+    security/          # auth.ts (NextAuth), permissions.ts (RBAC)
+    infrastructure/    # Prisma client, TransactionManager, AuditLogger
+```
 
-To learn more about Next.js, take a look at the following resources:
+See `AGENTS.md` for the non-negotiable architecture rules (stock ledger,
+barcode lifecycle, atomic checkout, RBAC enforcement, money as Decimal).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `npm run dev` / `npm run build` / `npm run start`
+- `npm run test` — Vitest unit tests (domain layer)
+- `npm run db:migrate` — create/apply a dev migration
+- `npm run db:deploy` — apply migrations in production
+- `npm run db:seed` — development seed data (never used in production)
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Database**: Supabase Postgres (`DATABASE_URL` in Vercel env vars)
+- **Hosting**: Vercel (connected to the `kios-erp` GitHub repo)
+- **Repo**: GitHub — `kios-erp` (private)
