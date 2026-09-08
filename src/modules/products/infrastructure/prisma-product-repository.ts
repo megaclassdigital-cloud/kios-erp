@@ -18,6 +18,8 @@ export class PrismaProductRepository implements ProductRepository {
         description: input.description,
         categoryId: input.categoryId ?? undefined,
         productType: input.productType,
+        serviceType: input.serviceType ?? undefined,
+        serviceProvider: input.serviceProvider ?? undefined,
         baseUnit: input.baseUnit,
         purchasePrice: input.purchasePrice,
         sellingPrice: input.sellingPrice,

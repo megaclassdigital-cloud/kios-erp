@@ -29,6 +29,12 @@ interface AppToken {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  // Self-hosted (Vercel or otherwise) — this app owns its own routing, so
+  // trusting the incoming Host header is safe. Without this, `next start`
+  // rejects every request with UntrustedHost outside of Vercel's own
+  // auto-detected trust (dev mode trusts localhost implicitly, which is why
+  // this only surfaces in production).
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {

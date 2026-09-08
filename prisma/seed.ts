@@ -4,8 +4,12 @@
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { PrismaBarcodeRepository } from "../src/modules/products/infrastructure/prisma-barcode-repository";
+import { BarcodeDomainService } from "../src/modules/products/domain/barcode-domain-service";
 
 const prisma = new PrismaClient();
+const barcodes = new PrismaBarcodeRepository(prisma);
+const barcodeDomain = new BarcodeDomainService();
 
 async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -100,10 +104,57 @@ async function main() {
     }
   }
 
+  const seedServices: {
+    sku: string;
+    name: string;
+    serviceType: "PULSA" | "TOKEN_LISTRIK";
+    provider: string;
+    purchasePrice: string;
+    sellingPrice: string;
+  }[] = [
+    { sku: "SVC-0001", name: "Pulsa Telkomsel 20.000", serviceType: "PULSA", provider: "Telkomsel", purchasePrice: "19500", sellingPrice: "21000" },
+    { sku: "SVC-0002", name: "Pulsa Telkomsel 50.000", serviceType: "PULSA", provider: "Telkomsel", purchasePrice: "49000", sellingPrice: "51000" },
+    { sku: "SVC-0003", name: "Token PLN 50.000", serviceType: "TOKEN_LISTRIK", provider: "PLN", purchasePrice: "49500", sellingPrice: "51000" },
+    { sku: "SVC-0004", name: "Token PLN 100.000", serviceType: "TOKEN_LISTRIK", provider: "PLN", purchasePrice: "99500", sellingPrice: "101000" },
+  ];
+
+  for (const item of seedServices) {
+    const product = await prisma.product.upsert({
+      where: { sku: item.sku },
+      update: {},
+      create: {
+        sku: item.sku,
+        name: item.name,
+        productType: "SERVICE",
+        serviceType: item.serviceType,
+        serviceProvider: item.provider,
+        baseUnit: "TRANSAKSI",
+        purchasePrice: item.purchasePrice,
+        sellingPrice: item.sellingPrice,
+        minimumStock: 0,
+        trackInventory: false,
+      },
+    });
+
+    const hasBarcode = await prisma.productBarcode.findFirst({ where: { productId: product.id } });
+    if (!hasBarcode) {
+      const sequence = await barcodes.nextInternalSequence();
+      await barcodes.create({
+        productId: product.id,
+        barcodeValue: barcodeDomain.formatInternalBarcode(sequence),
+        barcodeType: "CODE128",
+        unit: "TRANSAKSI",
+        conversionFactor: "1",
+        source: "INTERNAL",
+      });
+    }
+  }
+
   console.log("Seed complete:", {
     users: [owner.username, admin.username, kasir.username, staff.username],
     supplier: supplier.name,
     products: seedProducts.map((p) => p.name),
+    services: seedServices.map((s) => s.name),
   });
 }
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CartLine } from "./types";
+import type { CartLine, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
+import { ServiceDetailModal } from "./service-detail-modal";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -14,6 +15,13 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
   const [scanError, setScanError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [pendingService, setPendingService] = useState<{
+    id: string;
+    name: string;
+    sellingPrice: string;
+    serviceType: "PULSA" | "TOKEN_LISTRIK";
+    serviceProvider: string | null;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,6 +51,18 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
 
     setScanError(null);
     const product = data.product;
+
+    if (product.productType === "SERVICE") {
+      setPendingService({
+        id: product.id,
+        name: product.name,
+        sellingPrice: product.sellingPrice,
+        serviceType: product.serviceType,
+        serviceProvider: product.serviceProvider,
+      });
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((l) => l.productId === product.id);
       if (existing) {
@@ -53,27 +73,50 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
       return [
         ...prev,
         {
+          lineId: product.id,
           productId: product.id,
           name: product.name,
           unitPrice: Number(product.sellingPrice),
           quantity: 1,
           trackInventory: product.trackInventory,
+          productType: "PHYSICAL",
         },
       ];
     });
     inputRef.current?.focus();
   }
 
-  function updateQty(productId: string, delta: number) {
+  function addServiceLine(detail: ServiceDetailInput) {
+    if (!pendingService) return;
+    setCart((prev) => [
+      ...prev,
+      {
+        lineId: crypto.randomUUID(),
+        productId: pendingService.id,
+        name: pendingService.name,
+        unitPrice: Number(pendingService.sellingPrice),
+        quantity: 1,
+        trackInventory: false,
+        productType: "SERVICE",
+        serviceType: pendingService.serviceType,
+        serviceProvider: pendingService.serviceProvider,
+        serviceDetail: detail,
+      },
+    ]);
+    setPendingService(null);
+    inputRef.current?.focus();
+  }
+
+  function updateQty(lineId: string, delta: number) {
     setCart((prev) =>
       prev
-        .map((l) => (l.productId === productId ? { ...l, quantity: l.quantity + delta } : l))
+        .map((l) => (l.lineId === lineId ? { ...l, quantity: l.quantity + delta } : l))
         .filter((l) => l.quantity > 0)
     );
   }
 
-  function removeLine(productId: string) {
-    setCart((prev) => prev.filter((l) => l.productId !== productId));
+  function removeLine(lineId: string) {
+    setCart((prev) => prev.filter((l) => l.lineId !== lineId));
   }
 
   async function closeShift() {
@@ -129,32 +172,45 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
                 </tr>
               )}
               {cart.map((line) => (
-                <tr key={line.productId} className="border-t border-gray-100">
-                  <td className="px-3 py-2 text-gray-900">{line.name}</td>
+                <tr key={line.lineId} className="border-t border-gray-100">
+                  <td className="px-3 py-2 text-gray-900">
+                    {line.name}
+                    {line.serviceDetail && (
+                      <p className="text-xs text-gray-400">
+                        {line.serviceDetail.phoneNumber
+                          ? `HP: ${line.serviceDetail.phoneNumber}`
+                          : `Meter: ${line.serviceDetail.meterNumber} · Plgn: ${line.serviceDetail.customerNumber}`}
+                      </p>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-gray-600">{formatRupiah(line.unitPrice)}</td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateQty(line.productId, -1)}
-                        className="h-6 w-6 rounded border border-gray-300 text-gray-600"
-                      >
-                        −
-                      </button>
-                      <span className="w-6 text-center">{line.quantity}</span>
-                      <button
-                        onClick={() => updateQty(line.productId, 1)}
-                        className="h-6 w-6 rounded border border-gray-300 text-gray-600"
-                      >
-                        +
-                      </button>
-                    </div>
+                    {line.productType === "SERVICE" ? (
+                      <span className="text-gray-500">1</span>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => updateQty(line.lineId, -1)}
+                          className="h-6 w-6 rounded border border-gray-300 text-gray-600"
+                        >
+                          −
+                        </button>
+                        <span className="w-6 text-center">{line.quantity}</span>
+                        <button
+                          onClick={() => updateQty(line.lineId, 1)}
+                          className="h-6 w-6 rounded border border-gray-300 text-gray-600"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 font-medium text-gray-900">
                     {formatRupiah(line.unitPrice * line.quantity)}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <button
-                      onClick={() => removeLine(line.productId)}
+                      onClick={() => removeLine(line.lineId)}
                       className="text-xs text-red-600 hover:underline"
                     >
                       Hapus
@@ -197,6 +253,17 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
           Tutup Shift
         </button>
       </div>
+
+      {pendingService && (
+        <ServiceDetailModal
+          product={pendingService}
+          onCancel={() => {
+            setPendingService(null);
+            inputRef.current?.focus();
+          }}
+          onConfirm={addServiceLine}
+        />
+      )}
 
       {showPayment && (
         <PaymentModal

@@ -106,3 +106,15 @@ export function assertPermission(role: Role, permission: Permission): void {
     throw new ForbiddenError();
   }
 }
+
+/** Read-only view of the role→permission matrix for the Permissions admin
+ * page (PRD 6: secondary administration). Permissions are defined in code,
+ * not the database — this exposes that source of truth rather than
+ * duplicating it. */
+export function listRolePermissions(): Record<Role, Permission[]> {
+  return ROLE_PERMISSIONS;
+}
+
+export function listAllPermissions(): Permission[] {
+  return Array.from(new Set(Object.values(ROLE_PERMISSIONS).flat())).sort();
+}

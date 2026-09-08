@@ -1,69 +1,56 @@
-import { prisma } from "@/shared/infrastructure/prisma";
-import { GetFinancialSummaryUseCase } from "@/modules/finance/application/get-financial-summary-use-case";
+import { auth } from "@/shared/security/auth";
+import { hasPermission } from "@/shared/security/permissions";
+import { redirect } from "next/navigation";
+import { resolvePeriod } from "./resolve-period";
+import { PeriodSelector } from "./period-selector";
+import { TabNav, type ReportTab } from "./tab-nav";
+import { ExportToolbar } from "./export-toolbar";
+import { PenjualanTab } from "./penjualan-tab";
+import { ProdukTab } from "./produk-tab";
+import { InventarisTab } from "./inventaris-tab";
+import { KasirTab } from "./kasir-tab";
 
-function formatRupiah(value: string) {
-  return `Rp${Number(value).toLocaleString("id-ID")}`;
-}
+const VALID_TABS: ReportTab[] = ["penjualan", "produk", "inventaris", "kasir"];
 
-export default async function LaporanPage() {
-  const start30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const now = new Date();
+export default async function LaporanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; period?: string; from?: string; to?: string }>;
+}) {
+  const session = await auth();
+  if (!session || !hasPermission(session.user.role, "reports.view")) {
+    redirect("/dashboard");
+  }
 
-  const [summary, grouped] = await Promise.all([
-    new GetFinancialSummaryUseCase().execute(start30, now),
-    prisma.saleItem.groupBy({
-      by: ["productId", "productNameSnapshot"],
-      where: { sale: { status: "PAID", paidAt: { gte: start30, lte: now } } },
-      _sum: { quantity: true, subtotal: true },
-      orderBy: { _sum: { subtotal: "desc" } },
-      take: 10,
-    }),
-  ]);
+  const params = await searchParams;
+  const tab: ReportTab = VALID_TABS.includes(params.tab as ReportTab)
+    ? (params.tab as ReportTab)
+    : "penjualan";
+  const period = resolvePeriod(params);
+
+  const periodQuery = new URLSearchParams({
+    period: period.key,
+    ...(period.key === "custom" ? { from: params.from ?? "", to: params.to ?? "" } : {}),
+  }).toString();
+
+  const csvHref = `/api/reports/export?tab=${tab}&${periodQuery}`;
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-gray-900">Laporan (30 Hari Terakhir)</h1>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        {[
-          ["Revenue", summary.revenue.toFixed(2)],
-          ["HPP", summary.cogs.toFixed(2)],
-          ["Laba Kotor", summary.grossProfit.toFixed(2)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs text-gray-500">{label}</p>
-            <p className="mt-1 text-lg font-semibold text-gray-900">{formatRupiah(value)}</p>
-          </div>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold text-gray-900">
+          Laporan <span className="text-sm font-normal text-gray-500">({period.label})</span>
+        </h1>
+        <ExportToolbar csvHref={csvHref} />
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">Produk Terlaris</h2>
-        {grouped.length === 0 ? (
-          <p className="text-sm text-gray-500">Belum ada data penjualan.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500">
-              <tr>
-                <th className="py-1">Produk</th>
-                <th className="py-1">Qty Terjual</th>
-                <th className="py-1">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grouped.map((g) => (
-                <tr key={g.productId} className="border-t border-gray-100">
-                  <td className="py-1.5 text-gray-900">{g.productNameSnapshot}</td>
-                  <td className="py-1.5 text-gray-500">{Number(g._sum.quantity)}</td>
-                  <td className="py-1.5 font-medium text-gray-900">
-                    {formatRupiah(g._sum.subtotal?.toString() ?? "0")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <PeriodSelector basePath="/laporan" active={period.key} extraParams={{ tab }} />
+      <TabNav active={tab} periodQuery={periodQuery} />
+
+      {tab === "penjualan" && <PenjualanTab start={period.start} end={period.end} />}
+      {tab === "produk" && <ProdukTab start={period.start} end={period.end} />}
+      {tab === "inventaris" && <InventarisTab start={period.start} end={period.end} />}
+      {tab === "kasir" && <KasirTab start={period.start} end={period.end} />}
     </div>
   );
 }

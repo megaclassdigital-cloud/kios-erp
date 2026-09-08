@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
@@ -52,6 +53,11 @@ enum ProductType {
   SERVICE
 }
 
+enum ServiceType {
+  PULSA
+  TOKEN_LISTRIK
+}
+
 model Category {
   id        String    @id @default(uuid())
   name      String    @unique
@@ -69,6 +75,8 @@ model Product {
   categoryId      String?
   category        Category?   @relation(fields: [categoryId], references: [id])
   productType     ProductType @default(PHYSICAL)
+  serviceType     ServiceType?
+  serviceProvider String?
   baseUnit        String      @default("PCS")
   purchasePrice   Decimal     @db.Decimal(14, 2)
   sellingPrice    Decimal     @db.Decimal(14, 2)
@@ -294,7 +302,26 @@ model SaleItem {
   costPriceAtSale   Decimal @db.Decimal(14, 2)
   subtotal          Decimal @db.Decimal(14, 2)
 
+  serviceDetail     ServiceSaleDetail?
+
   @@map("sale_items")
+}
+
+// Pulsa/token listrik transaction details (PRD 46). One row per SaleItem
+// whose product has productType SERVICE — never affects stock.
+model ServiceSaleDetail {
+  id             String      @id @default(uuid())
+  saleItemId     String      @unique
+  saleItem       SaleItem    @relation(fields: [saleItemId], references: [id])
+  serviceType    ServiceType
+  provider       String?
+  phoneNumber    String?
+  meterNumber    String?
+  customerNumber String?
+  nominal        Decimal     @db.Decimal(14, 2)
+  createdAt      DateTime    @default(now())
+
+  @@map("service_sale_details")
 }
 
 enum PaymentStatus {

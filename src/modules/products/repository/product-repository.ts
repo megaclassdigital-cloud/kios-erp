@@ -1,4 +1,4 @@
-import type { Product, ProductBarcode, ProductType } from "@prisma/client";
+import type { Product, ProductBarcode, ProductType, ServiceType } from "@prisma/client";
 
 export interface CreateProductInput {
   sku: string;
@@ -6,6 +6,8 @@ export interface CreateProductInput {
   description?: string;
   categoryId?: string | null;
   productType: ProductType;
+  serviceType?: ServiceType | null;
+  serviceProvider?: string | null;
   baseUnit: string;
   purchasePrice: string;
   sellingPrice: string;
@@ -20,6 +22,7 @@ export interface UpdateProductInput {
   sellingPrice?: string;
   minimumStock?: number;
   active?: boolean;
+  serviceProvider?: string | null;
 }
 
 export type ProductWithBarcodes = Product & { barcodes: ProductBarcode[] };

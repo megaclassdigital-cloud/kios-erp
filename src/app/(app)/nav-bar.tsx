@@ -17,9 +17,11 @@ const PRIMARY_TABS = [
 
 const SECONDARY_LINKS = [
   { href: "/master/produk", label: "Master Produk" },
+  { href: "/master/kategori", label: "Kategori" },
   { href: "/master/supplier", label: "Supplier" },
   { href: "/stok-opname", label: "Stock Opname" },
   { href: "/master/users", label: "Master User", ownerOnly: true },
+  { href: "/master/permissions", label: "Permissions", ownerOnly: true },
   { href: "/audit", label: "Audit Log", ownerOnly: true },
 ];
 

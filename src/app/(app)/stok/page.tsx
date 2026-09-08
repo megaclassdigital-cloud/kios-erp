@@ -1,6 +1,9 @@
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { prisma } from "@/shared/infrastructure/prisma";
+import { auth } from "@/shared/security/auth";
+import { hasPermission } from "@/shared/security/permissions";
+import { redirect } from "next/navigation";
 
 const STATUS_STYLE: Record<string, string> = {
   AMAN: "bg-green-100 text-green-700",
@@ -9,8 +12,16 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default async function StokPage() {
+  const session = await auth();
+  if (!session || !hasPermission(session.user.role, "inventory.view")) {
+    redirect("/dashboard");
+  }
+
   const repo = new PrismaProductRepository(prisma);
-  const products = await repo.list({});
+  const allProducts = await repo.list({});
+  // Stok Barang tracks physical inventory only — service products
+  // (pulsa/token) never carry stock (PRD 46).
+  const products = allProducts.filter((p) => p.trackInventory);
   const inventoryService = new InventoryService();
 
   return (

@@ -49,7 +49,7 @@ export class ConfirmCashlessPaymentUseCase {
         await payments.markPaid(payment.id);
       }
 
-      const paidSale = await sales.markPaid(sale.id);
+      await sales.markPaid(sale.id);
 
       const audit = new AuditLogger(tx);
       await audit.record({
@@ -60,7 +60,7 @@ export class ConfirmCashlessPaymentUseCase {
         metadata: { providerRef },
       });
 
-      return paidSale;
+      return sales.findById(sale.id);
     });
   }
 }

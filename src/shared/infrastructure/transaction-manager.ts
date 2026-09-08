@@ -11,6 +11,10 @@ export type Db = PrismaClient | Prisma.TransactionClient;
  */
 export class TransactionManager {
   async run<T>(work: (tx: Db) => Promise<T>): Promise<T> {
-    return prisma.$transaction((tx) => work(tx));
+    // Default Prisma interactive-transaction timeout is 5s, which a
+    // multi-query checkout/receiving transaction can exceed over a remote
+    // pooled connection (e.g. Supabase's pgbouncer pooler) even with no
+    // correctness problem — each awaited query is a full network round trip.
+    return prisma.$transaction((tx) => work(tx), { timeout: 20000, maxWait: 10000 });
   }
 }

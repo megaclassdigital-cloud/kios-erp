@@ -1,4 +1,13 @@
-import type { PaymentMethod, Sale, SaleStatus } from "@prisma/client";
+import type { PaymentMethod, Sale, SaleStatus, ServiceType } from "@prisma/client";
+
+export interface CreateSaleItemServiceDetail {
+  serviceType: ServiceType;
+  provider?: string | null;
+  phoneNumber?: string;
+  meterNumber?: string;
+  customerNumber?: string;
+  nominal: string;
+}
 
 export interface CreateSaleInput {
   transactionNumber: string;
@@ -18,6 +27,7 @@ export interface CreateSaleInput {
     unitPriceAtSale: string;
     costPriceAtSale: string;
     subtotal: string;
+    serviceDetail?: CreateSaleItemServiceDetail;
   }[];
 }
 

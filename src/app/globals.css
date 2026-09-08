@@ -18,3 +18,20 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Isolate #receipt-print for struk printing (PRD 21) — everything else on
+   the page is hidden while printing so only the receipt comes out. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print,
+  #receipt-print * {
+    visibility: visible;
+  }
+  #receipt-print {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+}

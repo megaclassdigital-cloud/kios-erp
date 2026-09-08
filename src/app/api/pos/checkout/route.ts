@@ -5,7 +5,21 @@ import { CheckoutSaleUseCase } from "@/modules/pos/application/checkout-sale-use
 
 const schema = z.object({
   shiftId: z.string(),
-  items: z.array(z.object({ productId: z.string(), quantity: z.string() })).min(1),
+  items: z
+    .array(
+      z.object({
+        productId: z.string(),
+        quantity: z.string(),
+        serviceDetail: z
+          .object({
+            phoneNumber: z.string().optional(),
+            meterNumber: z.string().optional(),
+            customerNumber: z.string().optional(),
+          })
+          .optional(),
+      })
+    )
+    .min(1),
   paymentMethod: z.enum(["CASH", "CASHLESS"]),
   cashReceived: z.string().optional(),
   discount: z.string().optional(),

@@ -2,6 +2,7 @@ import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { RefundButton } from "./refund-button";
+import { TransactionDetailButton } from "./transaction-detail-button";
 
 const STATUS_STYLE: Record<string, string> = {
   PAID: "bg-green-100 text-green-700",
@@ -38,7 +39,7 @@ export default async function TransaksiPage() {
               <th className="px-3 py-2">Metode</th>
               <th className="px-3 py-2">Total</th>
               <th className="px-3 py-2">Status</th>
-              {canRefund && <th className="px-3 py-2"></th>}
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -57,11 +58,12 @@ export default async function TransaksiPage() {
                     {s.status}
                   </span>
                 </td>
-                {canRefund && (
-                  <td className="px-3 py-2 text-right">
-                    {s.status === "PAID" && <RefundButton saleId={s.id} />}
-                  </td>
-                )}
+                <td className="px-3 py-2 text-right">
+                  <div className="flex justify-end gap-3">
+                    <TransactionDetailButton saleId={s.id} />
+                    {canRefund && s.status === "PAID" && <RefundButton saleId={s.id} />}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

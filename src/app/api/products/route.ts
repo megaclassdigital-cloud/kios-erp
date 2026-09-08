@@ -11,6 +11,8 @@ const createProductSchema = z.object({
   description: z.string().optional(),
   categoryId: z.string().optional(),
   productType: z.enum(["PHYSICAL", "SERVICE"]),
+  serviceType: z.enum(["PULSA", "TOKEN_LISTRIK"]).optional(),
+  serviceProvider: z.string().optional(),
   baseUnit: z.string().min(1),
   purchasePrice: z.string(),
   sellingPrice: z.string(),

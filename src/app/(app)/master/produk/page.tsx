@@ -10,6 +10,7 @@ interface ProductRow {
   currentStock: string;
   sellingPrice: string;
   active: boolean;
+  productType: "PHYSICAL" | "SERVICE";
   barcodes: { barcodeValue: string; status: string }[];
 }
 
@@ -44,6 +45,7 @@ export default function MasterProdukPage() {
           <thead className="bg-gray-50 text-left text-xs text-gray-500">
             <tr>
               <th className="px-3 py-2">Produk</th>
+              <th className="px-3 py-2">Tipe</th>
               <th className="px-3 py-2">SKU</th>
               <th className="px-3 py-2">Barcode</th>
               <th className="px-3 py-2">Stok</th>
@@ -54,11 +56,20 @@ export default function MasterProdukPage() {
             {products.map((p) => (
               <tr key={p.id} className="border-t border-gray-100">
                 <td className="px-3 py-2 text-gray-900">{p.name}</td>
+                <td className="px-3 py-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    p.productType === "SERVICE" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-700"
+                  }`}>
+                    {p.productType === "SERVICE" ? "Layanan" : "Fisik"}
+                  </span>
+                </td>
                 <td className="px-3 py-2 text-gray-500">{p.sku}</td>
                 <td className="px-3 py-2 font-mono text-xs text-gray-500">
                   {p.barcodes.find((b) => b.status === "ACTIVE")?.barcodeValue ?? "-"}
                 </td>
-                <td className="px-3 py-2 text-gray-900">{Number(p.currentStock)}</td>
+                <td className="px-3 py-2 text-gray-900">
+                  {p.productType === "SERVICE" ? "-" : Number(p.currentStock)}
+                </td>
                 <td className="px-3 py-2 text-gray-500">
                   Rp{Number(p.sellingPrice).toLocaleString("id-ID")}
                 </td>

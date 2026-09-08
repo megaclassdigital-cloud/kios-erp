@@ -12,6 +12,9 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [productType, setProductType] = useState<"PHYSICAL" | "SERVICE">("PHYSICAL");
+  const [serviceType, setServiceType] = useState<"PULSA" | "TOKEN_LISTRIK">("PULSA");
+  const [serviceProvider, setServiceProvider] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [minimumStock, setMinimumStock] = useState("5");
@@ -36,6 +39,7 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
           ? { mode: "GENERATE_INTERNAL" as const, unit: "PCS" }
           : { mode: "NONE" as const };
 
+    const isService = productType === "SERVICE";
     const res = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -43,13 +47,15 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
         sku,
         name,
         categoryId: categoryId || undefined,
-        productType: "PHYSICAL",
-        baseUnit: "PCS",
+        productType,
+        serviceType: isService ? serviceType : undefined,
+        serviceProvider: isService ? serviceProvider || undefined : undefined,
+        baseUnit: isService ? "TRANSAKSI" : "PCS",
         purchasePrice,
         sellingPrice,
-        minimumStock: Number(minimumStock),
-        trackInventory: true,
-        initialStock,
+        minimumStock: isService ? 0 : Number(minimumStock),
+        trackInventory: !isService,
+        initialStock: isService ? undefined : initialStock,
         barcode,
       }),
     });
@@ -68,6 +74,7 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
     setSellingPrice("");
     setInitialStock("0");
     setScannedBarcode("");
+    setServiceProvider("");
     onCreated();
   }
 
@@ -75,6 +82,20 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
     <div className="grid gap-4 lg:grid-cols-3">
       <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 lg:col-span-2">
         <h2 className="text-sm font-semibold text-gray-900">Tambah Produk</h2>
+
+        <div className="flex gap-2 text-sm">
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={productType === "PHYSICAL"}
+              onChange={() => setProductType("PHYSICAL")} />
+            Barang Fisik
+          </label>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={productType === "SERVICE"}
+              onChange={() => setProductType("SERVICE")} />
+            Layanan (Pulsa/Token Listrik)
+          </label>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           <input placeholder="SKU" value={sku} onChange={(e) => setSku(e.target.value)} required
             className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
@@ -87,18 +108,35 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-          <input type="number" placeholder="Stok minimum" value={minimumStock}
-            onChange={(e) => setMinimumStock(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <input type="number" placeholder="Harga beli" value={purchasePrice}
+          {productType === "SERVICE" ? (
+            <>
+              <select value={serviceType} onChange={(e) => setServiceType(e.target.value as "PULSA" | "TOKEN_LISTRIK")}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+                <option value="PULSA">Pulsa</option>
+                <option value="TOKEN_LISTRIK">Token Listrik</option>
+              </select>
+              <input placeholder="Provider (mis. Telkomsel, PLN)" value={serviceProvider}
+                onChange={(e) => setServiceProvider(e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            </>
+          ) : (
+            <input type="number" placeholder="Stok minimum" value={minimumStock}
+              onChange={(e) => setMinimumStock(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          )}
+          <input type="number" placeholder={productType === "SERVICE" ? "Harga modal (beli ke provider)" : "Harga beli"}
+            value={purchasePrice}
             onChange={(e) => setPurchasePrice(e.target.value)} required
             className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <input type="number" placeholder="Harga jual" value={sellingPrice}
+          <input type="number" placeholder={productType === "SERVICE" ? "Harga jual (nominal + admin)" : "Harga jual"}
+            value={sellingPrice}
             onChange={(e) => setSellingPrice(e.target.value)} required
             className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <input type="number" placeholder="Stok awal" value={initialStock}
-            onChange={(e) => setInitialStock(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          {productType === "PHYSICAL" && (
+            <input type="number" placeholder="Stok awal" value={initialStock}
+              onChange={(e) => setInitialStock(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          )}
         </div>
 
         <div className="rounded-md border border-gray-200 p-3">

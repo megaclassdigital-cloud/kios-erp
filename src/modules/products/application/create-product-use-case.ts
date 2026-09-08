@@ -1,4 +1,4 @@
-import type { ProductType } from "@prisma/client";
+import type { ProductType, ServiceType } from "@prisma/client";
 import { TransactionManager } from "@/shared/infrastructure/transaction-manager";
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
 import { PrismaProductRepository } from "../infrastructure/prisma-product-repository";
@@ -13,6 +13,8 @@ export interface CreateProductRequest {
   description?: string;
   categoryId?: string;
   productType: ProductType;
+  serviceType?: ServiceType;
+  serviceProvider?: string;
   baseUnit: string;
   purchasePrice: string;
   sellingPrice: string;
@@ -34,6 +36,9 @@ export class CreateProductUseCase {
   constructor(private readonly txManager = new TransactionManager()) {}
 
   async execute(req: CreateProductRequest) {
+    if (req.productType === "SERVICE" && !req.serviceType) {
+      throw new Error("Jenis layanan (Pulsa/Token Listrik) wajib dipilih untuk produk layanan.");
+    }
     const barcodeDomain = new BarcodeDomainService();
 
     return this.txManager.run(async (tx) => {
@@ -53,6 +58,8 @@ export class CreateProductUseCase {
         description: req.description,
         categoryId: req.categoryId ?? null,
         productType: req.productType,
+        serviceType: req.productType === "SERVICE" ? req.serviceType : undefined,
+        serviceProvider: req.productType === "SERVICE" ? req.serviceProvider : undefined,
         baseUnit: req.baseUnit,
         purchasePrice: req.purchasePrice,
         sellingPrice: req.sellingPrice,

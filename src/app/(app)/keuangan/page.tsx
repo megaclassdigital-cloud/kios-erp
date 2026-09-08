@@ -1,5 +1,8 @@
 import { GetFinancialSummaryUseCase } from "@/modules/finance/application/get-financial-summary-use-case";
 import { prisma } from "@/shared/infrastructure/prisma";
+import { auth } from "@/shared/security/auth";
+import { hasPermission } from "@/shared/security/permissions";
+import { redirect } from "next/navigation";
 import { ExpenseForm } from "./expense-form";
 
 function formatRupiah(value: string) {
@@ -7,6 +10,11 @@ function formatRupiah(value: string) {
 }
 
 export default async function KeuanganPage() {
+  const session = await auth();
+  if (!session || !hasPermission(session.user.role, "finance.manage")) {
+    redirect("/dashboard");
+  }
+
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const now = new Date();
 

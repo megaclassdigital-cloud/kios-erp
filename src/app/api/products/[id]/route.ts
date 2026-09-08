@@ -12,6 +12,7 @@ const schema = z.object({
   sellingPrice: z.string().optional(),
   minimumStock: z.number().int().nonnegative().optional(),
   active: z.boolean().optional(),
+  serviceProvider: z.string().optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

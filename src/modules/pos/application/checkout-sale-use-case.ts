@@ -4,6 +4,7 @@ import { TransactionManager, type Db } from "@/shared/infrastructure/transaction
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
 import { DailyCounterRepository } from "@/shared/infrastructure/daily-counter-repository";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
+import type { ProductWithBarcodes } from "@/modules/products/repository/product-repository";
 import { PrismaInventoryRepository } from "@/modules/inventory/infrastructure/prisma-inventory-repository";
 import { PrismaSaleRepository } from "../infrastructure/prisma-sale-repository";
 import { PrismaPaymentRepository } from "../infrastructure/prisma-payment-repository";
@@ -15,9 +16,16 @@ import {
   ShiftNotOpenError,
 } from "../domain/checkout-domain-service";
 
+export interface ServiceDetailRequest {
+  phoneNumber?: string;
+  meterNumber?: string;
+  customerNumber?: string;
+}
+
 export interface CheckoutItemRequest {
   productId: string;
   quantity: string;
+  serviceDetail?: ServiceDetailRequest;
 }
 
 export interface CheckoutSaleRequest {
@@ -69,6 +77,12 @@ export class CheckoutSaleUseCase {
           if (!product || !product.active) {
             throw new Error(`Produk tidak ditemukan atau tidak aktif.`);
           }
+
+          const serviceDetail =
+            product.productType === "SERVICE"
+              ? buildServiceDetail(product, item.serviceDetail)
+              : undefined;
+
           return {
             productId: product.id,
             productName: product.name,
@@ -76,6 +90,7 @@ export class CheckoutSaleUseCase {
             unitPrice: new Decimal(product.sellingPrice.toString()),
             costPrice: new Decimal(product.purchasePrice.toString()),
             trackInventory: product.trackInventory,
+            serviceDetail,
           };
         })
       );
@@ -116,6 +131,7 @@ export class CheckoutSaleUseCase {
           unitPriceAtSale: line.unitPrice.toFixed(2),
           costPriceAtSale: line.costPrice.toFixed(2),
           subtotal: line.unitPrice.times(line.quantity).toFixed(2),
+          serviceDetail: line.serviceDetail,
         })),
       });
 
@@ -143,6 +159,35 @@ export class CheckoutSaleUseCase {
       return sales.findById(sale.id);
     });
   }
+}
+
+/** PRD 46: pulsa needs a phone number, token listrik needs a meter + customer
+ * number. Provider/nominal are snapshotted from the product, not user input,
+ * so the recorded amount always matches what was actually charged. */
+function buildServiceDetail(product: ProductWithBarcodes, input?: ServiceDetailRequest) {
+  if (!product.serviceType) {
+    throw new Error("Produk layanan belum memiliki jenis layanan (Pulsa/Token Listrik).");
+  }
+  if (product.serviceType === "PULSA") {
+    if (!input?.phoneNumber?.trim()) {
+      throw new Error("Nomor HP wajib diisi untuk transaksi pulsa.");
+    }
+  } else {
+    if (!input?.meterNumber?.trim()) {
+      throw new Error("Nomor meter wajib diisi untuk transaksi token listrik.");
+    }
+    if (!input?.customerNumber?.trim()) {
+      throw new Error("Nomor pelanggan wajib diisi untuk transaksi token listrik.");
+    }
+  }
+  return {
+    serviceType: product.serviceType,
+    provider: product.serviceProvider,
+    phoneNumber: input?.phoneNumber?.trim(),
+    meterNumber: input?.meterNumber?.trim(),
+    customerNumber: input?.customerNumber?.trim(),
+    nominal: product.sellingPrice.toString(),
+  };
 }
 
 export async function applyPaidStockEffects(

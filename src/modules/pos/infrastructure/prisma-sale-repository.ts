@@ -19,7 +19,12 @@ export class PrismaSaleRepository implements SaleRepository {
         changeAmount: input.changeAmount,
         status: input.status,
         paidAt: input.status === "PAID" ? new Date() : undefined,
-        items: { create: input.items },
+        items: {
+          create: input.items.map(({ serviceDetail, ...item }) => ({
+            ...item,
+            serviceDetail: serviceDetail ? { create: serviceDetail } : undefined,
+          })),
+        },
       },
     });
   }
@@ -34,7 +39,11 @@ export class PrismaSaleRepository implements SaleRepository {
   async findById(id: string): Promise<Sale | null> {
     return this.db.sale.findUnique({
       where: { id },
-      include: { items: true, payments: true },
+      include: {
+        items: { include: { serviceDetail: true } },
+        payments: true,
+        cashier: { select: { name: true } },
+      },
     });
   }
 
@@ -43,7 +52,10 @@ export class PrismaSaleRepository implements SaleRepository {
       where: cashierId ? { cashierId } : undefined,
       orderBy: { createdAt: "desc" },
       take: limit,
-      include: { items: true, cashier: true },
+      include: {
+        items: { include: { serviceDetail: true } },
+        cashier: { select: { name: true } },
+      },
     });
   }
 }

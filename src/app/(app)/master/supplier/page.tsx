@@ -9,12 +9,20 @@ interface Supplier {
   address: string | null;
 }
 
+interface EditState {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+}
+
 export default function SupplierPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EditState | null>(null);
 
   async function load() {
     const res = await fetch("/api/suppliers");
@@ -43,6 +51,33 @@ export default function SupplierPage() {
     setPhone("");
     setAddress("");
     load();
+  }
+
+  async function handleSaveEdit() {
+    if (!editing) return;
+    setError(null);
+    const res = await fetch(`/api/suppliers/${editing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: editing.name, phone: editing.phone, address: editing.address }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error ?? "Gagal mengubah supplier.");
+      return;
+    }
+    setEditing(null);
+    load();
+  }
+
+  async function handleDeactivate(id: string) {
+    if (!window.confirm("Nonaktifkan supplier ini? Data historis penerimaan barang tetap tersimpan.")) return;
+    const res = await fetch(`/api/suppliers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: false }),
+    });
+    if (res.ok) load();
   }
 
   return (
@@ -82,16 +117,75 @@ export default function SupplierPage() {
               <th className="px-3 py-2">Nama</th>
               <th className="px-3 py-2">Telepon</th>
               <th className="px-3 py-2">Alamat</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
-            {suppliers.map((s) => (
-              <tr key={s.id} className="border-t border-gray-100">
-                <td className="px-3 py-2 text-gray-900">{s.name}</td>
-                <td className="px-3 py-2 text-gray-500">{s.phone ?? "-"}</td>
-                <td className="px-3 py-2 text-gray-500">{s.address ?? "-"}</td>
+            {suppliers.map((s) =>
+              editing?.id === s.id ? (
+                <tr key={s.id} className="border-t border-gray-100 bg-blue-50/40">
+                  <td className="px-3 py-2">
+                    <input
+                      value={editing.name}
+                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      value={editing.phone}
+                      onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      value={editing.address}
+                      onChange={(e) => setEditing({ ...editing, address: e.target.value })}
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={handleSaveEdit} className="text-xs text-blue-600 hover:underline">
+                        Simpan
+                      </button>
+                      <button onClick={() => setEditing(null)} className="text-xs text-gray-500 hover:underline">
+                        Batal
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={s.id} className="border-t border-gray-100">
+                  <td className="px-3 py-2 text-gray-900">{s.name}</td>
+                  <td className="px-3 py-2 text-gray-500">{s.phone ?? "-"}</td>
+                  <td className="px-3 py-2 text-gray-500">{s.address ?? "-"}</td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() =>
+                          setEditing({ id: s.id, name: s.name, phone: s.phone ?? "", address: s.address ?? "" })
+                        }
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Ubah
+                      </button>
+                      <button onClick={() => handleDeactivate(s.id)} className="text-xs text-red-600 hover:underline">
+                        Nonaktifkan
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            )}
+            {suppliers.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-3 py-8 text-center text-gray-400">
+                  Belum ada supplier.
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

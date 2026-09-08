@@ -2,9 +2,44 @@ import { GetFinancialSummaryUseCase } from "@/modules/finance/application/get-fi
 import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
+import { resolvePeriod } from "../laporan/resolve-period";
+import { SalesTrendWidget } from "./sales-trend-widget";
+import { CashCashlessWidget } from "./cash-cashless-widget";
+import { ExpenseWidget } from "./expense-widget";
+import { TopProductsWidget } from "./top-products-widget";
 
 function formatRupiah(value: string) {
   return `Rp${Number(value).toLocaleString("id-ID")}`;
+}
+
+function dayLabel(d: Date) {
+  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit" });
+}
+
+function dayKey(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Fills every day in [start,end] with 0 so a quiet day still shows as a
+ * bar, not a gap (PRD 10: sales trend over 7/30 days). */
+function buildDailySeries(
+  start: Date,
+  end: Date,
+  sales: { paidAt: Date | null; grandTotal: unknown }[]
+) {
+  const totals = new Map<string, number>();
+  for (const sale of sales) {
+    if (!sale.paidAt) continue;
+    const key = dayKey(sale.paidAt);
+    totals.set(key, (totals.get(key) ?? 0) + Number(sale.grandTotal));
+  }
+  const series: { label: string; value: number }[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    series.push({ label: dayLabel(cursor), value: totals.get(dayKey(cursor)) ?? 0 });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return series;
 }
 
 function Kpi({ label, value }: { label: string; value: string }) {
@@ -16,33 +51,57 @@ function Kpi({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+}) {
   const session = await auth();
   const canMonitorShifts = session ? hasPermission(session.user.role, "shifts.monitor") : false;
   const startOfDay = new Date(new Date().setHours(0, 0, 0, 0));
   const now = new Date();
+  const trend = resolvePeriod(await searchParams);
 
-  const [summary, transactionCount, products, recentSales, openShifts] = await Promise.all([
-    new GetFinancialSummaryUseCase().execute(startOfDay, now),
-    prisma.sale.count({ where: { status: "PAID", paidAt: { gte: startOfDay, lte: now } } }),
-    prisma.product.findMany({
-      where: { active: true, trackInventory: true },
-      select: { id: true, name: true, currentStock: true, minimumStock: true },
-    }),
-    prisma.sale.findMany({
-      where: { status: "PAID" },
-      orderBy: { paidAt: "desc" },
-      take: 8,
-      select: { id: true, transactionNumber: true, grandTotal: true, paymentMethod: true, paidAt: true },
-    }),
-    canMonitorShifts
-      ? prisma.cashierShift.findMany({
-          where: { status: "OPEN" },
-          orderBy: { openedAt: "desc" },
-          include: { cashier: { select: { name: true } } },
-        })
-      : Promise.resolve([]),
-  ]);
+  const [summary, transactionCount, products, recentSales, openShifts, trendSales, expenseByCategory, topProductsToday] =
+    await Promise.all([
+      new GetFinancialSummaryUseCase().execute(startOfDay, now),
+      prisma.sale.count({ where: { status: "PAID", paidAt: { gte: startOfDay, lte: now } } }),
+      prisma.product.findMany({
+        where: { active: true, trackInventory: true },
+        select: { id: true, name: true, currentStock: true, minimumStock: true },
+      }),
+      prisma.sale.findMany({
+        where: { status: "PAID" },
+        orderBy: { paidAt: "desc" },
+        take: 8,
+        select: { id: true, transactionNumber: true, grandTotal: true, paymentMethod: true, paidAt: true },
+      }),
+      canMonitorShifts
+        ? prisma.cashierShift.findMany({
+            where: { status: "OPEN" },
+            orderBy: { openedAt: "desc" },
+            include: { cashier: { select: { name: true } } },
+          })
+        : Promise.resolve([]),
+      prisma.sale.findMany({
+        where: { status: "PAID", paidAt: { gte: trend.start, lte: trend.end } },
+        select: { paidAt: true, grandTotal: true },
+      }),
+      prisma.expense.groupBy({
+        by: ["category"],
+        where: { expenseDate: { gte: startOfDay, lte: now } },
+        _sum: { amount: true },
+      }),
+      prisma.saleItem.groupBy({
+        by: ["productId", "productNameSnapshot"],
+        where: { sale: { status: "PAID", paidAt: { gte: startOfDay, lte: now } } },
+        _sum: { quantity: true, subtotal: true },
+        orderBy: { _sum: { subtotal: "desc" } },
+        take: 5,
+      }),
+    ]);
+
+  const trendSeries = buildDailySeries(trend.start, trend.end, trendSales);
 
   const lowStock = products.filter(
     (p) => Number(p.currentStock) > 0 && Number(p.currentStock) <= p.minimumStock
@@ -62,6 +121,26 @@ export default async function DashboardPage() {
         <Kpi label="Laba Kotor" value={formatRupiah(summary.grossProfit.toFixed(2))} />
         <Kpi label="Stok Menipis" value={String(lowStock.length)} />
         <Kpi label="Stok Habis" value={String(outOfStock.length)} />
+      </div>
+
+      <SalesTrendWidget activePeriod={trend.key} series={trendSeries} />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <CashCashlessWidget cash={Number(summary.cash)} cashless={Number(summary.cashless)} />
+        <ExpenseWidget
+          items={expenseByCategory.map((e) => ({
+            category: e.category,
+            total: Number(e._sum.amount ?? 0),
+          }))}
+        />
+        <TopProductsWidget
+          items={topProductsToday.map((p) => ({
+            productId: p.productId,
+            name: p.productNameSnapshot,
+            qty: Number(p._sum.quantity ?? 0),
+            total: Number(p._sum.subtotal ?? 0),
+          }))}
+        />
       </div>
 
       {canMonitorShifts && (

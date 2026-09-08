@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { CartLine } from "./types";
+import { Receipt, type ReceiptSale } from "./receipt";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -25,6 +26,8 @@ export function PaymentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
+  const [completedSale, setCompletedSale] = useState<ReceiptSale | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const idempotencyKey = useState(() => crypto.randomUUID())[0];
   const change = Math.max(0, Number(cashReceived || 0) - grandTotal);
@@ -37,7 +40,11 @@ export function PaymentModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         shiftId,
-        items: cart.map((l) => ({ productId: l.productId, quantity: String(l.quantity) })),
+        items: cart.map((l) => ({
+          productId: l.productId,
+          quantity: String(l.quantity),
+          serviceDetail: l.serviceDetail,
+        })),
         paymentMethod: method,
         cashReceived: method === "CASH" ? cashReceived : undefined,
         idempotencyKey,
@@ -50,7 +57,8 @@ export function PaymentModal({
       return;
     }
     if (method === "CASH") {
-      onSuccess(`Transaksi ${data.sale.transactionNumber} berhasil.`);
+      setSuccessMessage(`Transaksi ${data.sale.transactionNumber} berhasil.`);
+      setCompletedSale(data.sale);
     } else {
       setPendingSaleId(data.sale.id);
     }
@@ -70,7 +78,17 @@ export function PaymentModal({
       setError(data.error ?? "Konfirmasi gagal.");
       return;
     }
-    onSuccess(`Pembayaran cashless untuk ${data.sale.transactionNumber} berhasil.`);
+    setSuccessMessage(`Pembayaran cashless untuk ${data.sale.transactionNumber} berhasil.`);
+    setCompletedSale(data.sale);
+  }
+
+  if (completedSale) {
+    return (
+      <Receipt
+        sale={completedSale}
+        onClose={() => onSuccess(successMessage ?? "Transaksi berhasil.")}
+      />
+    );
   }
 
   return (
