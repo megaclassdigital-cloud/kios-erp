@@ -10,13 +10,17 @@ interface VideoDevice {
 
 /**
  * Camera-based barcode scanner (PRD 71: "Camera Scanner jika browser
- * mendukung"). A browser can't detect a phone connected over USB as a
- * distinct device — what it CAN do is treat any camera the OS already
- * exposes as a video source (a built-in webcam, or a phone running
- * camera-mirroring software so Windows/macOS sees it as a webcam) as a
- * scanner. This lists those devices, lets the user pick one, and decodes
- * barcodes continuously from the live feed as an alternative input path
- * to the USB keyboard-emulating scanner — never a replacement for it.
+ * mendukung"). Uses whatever camera the OS/browser this page is running
+ * IN already exposes as a video source — the intended usage is opening
+ * Kios-ERP directly in the scanning device's own browser (e.g. a phone
+ * or tablet used as the kasir terminal), so that device's own camera is
+ * available natively, defaulting to the rear/environment-facing one.
+ * A desktop can only see an external phone's camera if that phone is
+ * running third-party mirroring software (DroidCam etc.) that exposes
+ * it to the OS as a regular webcam — there is no way for a browser to
+ * reach into another device's camera over USB/network on its own.
+ * Always an alternative input path alongside the USB keyboard-emulating
+ * scanner, never a replacement for it.
  */
 export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -48,7 +52,14 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
         // with a throwaway stream first so a phone connected via
         // mirroring software (or any other external camera) actually
         // shows up, instead of enumeration silently coming back empty.
-        const permissionStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Asking for facingMode "environment" here also tells us — via
+        // the resulting track's actual deviceId — which device the OS
+        // considers the rear/back camera, so barcode scanning defaults
+        // to that instead of the front-facing camera nobody can scan with.
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+        });
+        const rearDeviceId = permissionStream.getVideoTracks()[0]?.getSettings().deviceId;
         permissionStream.getTracks().forEach((track) => track.stop());
         if (cancelled) return;
 
@@ -64,8 +75,17 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
         }
         setDevices(videoDevices.map((d) => ({ deviceId: d.deviceId, label: d.label || "Kamera" })));
 
+        // Prefer, in order: the user's own last manual pick, the device
+        // the browser resolved facingMode "environment" to, a device
+        // whose label says "back"/"rear" (some browsers only expose that
+        // hint via the label, not via facingMode resolution), then
+        // whatever's first.
         const savedId = localStorage.getItem("kios-erp:camera-device-id");
-        const selected = videoDevices.find((d) => d.deviceId === savedId) ?? videoDevices[0];
+        const selected =
+          videoDevices.find((d) => d.deviceId === savedId) ??
+          videoDevices.find((d) => d.deviceId === rearDeviceId) ??
+          videoDevices.find((d) => /back|rear|environment/i.test(d.label)) ??
+          videoDevices[0];
         setDeviceId(selected.deviceId);
 
         if (!videoRef.current) return;
