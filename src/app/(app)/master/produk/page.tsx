@@ -12,7 +12,7 @@ interface ProductRow {
   sellingPrice: string;
   active: boolean;
   productType: "PHYSICAL" | "SERVICE";
-  barcodes: { barcodeValue: string; status: string }[];
+  barcodes: { barcodeValue: string; barcodeType: "CODE128" | "EAN13"; status: string }[];
 }
 
 interface Category {
@@ -23,7 +23,11 @@ interface Category {
 export default function MasterProdukPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [labelFor, setLabelFor] = useState<{ name: string; barcode: string } | null>(null);
+  const [labelFor, setLabelFor] = useState<{
+    name: string;
+    barcode: string;
+    barcodeType: "CODE128" | "EAN13";
+  } | null>(null);
 
   async function load() {
     const [pRes, cRes] = await Promise.all([fetch("/api/products"), fetch("/api/categories")]);
@@ -81,7 +85,13 @@ export default function MasterProdukPage() {
                     const activeBarcode = p.barcodes.find((b) => b.status === "ACTIVE");
                     return activeBarcode ? (
                       <button
-                        onClick={() => setLabelFor({ name: p.name, barcode: activeBarcode.barcodeValue })}
+                        onClick={() =>
+                          setLabelFor({
+                            name: p.name,
+                            barcode: activeBarcode.barcodeValue,
+                            barcodeType: activeBarcode.barcodeType,
+                          })
+                        }
                         className="text-xs text-blue-600 hover:underline"
                       >
                         Lihat Barcode
@@ -99,6 +109,7 @@ export default function MasterProdukPage() {
         <BarcodeLabelModal
           productName={labelFor.name}
           barcodeValue={labelFor.barcode}
+          barcodeType={labelFor.barcodeType}
           onClose={() => setLabelFor(null)}
         />
       )}

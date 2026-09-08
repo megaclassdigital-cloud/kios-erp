@@ -8,10 +8,12 @@ import { BarcodePreview } from "./barcode-preview";
 export function BarcodeLabelModal({
   productName,
   barcodeValue,
+  barcodeType,
   onClose,
 }: {
   productName: string;
   barcodeValue: string;
+  barcodeType: "CODE128" | "EAN13";
   onClose: () => void;
 }) {
   return (
@@ -20,10 +22,7 @@ export function BarcodeLabelModal({
         <div data-print-area className="text-center">
           <p className="mb-2 text-sm font-medium text-gray-900">{productName}</p>
           <div className="flex justify-center">
-            <BarcodePreview
-              value={barcodeValue}
-              format={barcodeValue.startsWith("KERP") ? "CODE128" : "EAN13"}
-            />
+            <BarcodePreview value={barcodeValue} format={barcodeType} />
           </div>
         </div>
         <div className="mt-4 flex gap-2 print:hidden">

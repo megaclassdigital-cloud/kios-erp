@@ -36,6 +36,22 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
 
     async function start() {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setError(
+            "Akses kamera butuh koneksi HTTPS (atau localhost). Buka halaman ini lewat alamat https://, bukan alamat jaringan lokal (http://192.168...)."
+          );
+          return;
+        }
+        // Browsers withhold device labels — and some (Firefox) return an
+        // empty list entirely — from enumerateDevices() until the origin
+        // has been granted camera permission at least once. Request it
+        // with a throwaway stream first so a phone connected via
+        // mirroring software (or any other external camera) actually
+        // shows up, instead of enumeration silently coming back empty.
+        const permissionStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        permissionStream.getTracks().forEach((track) => track.stop());
+        if (cancelled) return;
+
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         const reader = new BrowserMultiFormatReader();
         readerRef.current = reader;

@@ -23,7 +23,9 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
     "GENERATE_INTERNAL"
   );
   const [scannedBarcode, setScannedBarcode] = useState("");
-  const [previewBarcode, setPreviewBarcode] = useState<string | null>(null);
+  const [previewBarcode, setPreviewBarcode] = useState<{ value: string; type: "CODE128" | "EAN13" } | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -66,8 +68,10 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
       return;
     }
 
-    const newBarcode = data.product?.barcodes?.[0]?.barcodeValue ?? null;
-    setPreviewBarcode(newBarcode);
+    const createdBarcode = data.product?.barcodes?.[0];
+    setPreviewBarcode(
+      createdBarcode ? { value: createdBarcode.barcodeValue, type: createdBarcode.barcodeType } : null
+    );
     setSku("");
     setName("");
     setPurchasePrice("");
@@ -175,7 +179,7 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <h2 className="mb-2 text-sm font-semibold text-gray-900">Preview Barcode</h2>
         {previewBarcode ? (
-          <BarcodePreview value={previewBarcode} format={previewBarcode.startsWith("KERP") ? "CODE128" : "EAN13"} />
+          <BarcodePreview value={previewBarcode.value} format={previewBarcode.type} />
         ) : (
           <p className="text-sm text-gray-400">Simpan produk untuk melihat barcode.</p>
         )}

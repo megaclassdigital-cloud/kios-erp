@@ -32,3 +32,20 @@ export const INTERNAL_BARCODE_PREFIX = "KERP";
 export function formatInternalBarcode(sequence: bigint): string {
   return `${INTERNAL_BARCODE_PREFIX}${sequence.toString().padStart(12, "0")}`;
 }
+
+/** EAN13 requires exactly 13 digits with a valid check digit — most
+ * real-world manufacturer barcodes (UPC-A, Code128, non-standard local
+ * codes) don't qualify. Rendering those as EAN13 makes jsbarcode throw;
+ * detecting the real symbology up front lets the label render as CODE128
+ * instead, which can encode any value (PRD 71: barcode lookup/printing
+ * must not silently fail just because the input isn't EAN13-shaped). */
+export function isValidEan13(value: string): boolean {
+  if (!/^\d{13}$/.test(value)) return false;
+  const digits = value.split("").map(Number);
+  const checkDigit = digits[12];
+  const sum = digits
+    .slice(0, 12)
+    .reduce((acc, digit, i) => acc + digit * (i % 2 === 0 ? 1 : 3), 0);
+  const computed = (10 - (sum % 10)) % 10;
+  return computed === checkDigit;
+}

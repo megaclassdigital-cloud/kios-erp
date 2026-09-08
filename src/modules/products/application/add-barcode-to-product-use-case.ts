@@ -2,7 +2,7 @@ import { TransactionManager } from "@/shared/infrastructure/transaction-manager"
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
 import { PrismaBarcodeRepository } from "../infrastructure/prisma-barcode-repository";
 import { BarcodeDomainService } from "../domain/barcode-domain-service";
-import { BarcodeValue } from "@/shared/barcode/barcode-value";
+import { BarcodeValue, isValidEan13 } from "@/shared/barcode/barcode-value";
 
 export type AddBarcodeRequest =
   | { mode: "SCAN_EXISTING"; value: string; unit: string; conversionFactor?: string }
@@ -42,7 +42,7 @@ export class AddBarcodeToProductUseCase {
       const barcode = await barcodes.create({
         productId,
         barcodeValue: value,
-        barcodeType: source === "INTERNAL" ? "CODE128" : "EAN13",
+        barcodeType: source === "INTERNAL" ? "CODE128" : isValidEan13(value) ? "EAN13" : "CODE128",
         unit: req.unit,
         conversionFactor,
         source,

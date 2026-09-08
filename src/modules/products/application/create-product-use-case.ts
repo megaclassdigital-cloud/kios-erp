@@ -5,7 +5,7 @@ import { PrismaProductRepository } from "../infrastructure/prisma-product-reposi
 import { PrismaBarcodeRepository } from "../infrastructure/prisma-barcode-repository";
 import { PrismaInventoryRepository } from "@/modules/inventory/infrastructure/prisma-inventory-repository";
 import { BarcodeDomainService } from "../domain/barcode-domain-service";
-import { BarcodeValue } from "@/shared/barcode/barcode-value";
+import { BarcodeValue, isValidEan13 } from "@/shared/barcode/barcode-value";
 
 export interface CreateProductRequest {
   sku: string;
@@ -77,7 +77,7 @@ export class CreateProductUseCase {
         await barcodes.create({
           productId: product.id,
           barcodeValue: normalized,
-          barcodeType: "EAN13",
+          barcodeType: isValidEan13(normalized) ? "EAN13" : "CODE128",
           unit: req.barcode.unit,
           conversionFactor: req.barcode.conversionFactor ?? "1",
           source: "MANUFACTURER",
