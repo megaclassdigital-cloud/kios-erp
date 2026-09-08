@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
 import { CameraScanner } from "../../camera-scanner";
+import { DeviceScannerPairing } from "../../device-scanner-pairing";
 
 interface ProductRow {
   id: string;
@@ -69,6 +70,7 @@ export default function MasterProdukPage() {
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
         <CameraScanner onScan={(code) => setSearch(code)} />
+        <DeviceScannerPairing label="Cari Produk" onScan={(code) => setSearch(code)} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">

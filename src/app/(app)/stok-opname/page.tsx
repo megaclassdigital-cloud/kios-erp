@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CameraScanner } from "../camera-scanner";
+import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 
 interface Line {
@@ -124,6 +125,7 @@ export default function StokOpnamePage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Ketik kode lalu Enter" />
           </form>
           <CameraScanner onScan={processBarcode} />
+          <DeviceScannerPairing label="Stock Opname" onScan={processBarcode} />
           <BarcodeInputHint />
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
             <table className="w-full text-sm">

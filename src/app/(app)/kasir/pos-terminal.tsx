@@ -5,6 +5,7 @@ import type { CartLine, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { ServiceDetailModal } from "./service-detail-modal";
 import { CameraScanner } from "../camera-scanner";
+import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 
 function formatRupiah(value: number) {
@@ -153,6 +154,7 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
           />
         </form>
         <CameraScanner onScan={processBarcode} />
+        <DeviceScannerPairing label="Kasir" onScan={processBarcode} />
         <BarcodeInputHint />
         {scanError && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CameraScanner } from "../camera-scanner";
+import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 
 const MOVEMENT_LABEL: Record<string, string> = {
@@ -95,6 +96,7 @@ export function BarcodeAudit() {
         />
       </form>
       <CameraScanner onScan={processBarcode} />
+      <DeviceScannerPairing label="Cek Stok" onScan={processBarcode} />
       <BarcodeInputHint />
 
       {loading && <p className="text-sm text-gray-500">Memuat...</p>}

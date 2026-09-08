@@ -40,6 +40,7 @@ model User {
   approvedOpnames StockOpname[]      @relation("ApprovedBy")
   expenses        Expense[]
   auditLogs       AuditLog[]
+  scanSessions    ScanSession[]
 
   @@map("users")
 }
@@ -440,4 +441,39 @@ model DailyCounter {
 
   @@id([scope])
   @@map("daily_counters")
+}
+
+// ---------------------------------------------------------------------------
+// Device scanner pairing — a phone (or any second device) opens /scan/[code]
+// as a bare, chrome-less camera-only page and relays every decoded barcode
+// here; the desktop page that created the session polls for new events and
+// feeds them into the exact same onScan handler its own camera/USB input
+// already uses (PRD 71: camera scanner as an alternative input path).
+// ---------------------------------------------------------------------------
+
+model ScanSession {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  createdById String
+  createdBy   User        @relation(fields: [createdById], references: [id])
+  label       String?
+  createdAt   DateTime    @default(now())
+  expiresAt   DateTime
+  disconnectedAt DateTime?
+
+  events ScanEvent[]
+
+  @@index([code])
+  @@map("scan_sessions")
+}
+
+model ScanEvent {
+  id           String      @id @default(uuid())
+  sessionId    String
+  session      ScanSession @relation(fields: [sessionId], references: [id])
+  barcodeValue String
+  createdAt    DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("scan_events")
 }

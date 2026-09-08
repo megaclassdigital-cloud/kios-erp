@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CameraScanner } from "../camera-scanner";
+import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 
 interface Supplier {
@@ -143,6 +144,7 @@ export default function BarangMasukPage() {
         />
       </form>
       <CameraScanner onScan={processBarcode} />
+      <DeviceScannerPairing label="Barang Masuk" onScan={processBarcode} />
       <BarcodeInputHint />
 
       {error && (

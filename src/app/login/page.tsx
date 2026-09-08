@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,12 @@ export default function LoginPage() {
       setError("Username atau password salah.");
       return;
     }
-    router.push("/dashboard");
+    // Only ever follow a same-site relative path — a leading "//" would be
+    // protocol-relative and could redirect off-site.
+    const callbackUrl = searchParams.get("callbackUrl");
+    const destination =
+      callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/dashboard";
+    router.push(destination);
     router.refresh();
   }
 
@@ -66,5 +72,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
