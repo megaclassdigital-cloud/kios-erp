@@ -31,5 +31,9 @@ export function BarcodePreview({ value, format }: { value: string; format: "CODE
   if (failed) {
     return <p className="text-sm text-red-600">Barcode tidak dapat ditampilkan (nilai tidak valid).</p>;
   }
-  return <svg ref={ref} />;
+  // jsbarcode sets fixed pixel width/height attributes on the SVG — these
+  // CSS classes override that so the label scales down to fit whatever
+  // physical paper size the print modal has picked (a 58mm thermal label
+  // vs. a grid of labels on A4 are very different available widths).
+  return <svg ref={ref} className="h-auto max-w-full" />;
 }

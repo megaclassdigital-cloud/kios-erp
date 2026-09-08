@@ -26,6 +26,8 @@ export default function MasterProdukPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
   const [labelFor, setLabelFor] = useState<{
     name: string;
     barcode: string;
@@ -55,6 +57,24 @@ export default function MasterProdukPage() {
     load();
   }, []);
 
+  async function generateBarcode(product: ProductRow) {
+    setGeneratingId(product.id);
+    setGenError(null);
+    const res = await fetch(`/api/products/${product.id}/barcodes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "GENERATE_INTERNAL", unit: "PCS" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setGeneratingId(null);
+    if (!res.ok) {
+      setGenError(data.error ?? "Gagal membuat barcode.");
+      return;
+    }
+    await load();
+    setLabelFor({ name: product.name, barcode: data.barcode.barcodeValue, barcodeType: data.barcode.barcodeType });
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold text-gray-900">Master Produk</h1>
@@ -72,6 +92,8 @@ export default function MasterProdukPage() {
         <CameraScanner onScan={(code) => setSearch(code)} />
         <DeviceScannerPairing label="Cari Produk" onScan={(code) => setSearch(code)} />
       </div>
+
+      {genError && <p className="text-sm text-red-600">{genError}</p>}
 
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm">
@@ -117,20 +139,31 @@ export default function MasterProdukPage() {
                 <td className="px-3 py-2 text-right">
                   {(() => {
                     const activeBarcode = p.barcodes.find((b) => b.status === "ACTIVE");
-                    return activeBarcode ? (
+                    if (activeBarcode) {
+                      return (
+                        <button
+                          onClick={() =>
+                            setLabelFor({
+                              name: p.name,
+                              barcode: activeBarcode.barcodeValue,
+                              barcodeType: activeBarcode.barcodeType,
+                            })
+                          }
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Lihat Barcode
+                        </button>
+                      );
+                    }
+                    return (
                       <button
-                        onClick={() =>
-                          setLabelFor({
-                            name: p.name,
-                            barcode: activeBarcode.barcodeValue,
-                            barcodeType: activeBarcode.barcodeType,
-                          })
-                        }
-                        className="text-xs text-blue-600 hover:underline"
+                        onClick={() => generateBarcode(p)}
+                        disabled={generatingId === p.id}
+                        className="text-xs text-blue-600 hover:underline disabled:opacity-50"
                       >
-                        Lihat Barcode
+                        {generatingId === p.id ? "Membuat..." : "Buat Barcode"}
                       </button>
-                    ) : null;
+                    );
                   })()}
                 </td>
               </tr>
