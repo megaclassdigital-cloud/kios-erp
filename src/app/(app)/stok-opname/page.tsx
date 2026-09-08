@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CameraScanner } from "../camera-scanner";
 
 interface Line {
   productId: string;
@@ -40,6 +41,10 @@ export default function StokOpnamePage() {
     e.preventDefault();
     const raw = barcode;
     setBarcode("");
+    await processBarcode(raw);
+  }
+
+  async function processBarcode(raw: string) {
     if (!raw.trim()) return;
     const res = await fetch("/api/barcodes/resolve", {
       method: "POST",
@@ -117,6 +122,7 @@ export default function StokOpnamePage() {
             <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Scan barcode lalu Enter" />
           </form>
+          <CameraScanner onScan={processBarcode} />
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs text-gray-500">

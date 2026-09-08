@@ -16,27 +16,27 @@ async function hashPassword(password: string) {
 }
 
 async function main() {
-  const passwordHash = await hashPassword("password123");
+  const passwordHash = await hashPassword("pass123");
 
   const [owner, admin, kasir, staff] = await Promise.all([
     prisma.user.upsert({
       where: { username: "owner" },
-      update: {},
+      update: { passwordHash },
       create: { username: "owner", passwordHash, name: "Owner Toko", role: "OWNER" },
     }),
     prisma.user.upsert({
       where: { username: "admin" },
-      update: {},
+      update: { passwordHash },
       create: { username: "admin", passwordHash, name: "Admin Toko", role: "ADMIN" },
     }),
     prisma.user.upsert({
       where: { username: "kasir" },
-      update: {},
+      update: { passwordHash },
       create: { username: "kasir", passwordHash, name: "Kasir Toko", role: "KASIR" },
     }),
     prisma.user.upsert({
       where: { username: "staffstok" },
-      update: {},
+      update: { passwordHash },
       create: { username: "staffstok", passwordHash, name: "Staff Stok", role: "STAFF_STOK" },
     }),
   ]);

@@ -4,6 +4,7 @@ import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { redirect } from "next/navigation";
+import { BarcodeAudit } from "./barcode-audit";
 
 const STATUS_STYLE: Record<string, string> = {
   AMAN: "bg-green-100 text-green-700",
@@ -27,6 +28,7 @@ export default async function StokPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold text-gray-900">Stok Barang</h1>
+      <BarcodeAudit />
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs text-gray-500">

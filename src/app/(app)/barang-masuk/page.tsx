@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CameraScanner } from "../camera-scanner";
 
 interface Supplier {
   id: string;
@@ -33,6 +34,10 @@ export default function BarangMasukPage() {
     e.preventDefault();
     const raw = barcode;
     setBarcode("");
+    await processBarcode(raw);
+  }
+
+  async function processBarcode(raw: string) {
     if (!raw.trim()) return;
 
     const res = await fetch("/api/barcodes/resolve", {
@@ -136,6 +141,7 @@ export default function BarangMasukPage() {
           placeholder="Scan barcode lalu Enter"
         />
       </form>
+      <CameraScanner onScan={processBarcode} />
 
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>

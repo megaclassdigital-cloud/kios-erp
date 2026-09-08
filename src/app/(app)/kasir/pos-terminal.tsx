@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CartLine, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { ServiceDetailModal } from "./service-detail-modal";
+import { CameraScanner } from "../camera-scanner";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -34,6 +35,10 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
     e.preventDefault();
     const raw = barcode;
     setBarcode("");
+    await processBarcode(raw);
+  }
+
+  async function processBarcode(raw: string) {
     if (!raw.trim()) return;
 
     const res = await fetch("/api/barcodes/resolve", {
@@ -146,6 +151,7 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
             autoComplete="off"
           />
         </form>
+        <CameraScanner onScan={processBarcode} />
         {scanError && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {scanError}

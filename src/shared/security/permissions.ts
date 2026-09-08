@@ -60,7 +60,14 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "refund.manage",
     "shifts.monitor",
   ],
-  KASIR: ["dashboard.view", "pos.operate", "pos.shift", "transactions.view"],
+  KASIR: [
+    "dashboard.view",
+    "pos.operate",
+    "pos.shift",
+    "transactions.view",
+    "inventory.view",
+    "receiving.manage",
+  ],
   STAFF_STOK: [
     "dashboard.view",
     "inventory.view",
