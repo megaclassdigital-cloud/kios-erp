@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
+import { CameraScanner } from "../../camera-scanner";
 
 interface ProductRow {
   id: string;
@@ -23,11 +24,23 @@ interface Category {
 export default function MasterProdukPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [search, setSearch] = useState("");
   const [labelFor, setLabelFor] = useState<{
     name: string;
     barcode: string;
     barcodeType: "CODE128" | "EAN13";
   } | null>(null);
+
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        p.barcodes.some((b) => b.barcodeValue.toLowerCase().includes(q))
+    );
+  }, [products, search]);
 
   async function load() {
     const [pRes, cRes] = await Promise.all([fetch("/api/products"), fetch("/api/categories")]);
@@ -46,6 +59,18 @@ export default function MasterProdukPage() {
       <h1 className="text-lg font-semibold text-gray-900">Master Produk</h1>
       <ProductForm categories={categories} onCreated={load} />
 
+      <div className="rounded-lg border border-gray-200 bg-white p-3">
+        <label className="mb-1 block text-xs font-medium text-gray-500">CARI PRODUK</label>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Nama, SKU, atau ketik kode barcode..."
+          autoComplete="off"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        />
+        <CameraScanner onScan={(code) => setSearch(code)} />
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs text-gray-500">
@@ -60,7 +85,14 @@ export default function MasterProdukPage() {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
+            {filteredProducts.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-gray-400">
+                  {products.length === 0 ? "Belum ada produk." : "Tidak ada produk yang cocok."}
+                </td>
+              </tr>
+            )}
+            {filteredProducts.map((p) => (
               <tr key={p.id} className="border-t border-gray-100">
                 <td className="px-3 py-2 text-gray-900">{p.name}</td>
                 <td className="px-3 py-2">

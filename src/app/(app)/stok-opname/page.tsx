@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CameraScanner } from "../camera-scanner";
+import { BarcodeInputHint } from "../barcode-input-hint";
 
 interface Line {
   productId: string;
@@ -120,9 +121,10 @@ export default function StokOpnamePage() {
           <form onSubmit={handleScan} className="rounded-lg border border-gray-200 bg-white p-3">
             <label className="mb-1 block text-xs font-medium text-gray-500">SCAN PRODUK</label>
             <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Scan barcode lalu Enter" />
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Ketik kode lalu Enter" />
           </form>
           <CameraScanner onScan={processBarcode} />
+          <BarcodeInputHint />
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs text-gray-500">

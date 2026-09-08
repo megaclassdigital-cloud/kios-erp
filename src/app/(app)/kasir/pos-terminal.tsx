@@ -5,6 +5,7 @@ import type { CartLine, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { ServiceDetailModal } from "./service-detail-modal";
 import { CameraScanner } from "../camera-scanner";
+import { BarcodeInputHint } from "../barcode-input-hint";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -147,11 +148,12 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg tracking-wide focus:border-blue-500 focus:outline-none"
-            placeholder="Ketuk/scan barcode lalu Enter"
+            placeholder="Ketik kode lalu Enter"
             autoComplete="off"
           />
         </form>
         <CameraScanner onScan={processBarcode} />
+        <BarcodeInputHint />
         {scanError && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {scanError}

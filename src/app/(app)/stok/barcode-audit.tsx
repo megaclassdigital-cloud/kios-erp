@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CameraScanner } from "../camera-scanner";
+import { BarcodeInputHint } from "../barcode-input-hint";
 
 const MOVEMENT_LABEL: Record<string, string> = {
   PURCHASE: "Barang Masuk",
@@ -54,6 +56,10 @@ export function BarcodeAudit() {
     e.preventDefault();
     const raw = barcode;
     setBarcode("");
+    await processBarcode(raw);
+  }
+
+  async function processBarcode(raw: string) {
     if (!raw.trim()) return;
 
     setLoading(true);
@@ -83,11 +89,13 @@ export function BarcodeAudit() {
           ref={inputRef}
           value={barcode}
           onChange={(e) => setBarcode(e.target.value)}
-          placeholder="Scan atau ketik barcode..."
+          placeholder="Ketik kode lalu Enter"
           autoComplete="off"
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm tracking-wide focus:border-blue-500 focus:outline-none"
         />
       </form>
+      <CameraScanner onScan={processBarcode} />
+      <BarcodeInputHint />
 
       {loading && <p className="text-sm text-gray-500">Memuat...</p>}
       {error && (

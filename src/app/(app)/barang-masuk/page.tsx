@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CameraScanner } from "../camera-scanner";
+import { BarcodeInputHint } from "../barcode-input-hint";
 
 interface Supplier {
   id: string;
@@ -138,10 +139,11 @@ export default function BarangMasukPage() {
           onChange={(e) => setBarcode(e.target.value)}
           autoFocus
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg focus:border-blue-500 focus:outline-none"
-          placeholder="Scan barcode lalu Enter"
+          placeholder="Ketik kode lalu Enter"
         />
       </form>
       <CameraScanner onScan={processBarcode} />
+      <BarcodeInputHint />
 
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
