@@ -94,7 +94,7 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
         <button
           type="button"
           onClick={connect}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
         >
           Hubungkan Perangkat Lain
         </button>
@@ -121,7 +121,7 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
           <p className="mt-1 text-xs text-gray-400">{scanCount} kode diterima dari perangkat ini</p>
           <button
             onClick={disconnect}
-            className="mt-2 rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            className="mt-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             Putuskan
           </button>

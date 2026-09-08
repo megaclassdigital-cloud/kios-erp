@@ -201,14 +201,14 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => updateQty(line.lineId, -1)}
-                          className="h-6 w-6 rounded border border-gray-300 text-gray-600"
+                          className="h-9 w-9 shrink-0 rounded border border-gray-300 text-gray-600"
                         >
                           −
                         </button>
                         <span className="w-6 text-center">{line.quantity}</span>
                         <button
                           onClick={() => updateQty(line.lineId, 1)}
-                          className="h-6 w-6 rounded border border-gray-300 text-gray-600"
+                          className="h-9 w-9 shrink-0 rounded border border-gray-300 text-gray-600"
                         >
                           +
                         </button>

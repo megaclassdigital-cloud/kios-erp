@@ -92,6 +92,7 @@ export function TransactionDetailButton({ saleId }: { saleId: string }) {
                   <p>Status: {data.sale.status}</p>
                 </div>
 
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="text-left text-xs text-gray-500">
                     <tr>
@@ -123,6 +124,7 @@ export function TransactionDetailButton({ saleId }: { saleId: string }) {
                     ))}
                   </tbody>
                 </table>
+                </div>
 
                 <div className="flex justify-between border-t border-gray-100 pt-2 font-semibold text-gray-900">
                   <span>Grand Total</span>

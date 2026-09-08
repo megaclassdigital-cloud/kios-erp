@@ -38,7 +38,7 @@ export function PeriodSelector({
           </a>
         );
       })}
-      <form method="get" action={basePath} className="flex items-center gap-1.5">
+      <form method="get" action={basePath} className="flex min-w-0 flex-wrap items-center gap-1.5">
         {Object.entries(Object.fromEntries(qs)).map(([k, v]) => (
           <input key={k} type="hidden" name={k} value={v} />
         ))}

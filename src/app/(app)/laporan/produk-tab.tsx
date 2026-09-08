@@ -17,24 +17,26 @@ function ProductTable({
       {rows.length === 0 ? (
         <p className="text-sm text-gray-500">Belum ada data penjualan pada periode ini.</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-gray-500">
-            <tr>
-              <th className="py-1">Produk</th>
-              <th className="py-1">Qty</th>
-              <th className="py-1">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.productId} className="border-t border-gray-100">
-                <td className="py-1.5 text-gray-900">{r.productNameSnapshot}</td>
-                <td className="py-1.5 text-gray-500">{r.qty}</td>
-                <td className="py-1.5 font-medium text-gray-900">{formatRupiah(r.total)}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-gray-500">
+              <tr>
+                <th className="py-1">Produk</th>
+                <th className="py-1">Qty</th>
+                <th className="py-1">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.productId} className="border-t border-gray-100">
+                  <td className="whitespace-nowrap py-1.5 text-gray-900">{r.productNameSnapshot}</td>
+                  <td className="py-1.5 text-gray-500">{r.qty}</td>
+                  <td className="py-1.5 font-medium text-gray-900">{formatRupiah(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

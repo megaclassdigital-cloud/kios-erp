@@ -69,7 +69,7 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
         {movements.length === 0 ? (
           <p className="text-sm text-gray-500">Tidak ada mutasi stok pada periode ini.</p>
         ) : (
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white text-left text-xs text-gray-500">
                 <tr>
@@ -82,9 +82,9 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
               <tbody>
                 {movements.map((m) => (
                   <tr key={m.id} className="border-t border-gray-100">
-                    <td className="py-1.5 text-gray-500">{m.createdAt.toLocaleString("id-ID")}</td>
-                    <td className="py-1.5 text-gray-900">{m.product.name}</td>
-                    <td className="py-1.5 text-gray-500">{MOVEMENT_LABEL[m.movementType] ?? m.movementType}</td>
+                    <td className="whitespace-nowrap py-1.5 text-gray-500">{m.createdAt.toLocaleString("id-ID")}</td>
+                    <td className="whitespace-nowrap py-1.5 text-gray-900">{m.product.name}</td>
+                    <td className="whitespace-nowrap py-1.5 text-gray-500">{MOVEMENT_LABEL[m.movementType] ?? m.movementType}</td>
                     <td
                       className={`py-1.5 font-medium ${
                         Number(m.quantity) < 0 ? "text-red-600" : "text-green-700"
@@ -106,6 +106,7 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
         {opnameItems.length === 0 ? (
           <p className="text-sm text-gray-500">Tidak ada selisih stock opname pada periode ini.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-gray-500">
               <tr>
@@ -119,8 +120,8 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
             <tbody>
               {opnameItems.map((o) => (
                 <tr key={o.id} className="border-t border-gray-100">
-                  <td className="py-1.5 font-mono text-xs text-gray-500">{o.stockOpname.opnameNumber}</td>
-                  <td className="py-1.5 text-gray-900">{o.product.name}</td>
+                  <td className="whitespace-nowrap py-1.5 font-mono text-xs text-gray-500">{o.stockOpname.opnameNumber}</td>
+                  <td className="whitespace-nowrap py-1.5 text-gray-900">{o.product.name}</td>
                   <td className="py-1.5 text-gray-500">{Number(o.systemQty)}</td>
                   <td className="py-1.5 text-gray-500">{Number(o.physicalQty)}</td>
                   <td
@@ -135,6 +136,7 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

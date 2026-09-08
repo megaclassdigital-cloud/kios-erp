@@ -87,7 +87,7 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
       <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 lg:col-span-2">
         <h2 className="text-sm font-semibold text-gray-900">Tambah Produk</h2>
 
-        <div className="flex gap-2 text-sm">
+        <div className="flex flex-wrap gap-2 text-sm">
           <label className="flex items-center gap-1">
             <input type="radio" checked={productType === "PHYSICAL"}
               onChange={() => setProductType("PHYSICAL")} />
@@ -145,7 +145,7 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
 
         <div className="rounded-md border border-gray-200 p-3">
           <p className="mb-2 text-xs font-medium text-gray-500">BARCODE</p>
-          <div className="mb-2 flex gap-2 text-sm">
+          <div className="mb-2 flex flex-wrap gap-2 text-sm">
             <label className="flex items-center gap-1">
               <input type="radio" checked={barcodeMode === "GENERATE_INTERNAL"}
                 onChange={() => setBarcodeMode("GENERATE_INTERNAL")} />

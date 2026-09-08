@@ -35,26 +35,28 @@ export async function KasirTab({ start, end }: { start: Date; end: Date }) {
         {perCashier.length === 0 ? (
           <p className="text-sm text-gray-500">Belum ada transaksi pada periode ini.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500">
-              <tr>
-                <th className="py-1">Kasir</th>
-                <th className="py-1">Jumlah Transaksi</th>
-                <th className="py-1">Revenue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {perCashier.map((c) => (
-                <tr key={c.cashierId} className="border-t border-gray-100">
-                  <td className="py-1.5 text-gray-900">{nameById.get(c.cashierId) ?? "-"}</td>
-                  <td className="py-1.5 text-gray-500">{c._count.id}</td>
-                  <td className="py-1.5 font-medium text-gray-900">
-                    {formatRupiah(c._sum.grandTotal?.toString() ?? "0")}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-gray-500">
+                <tr>
+                  <th className="py-1">Kasir</th>
+                  <th className="py-1">Jumlah Transaksi</th>
+                  <th className="py-1">Revenue</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {perCashier.map((c) => (
+                  <tr key={c.cashierId} className="border-t border-gray-100">
+                    <td className="whitespace-nowrap py-1.5 text-gray-900">{nameById.get(c.cashierId) ?? "-"}</td>
+                    <td className="py-1.5 text-gray-500">{c._count.id}</td>
+                    <td className="whitespace-nowrap py-1.5 font-medium text-gray-900">
+                      {formatRupiah(c._sum.grandTotal?.toString() ?? "0")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -63,34 +65,36 @@ export async function KasirTab({ start, end }: { start: Date; end: Date }) {
         {shifts.length === 0 ? (
           <p className="text-sm text-gray-500">Tidak ada shift yang ditutup pada periode ini.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500">
-              <tr>
-                <th className="py-1">Kasir</th>
-                <th className="py-1">Ditutup</th>
-                <th className="py-1">Kas Diharapkan</th>
-                <th className="py-1">Kas Aktual</th>
-                <th className="py-1">Selisih</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shifts.map((s) => (
-                <tr key={s.id} className="border-t border-gray-100">
-                  <td className="py-1.5 text-gray-900">{s.cashier.name}</td>
-                  <td className="py-1.5 text-gray-500">{s.closedAt?.toLocaleString("id-ID")}</td>
-                  <td className="py-1.5 text-gray-500">{formatRupiah(s.expectedCash?.toString() ?? "0")}</td>
-                  <td className="py-1.5 text-gray-500">{formatRupiah(s.actualCash?.toString() ?? "0")}</td>
-                  <td
-                    className={`py-1.5 font-medium ${
-                      Number(s.difference ?? 0) < 0 ? "text-red-600" : "text-green-700"
-                    }`}
-                  >
-                    {formatRupiah(s.difference?.toString() ?? "0")}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-gray-500">
+                <tr>
+                  <th className="py-1">Kasir</th>
+                  <th className="py-1">Ditutup</th>
+                  <th className="py-1">Kas Diharapkan</th>
+                  <th className="py-1">Kas Aktual</th>
+                  <th className="py-1">Selisih</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {shifts.map((s) => (
+                  <tr key={s.id} className="border-t border-gray-100">
+                    <td className="whitespace-nowrap py-1.5 text-gray-900">{s.cashier.name}</td>
+                    <td className="whitespace-nowrap py-1.5 text-gray-500">{s.closedAt?.toLocaleString("id-ID")}</td>
+                    <td className="whitespace-nowrap py-1.5 text-gray-500">{formatRupiah(s.expectedCash?.toString() ?? "0")}</td>
+                    <td className="whitespace-nowrap py-1.5 text-gray-500">{formatRupiah(s.actualCash?.toString() ?? "0")}</td>
+                    <td
+                      className={`whitespace-nowrap py-1.5 font-medium ${
+                        Number(s.difference ?? 0) < 0 ? "text-red-600" : "text-green-700"
+                      }`}
+                    >
+                      {formatRupiah(s.difference?.toString() ?? "0")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
