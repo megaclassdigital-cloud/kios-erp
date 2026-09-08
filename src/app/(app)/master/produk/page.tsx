@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ProductForm } from "./product-form";
+import { BarcodeLabelModal } from "./barcode-label-modal";
 
 interface ProductRow {
   id: string;
@@ -22,6 +23,7 @@ interface Category {
 export default function MasterProdukPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [labelFor, setLabelFor] = useState<{ name: string; barcode: string } | null>(null);
 
   async function load() {
     const [pRes, cRes] = await Promise.all([fetch("/api/products"), fetch("/api/categories")]);
@@ -50,6 +52,7 @@ export default function MasterProdukPage() {
               <th className="px-3 py-2">Barcode</th>
               <th className="px-3 py-2">Stok</th>
               <th className="px-3 py-2">Harga Jual</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -73,11 +76,32 @@ export default function MasterProdukPage() {
                 <td className="px-3 py-2 text-gray-500">
                   Rp{Number(p.sellingPrice).toLocaleString("id-ID")}
                 </td>
+                <td className="px-3 py-2 text-right">
+                  {(() => {
+                    const activeBarcode = p.barcodes.find((b) => b.status === "ACTIVE");
+                    return activeBarcode ? (
+                      <button
+                        onClick={() => setLabelFor({ name: p.name, barcode: activeBarcode.barcodeValue })}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Lihat Barcode
+                      </button>
+                    ) : null;
+                  })()}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {labelFor && (
+        <BarcodeLabelModal
+          productName={labelFor.name}
+          barcodeValue={labelFor.barcode}
+          onClose={() => setLabelFor(null)}
+        />
+      )}
     </div>
   );
 }

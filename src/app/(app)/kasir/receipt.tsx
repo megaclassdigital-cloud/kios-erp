@@ -38,7 +38,7 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4 print:static print:bg-transparent print:p-0">
       <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-lg bg-white shadow-xl print:max-h-none print:overflow-visible print:rounded-none print:shadow-none">
-        <div id="receipt-print" className="p-5 font-mono text-xs text-gray-900">
+        <div data-print-area className="p-5 font-mono text-xs text-gray-900">
           <p className="text-center text-sm font-semibold">Kios-ERP</p>
           <p className="text-center text-[11px] text-gray-500">Struk Transaksi</p>
           <div className="my-2 border-t border-dashed border-gray-300" />
