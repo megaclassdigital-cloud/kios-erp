@@ -93,10 +93,10 @@ export function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Pembayaran</h2>
-        <p className="mb-4 text-sm text-gray-600">
-          Total: <span className="font-semibold text-gray-900">{formatRupiah(grandTotal)}</span>
+      <div className="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Pembayaran</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Total: <span className="font-semibold text-foreground tabular-nums">{formatRupiah(grandTotal)}</span>
         </p>
 
         {!pendingSaleId && (
@@ -108,8 +108,8 @@ export function PaymentModal({
                   onClick={() => setMethod(m)}
                   className={`flex-1 rounded-md border py-2 text-sm font-medium ${
                     method === m
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-gray-300 text-gray-600"
+                      ? "border-primary bg-primary-soft text-primary"
+                      : "border-border text-muted-foreground"
                   }`}
                 >
                   {m === "CASH" ? "Cash" : "Cashless"}
@@ -119,33 +119,33 @@ export function PaymentModal({
 
             {method === "CASH" && (
               <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium text-gray-700">Uang Diterima</label>
+                <label className="mb-1 block text-sm font-medium text-foreground">Uang Diterima</label>
                 <input
                   type="number"
                   value={cashReceived}
                   onChange={(e) => setCashReceived(e.target.value)}
                   autoFocus
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
                 />
-                <p className="mt-2 text-sm text-gray-600">
-                  Kembalian: <span className="font-medium text-gray-900">{formatRupiah(change)}</span>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Kembalian: <span className="font-medium text-foreground tabular-nums">{formatRupiah(change)}</span>
                 </p>
               </div>
             )}
 
-            {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+            {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700"
+                className="flex-1 rounded-md border border-border py-2 text-sm font-medium text-foreground"
               >
                 Batal
               </button>
               <button
                 onClick={submitCheckout}
                 disabled={loading || (method === "CASH" && Number(cashReceived || 0) < grandTotal)}
-                className="flex-1 rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
               >
                 {loading ? "Memproses..." : "Konfirmasi"}
               </button>
@@ -155,20 +155,20 @@ export function PaymentModal({
 
         {pendingSaleId && (
           <div className="space-y-3">
-            <p className="text-sm text-amber-700">
+            <p className="text-sm text-warning-foreground">
               Menunggu konfirmasi pembayaran dari penyedia cashless (QRIS/Transfer/EDC).
             </p>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <button
               onClick={confirmCashless}
               disabled={loading}
-              className="w-full rounded-md bg-green-600 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              className="w-full rounded-md bg-success py-2 text-sm font-medium text-success-foreground hover:bg-success/90 disabled:opacity-50"
             >
               {loading ? "Memproses..." : "Simulasikan Pembayaran Diterima"}
             </button>
             <button
               onClick={onClose}
-              className="w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700"
+              className="w-full rounded-md border border-border py-2 text-sm font-medium text-foreground"
             >
               Tutup
             </button>

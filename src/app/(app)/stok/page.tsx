@@ -4,12 +4,14 @@ import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/kios/page-header";
+import { StatusBadge } from "@/components/kios/status-badge";
 import { BarcodeAudit } from "./barcode-audit";
 
-const STATUS_STYLE: Record<string, string> = {
-  AMAN: "bg-green-100 text-green-700",
-  MENIPIS: "bg-amber-100 text-amber-700",
-  HABIS: "bg-red-100 text-red-700",
+const STATUS_TONE: Record<string, "success" | "warning" | "destructive"> = {
+  AMAN: "success",
+  MENIPIS: "warning",
+  HABIS: "destructive",
 };
 
 export default async function StokPage() {
@@ -27,11 +29,11 @@ export default async function StokPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-gray-900">Stok Barang</h1>
+      <PageHeader title="Stok Barang" />
       <BarcodeAudit />
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-xs text-gray-500">
+          <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Produk</th>
               <th className="px-3 py-2">Barcode</th>
@@ -46,21 +48,19 @@ export default async function StokPage() {
             {products.map((p) => {
               const status = inventoryService.classifyStock(Number(p.currentStock), p.minimumStock);
               return (
-                <tr key={p.id} className="border-t border-gray-100">
-                  <td className="px-3 py-2 text-gray-900">{p.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-500">
+                <tr key={p.id} className="border-t border-border">
+                  <td className="px-3 py-2 text-foreground">{p.name}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                     {p.barcodes.find((b) => b.status === "ACTIVE")?.barcodeValue ?? "-"}
                   </td>
-                  <td className="px-3 py-2 text-gray-500">{p.sku}</td>
-                  <td className="px-3 py-2 text-gray-900">{Number(p.currentStock)}</td>
-                  <td className="px-3 py-2 text-gray-500">{p.minimumStock}</td>
-                  <td className="px-3 py-2 text-gray-500">
+                  <td className="px-3 py-2 text-muted-foreground">{p.sku}</td>
+                  <td className="px-3 py-2 text-foreground tabular-nums">{Number(p.currentStock)}</td>
+                  <td className="px-3 py-2 text-muted-foreground tabular-nums">{p.minimumStock}</td>
+                  <td className="px-3 py-2 text-muted-foreground tabular-nums">
                     Rp{Number(p.sellingPrice).toLocaleString("id-ID")}
                   </td>
                   <td className="px-3 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>
-                      {status}
-                    </span>
+                    <StatusBadge tone={STATUS_TONE[status]}>{status}</StatusBadge>
                   </td>
                 </tr>
               );

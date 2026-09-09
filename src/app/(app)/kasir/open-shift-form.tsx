@@ -25,22 +25,22 @@ export function OpenShiftForm({ onOpened }: { onOpened: () => void }) {
   }
 
   return (
-    <div className="mx-auto mt-16 max-w-sm rounded-lg border border-gray-200 bg-white p-6">
-      <h2 className="mb-1 text-base font-semibold text-gray-900">Buka Shift Kasir</h2>
-      <p className="mb-4 text-sm text-gray-500">Masukkan modal kas awal untuk memulai.</p>
-      <label className="mb-1 block text-sm font-medium text-gray-700">Modal Kas Awal</label>
+    <div className="mx-auto mt-16 max-w-sm rounded-xl border border-border bg-card p-6 shadow-sm">
+      <h2 className="mb-1 text-base font-semibold text-foreground">Buka Shift Kasir</h2>
+      <p className="mb-4 text-sm text-muted-foreground">Masukkan modal kas awal untuk memulai.</p>
+      <label className="mb-1 block text-sm font-medium text-foreground">Modal Kas Awal</label>
       <input
         type="number"
         min={0}
         value={openingCash}
         onChange={(e) => setOpeningCash(e.target.value)}
-        className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="mb-3 w-full rounded-md border border-input px-3 py-2 text-sm"
       />
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
       <button
         onClick={handleOpen}
         disabled={loading}
-        className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="w-full rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
         {loading ? "Membuka..." : "Buka Shift"}
       </button>

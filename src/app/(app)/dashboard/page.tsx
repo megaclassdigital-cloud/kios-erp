@@ -1,7 +1,11 @@
+import { Wallet, Receipt, Banknote, CreditCard, TrendingDown, PiggyBank, PackageMinus, PackageX } from "lucide-react";
 import { GetFinancialSummaryUseCase } from "@/modules/finance/application/get-financial-summary-use-case";
 import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
+import { PageHeader } from "@/components/kios/page-header";
+import { KpiCard } from "@/components/kios/kpi-card";
+import { EmptyState } from "@/components/kios/empty-state";
 import { resolvePeriod } from "../laporan/resolve-period";
 import { SalesTrendWidget } from "./sales-trend-widget";
 import { CashCashlessWidget } from "./cash-cashless-widget";
@@ -40,15 +44,6 @@ function buildDailySeries(
     cursor.setDate(cursor.getDate() + 1);
   }
   return series;
-}
-
-function Kpi({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-gray-900">{value}</p>
-    </div>
-  );
 }
 
 export default async function DashboardPage({
@@ -110,17 +105,17 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
+      <PageHeader title="Dashboard" />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi label="Penjualan Hari Ini" value={formatRupiah(summary.revenue.toFixed(2))} />
-        <Kpi label="Transaksi Hari Ini" value={String(transactionCount)} />
-        <Kpi label="Cash Hari Ini" value={formatRupiah(summary.cash.toFixed(2))} />
-        <Kpi label="Cashless Hari Ini" value={formatRupiah(summary.cashless.toFixed(2))} />
-        <Kpi label="Pengeluaran Hari Ini" value={formatRupiah(summary.expense.toFixed(2))} />
-        <Kpi label="Laba Kotor" value={formatRupiah(summary.grossProfit.toFixed(2))} />
-        <Kpi label="Stok Menipis" value={String(lowStock.length)} />
-        <Kpi label="Stok Habis" value={String(outOfStock.length)} />
+        <KpiCard label="Penjualan Hari Ini" value={formatRupiah(summary.revenue.toFixed(2))} icon={Wallet} />
+        <KpiCard label="Transaksi Hari Ini" value={String(transactionCount)} icon={Receipt} />
+        <KpiCard label="Cash Hari Ini" value={formatRupiah(summary.cash.toFixed(2))} icon={Banknote} tone="success" />
+        <KpiCard label="Cashless Hari Ini" value={formatRupiah(summary.cashless.toFixed(2))} icon={CreditCard} tone="info" />
+        <KpiCard label="Pengeluaran Hari Ini" value={formatRupiah(summary.expense.toFixed(2))} icon={TrendingDown} tone="warning" />
+        <KpiCard label="Laba Kotor" value={formatRupiah(summary.grossProfit.toFixed(2))} icon={PiggyBank} tone="success" />
+        <KpiCard label="Stok Menipis" value={String(lowStock.length)} icon={PackageMinus} tone="warning" />
+        <KpiCard label="Stok Habis" value={String(outOfStock.length)} icon={PackageX} tone="destructive" />
       </div>
 
       <SalesTrendWidget activePeriod={trend.key} series={trendSeries} />
@@ -144,16 +139,16 @@ export default async function DashboardPage({
       </div>
 
       {canMonitorShifts && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">Shift Kasir Aktif (Monitoring)</h2>
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Shift Kasir Aktif (Monitoring)</h2>
           {openShifts.length === 0 ? (
-            <p className="text-sm text-gray-500">Tidak ada shift kasir yang sedang berjalan.</p>
+            <EmptyState title="Tidak ada shift kasir yang sedang berjalan." />
           ) : (
             <ul className="space-y-2 text-sm">
               {openShifts.map((shift) => (
                 <li key={shift.id} className="flex justify-between">
-                  <span className="text-gray-700">{shift.cashier.name}</span>
-                  <span className="text-gray-500">
+                  <span className="text-foreground">{shift.cashier.name}</span>
+                  <span className="text-muted-foreground">
                     Sejak {shift.openedAt.toLocaleTimeString("id-ID")} · Modal{" "}
                     {formatRupiah(shift.openingCash.toString())}
                   </span>
@@ -165,18 +160,18 @@ export default async function DashboardPage({
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">Stok Menipis / Habis</h2>
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Stok Menipis / Habis</h2>
           {lowStock.length + outOfStock.length === 0 ? (
-            <p className="text-sm text-gray-500">Tidak ada produk dengan stok menipis.</p>
+            <EmptyState title="Tidak ada produk dengan stok menipis." />
           ) : (
             <ul className="space-y-2 text-sm">
               {[...outOfStock, ...lowStock].slice(0, 8).map((p) => (
                 <li key={p.id} className="flex justify-between">
-                  <span className="text-gray-700">{p.name}</span>
+                  <span className="text-foreground">{p.name}</span>
                   <span
                     className={
-                      Number(p.currentStock) <= 0 ? "font-medium text-red-600" : "font-medium text-amber-600"
+                      Number(p.currentStock) <= 0 ? "font-medium text-destructive" : "font-medium text-warning-foreground"
                     }
                   >
                     {Number(p.currentStock)} / min {p.minimumStock}
@@ -187,16 +182,16 @@ export default async function DashboardPage({
           )}
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">Transaksi Terbaru</h2>
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Transaksi Terbaru</h2>
           {recentSales.length === 0 ? (
-            <p className="text-sm text-gray-500">Belum ada transaksi.</p>
+            <EmptyState title="Belum ada transaksi." />
           ) : (
             <ul className="space-y-2 text-sm">
               {recentSales.map((s) => (
                 <li key={s.id} className="flex justify-between">
-                  <span className="text-gray-700">{s.transactionNumber}</span>
-                  <span className="text-gray-900">{formatRupiah(s.grandTotal.toString())}</span>
+                  <span className="text-foreground">{s.transactionNumber}</span>
+                  <span className="text-foreground tabular-nums">{formatRupiah(s.grandTotal.toString())}</span>
                 </li>
               ))}
             </ul>

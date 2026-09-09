@@ -105,16 +105,16 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
           <p className="text-center">Terima kasih</p>
         </div>
 
-        <div className="flex gap-2 border-t border-gray-100 p-4 print:hidden">
+        <div className="flex gap-2 border-t border-border p-4 print:hidden">
           <button
             onClick={() => window.print()}
-            className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700"
+            className="flex-1 rounded-md border border-border py-2 text-sm font-medium text-foreground"
           >
             Cetak Struk
           </button>
           <button
             onClick={onClose}
-            className="flex-1 rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="flex-1 rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Selesai
           </button>

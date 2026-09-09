@@ -14,9 +14,9 @@ export function SalesTrendWidget({
   series: { label: string; value: number }[];
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-900">Tren Penjualan</h2>
+        <h2 className="text-sm font-semibold text-foreground">Tren Penjualan</h2>
         <PeriodSelector
           basePath="/dashboard"
           active={activePeriod}
@@ -27,7 +27,7 @@ export function SalesTrendWidget({
         />
       </div>
       {series.every((s) => s.value === 0) ? (
-        <p className="text-sm text-gray-500">Belum ada penjualan pada periode ini.</p>
+        <p className="text-sm text-muted-foreground">Belum ada penjualan pada periode ini.</p>
       ) : (
         <MiniBarChart data={series} formatValue={formatRupiah} />
       )}

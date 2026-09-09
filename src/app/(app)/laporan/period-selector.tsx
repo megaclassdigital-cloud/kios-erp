@@ -22,7 +22,7 @@ export function PeriodSelector({
   const qs = new URLSearchParams(extraParams);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-2">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2">
       {presets.map((p) => {
         const params = new URLSearchParams(qs);
         params.set("period", p.key);
@@ -31,7 +31,7 @@ export function PeriodSelector({
             key={p.key}
             href={`${basePath}?${params.toString()}`}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              active === p.key ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
+              active === p.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
             }`}
           >
             {p.label}
@@ -43,13 +43,15 @@ export function PeriodSelector({
           <input key={k} type="hidden" name={k} value={v} />
         ))}
         <input type="hidden" name="period" value="custom" />
-        <input type="date" name="from" required className="rounded-md border border-gray-300 px-2 py-1 text-sm" />
-        <span className="text-gray-400">—</span>
-        <input type="date" name="to" required className="rounded-md border border-gray-300 px-2 py-1 text-sm" />
+        <input type="date" name="from" required className="rounded-md border border-input px-2 py-1 text-sm" />
+        <span className="text-muted-foreground">—</span>
+        <input type="date" name="to" required className="rounded-md border border-input px-2 py-1 text-sm" />
         <button
           type="submit"
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-            active === "custom" ? "bg-blue-600 text-white" : "border border-gray-300 text-gray-600 hover:bg-gray-50"
+            active === "custom"
+              ? "bg-primary text-primary-foreground"
+              : "border border-border text-muted-foreground hover:bg-muted"
           }`}
         >
           Custom

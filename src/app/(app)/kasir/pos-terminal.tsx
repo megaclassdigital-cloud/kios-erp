@@ -140,15 +140,15 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-3">
-        <form onSubmit={handleScan} className="rounded-lg border border-gray-200 bg-white p-3">
-          <label className="mb-1 block text-xs font-medium text-gray-500">
+        <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
             SCAN BARCODE — siap menerima input scanner
           </label>
           <input
             ref={inputRef}
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg tracking-wide focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-md border border-input px-3 py-2 text-lg tracking-wide focus:border-ring focus:outline-none"
             placeholder="Ketik kode lalu Enter"
             autoComplete="off"
           />
@@ -157,14 +157,14 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
         <DeviceScannerPairing label="Kasir" onScan={processBarcode} />
         <BarcodeInputHint />
         {scanError && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">
             {scanError}
           </div>
         )}
 
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs text-gray-500">
+            <thead className="bg-muted text-left text-xs text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Produk</th>
                 <th className="px-3 py-2">Harga</th>
@@ -176,52 +176,52 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
             <tbody>
               {cart.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-gray-400">
+                  <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
                     Keranjang kosong. Silakan scan produk.
                   </td>
                 </tr>
               )}
               {cart.map((line) => (
-                <tr key={line.lineId} className="border-t border-gray-100">
-                  <td className="px-3 py-2 text-gray-900">
+                <tr key={line.lineId} className="border-t border-border">
+                  <td className="px-3 py-2 text-foreground">
                     {line.name}
                     {line.serviceDetail && (
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         {line.serviceDetail.phoneNumber
                           ? `HP: ${line.serviceDetail.phoneNumber}`
                           : `Meter: ${line.serviceDetail.meterNumber} · Plgn: ${line.serviceDetail.customerNumber}`}
                       </p>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-gray-600">{formatRupiah(line.unitPrice)}</td>
+                  <td className="px-3 py-2 text-muted-foreground tabular-nums">{formatRupiah(line.unitPrice)}</td>
                   <td className="px-3 py-2">
                     {line.productType === "SERVICE" ? (
-                      <span className="text-gray-500">1</span>
+                      <span className="text-muted-foreground">1</span>
                     ) : (
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => updateQty(line.lineId, -1)}
-                          className="h-9 w-9 shrink-0 rounded border border-gray-300 text-gray-600"
+                          className="h-9 w-9 shrink-0 rounded border border-border text-muted-foreground hover:bg-muted"
                         >
                           −
                         </button>
                         <span className="w-6 text-center">{line.quantity}</span>
                         <button
                           onClick={() => updateQty(line.lineId, 1)}
-                          className="h-9 w-9 shrink-0 rounded border border-gray-300 text-gray-600"
+                          className="h-9 w-9 shrink-0 rounded border border-border text-muted-foreground hover:bg-muted"
                         >
                           +
                         </button>
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 font-medium text-gray-900">
+                  <td className="px-3 py-2 font-medium text-foreground tabular-nums">
                     {formatRupiah(line.unitPrice * line.quantity)}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <button
                       onClick={() => removeLine(line.lineId)}
-                      className="text-xs text-red-600 hover:underline"
+                      className="text-xs text-destructive hover:underline"
                     >
                       Hapus
                     </button>
@@ -235,30 +235,30 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
 
       <div className="space-y-3">
         {flash && (
-          <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+          <div className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm text-success">
             {flash}
           </div>
         )}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="flex justify-between text-sm text-gray-600">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex justify-between text-sm text-muted-foreground">
             <span>Subtotal</span>
-            <span>{formatRupiah(grandTotal)}</span>
+            <span className="tabular-nums">{formatRupiah(grandTotal)}</span>
           </div>
-          <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-base font-semibold text-gray-900">
+          <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold text-foreground">
             <span>Grand Total</span>
-            <span>{formatRupiah(grandTotal)}</span>
+            <span className="tabular-nums">{formatRupiah(grandTotal)}</span>
           </div>
           <button
             onClick={() => setShowPayment(true)}
             disabled={cart.length === 0}
-            className="mt-4 w-full rounded-md bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           >
             Bayar
           </button>
         </div>
         <button
           onClick={closeShift}
-          className="w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="w-full rounded-md border border-border py-2 text-sm font-medium text-foreground hover:bg-muted"
         >
           Tutup Shift
         </button>

@@ -1,23 +1,72 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #f9fafb;
-  --foreground: #111827;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-soft: var(--primary-soft);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-purple-foreground: var(--accent-purple-foreground);
+  --color-accent-purple-soft: var(--accent-purple-soft);
+  --color-border-strong: var(--border-strong);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 /* Kios-ERP is a fixed-light, data-focused POS UI (PRD 9) — it does not
    follow the OS dark-mode preference. */
-body {
-  background: var(--background);
-  color: var(--foreground);
-}
 
 /* Isolate a [data-print-area] element (struk PRD 21, barcode label PRD 42)
    — everything else on the page is hidden while printing so only that
@@ -34,5 +83,115 @@ body {
     position: absolute;
     inset: 0;
     width: 100%;
+  }
+}
+
+:root {
+  /* Kios-ERP design tokens — clean white/light-blue ERP palette (see
+     project UI/UX directive): strong blue operational accent, dark navy
+     text, soft status colors. No dark mode — .dark below is inert
+     (kept only because some shadcn primitives reference it). */
+  --background: #F5F9FD;
+  --foreground: #0B1739;
+  --card: #FFFFFF;
+  --card-foreground: #0B1739;
+  --popover: #FFFFFF;
+  --popover-foreground: #0B1739;
+
+  --primary: #0D6EFD;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #0963E6;
+  --primary-active: #0754C7;
+  --primary-soft: #EAF3FF;
+
+  --secondary: #EEF5FB;
+  --secondary-foreground: #174273;
+  --muted: #EEF5FB;
+  --muted-foreground: #7184A3;
+  --accent: #EAF3FF;
+  --accent-foreground: #0754C7;
+
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --destructive-soft: #FEE2E2;
+  --success: #16A34A;
+  --success-foreground: #FFFFFF;
+  --success-soft: #DCFCE7;
+  --warning: #F59E0B;
+  --warning-foreground: #7A4304;
+  --warning-soft: #FEF3C7;
+  --info: #06B6D4;
+  --info-foreground: #FFFFFF;
+  --info-soft: #CFFAFE;
+  --accent-purple: #7C3AED;
+  --accent-purple-foreground: #FFFFFF;
+  --accent-purple-soft: #EDE9FE;
+
+  --border: #DCE7F2;
+  --border-strong: #C9D8E8;
+  --input: #CBDCEC;
+  --ring: #0D6EFD;
+
+  --chart-1: #0D6EFD;
+  --chart-2: #58A4F8;
+  --chart-3: #06B6D4;
+  --chart-4: #7C3AED;
+  --chart-5: #16A34A;
+
+  --radius: 0.625rem;
+
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0B1739;
+  --sidebar-primary: #0D6EFD;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EAF3FF;
+  --sidebar-accent-foreground: #0754C7;
+  --sidebar-border: #DCE7F2;
+  --sidebar-ring: #0D6EFD;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }

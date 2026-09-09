@@ -24,12 +24,12 @@ export function MiniBarChart({
               y={height - barHeight}
               width={barWidth * 0.7}
               height={barHeight}
-              className="fill-blue-500"
+              className="fill-primary"
             />
           );
         })}
       </svg>
-      <div className="mt-1 flex text-[10px] text-gray-400">
+      <div className="mt-1 flex text-[10px] text-muted-foreground">
         {data.map((d, i) => (
           <div key={i} style={{ width: `${barWidth}%` }} className="truncate text-center" title={d.label}>
             {data.length <= 10 ? d.label : i % Math.ceil(data.length / 10) === 0 ? d.label : ""}
@@ -37,7 +37,7 @@ export function MiniBarChart({
         ))}
       </div>
       {formatValue && (
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Tertinggi: {formatValue(max)}
         </p>
       )}

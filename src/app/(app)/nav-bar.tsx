@@ -3,9 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { useState } from "react";
+import { LogOut } from "lucide-react";
 import { hasPermission, type Permission } from "@/shared/security/permissions";
 import type { Role } from "@prisma/client";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   DashboardIcon,
   KasirIcon,
@@ -58,66 +67,49 @@ function initials(name?: string | null) {
 export function NavBar({ role }: { role?: Role }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const visibleTabs = role ? PRIMARY_TABS.filter((tab) => hasPermission(role, tab.permission)) : [];
   const visibleLinks = role ? SECONDARY_LINKS.filter((link) => hasPermission(role, link.permission)) : [];
 
   return (
-    <header className="sticky top-0 z-20 border-b border-gray-200 bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-2">
+    <header className="sticky top-0 z-20 border-b border-border bg-card">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
             K
           </span>
-          <span className="text-sm font-semibold text-gray-900">Kios-ERP</span>
+          <span className="text-sm font-semibold text-foreground">Kios-ERP</span>
         </div>
 
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-gray-50"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">
-              {initials(session?.user?.name)}
-            </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-1.5 py-1 outline-none hover:bg-muted">
+            <Avatar>
+              <AvatarFallback>{initials(session?.user?.name)}</AvatarFallback>
+            </Avatar>
             <span className="hidden text-left sm:block">
-              <span className="block text-sm font-medium leading-tight text-gray-900">
+              <span className="block text-sm font-medium leading-tight text-foreground">
                 {session?.user?.name ?? "..."}
               </span>
-              <span className="block text-xs leading-tight text-gray-400">{session?.user?.role}</span>
+              <span className="block text-xs leading-tight text-muted-foreground">{session?.user?.role}</span>
             </span>
-          </button>
-          {menuOpen && (
-            <div
-              className="absolute right-0 mt-1 w-52 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
-              onMouseLeave={() => setMenuOpen(false)}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {visibleLinks.length > 0 && <DropdownMenuLabel>Administrasi</DropdownMenuLabel>}
+            {visibleLinks.map((link) => (
+              <DropdownMenuItem key={link.href} render={<Link href={link.href} />}>
+                {link.label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => signOut({ callbackUrl: "/login" })}
             >
-              {visibleLinks.length > 0 && (
-                <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Administrasi
-                </p>
-              )}
-              {visibleLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <div className="my-1 border-t border-gray-100" />
-              <button
-                onClick={() => signOut({ callbackUrl: "/login" })}
-                className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-50"
-              >
-                Keluar
-              </button>
-            </div>
-          )}
-        </div>
+              <LogOut />
+              Keluar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <nav
@@ -132,8 +124,8 @@ export function NavBar({ role }: { role?: Role }) {
               href={tab.href}
               className={`flex shrink-0 flex-col items-center gap-0.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                 active
-                  ? "border-blue-600 bg-blue-50/60 text-blue-600"
-                  : "border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                  ? "border-primary bg-primary-soft text-primary"
+                  : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               <tab.Icon className="h-5 w-5" />

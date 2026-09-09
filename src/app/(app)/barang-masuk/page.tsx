@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
+import { PageHeader } from "@/components/kios/page-header";
 
 interface Supplier {
   id: string;
@@ -105,15 +106,15 @@ export default function BarangMasukPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-gray-900">Barang Masuk</h1>
+      <PageHeader title="Barang Masuk" />
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-2">
+      <div className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Supplier</label>
+          <label className="mb-1 block text-sm font-medium text-foreground">Supplier</label>
           <select
             value={supplierId}
             onChange={(e) => setSupplierId(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input px-3 py-2 text-sm"
           >
             <option value="">Pilih supplier</option>
             {suppliers.map((s) => (
@@ -124,22 +125,22 @@ export default function BarangMasukPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">No. Invoice</label>
+          <label className="mb-1 block text-sm font-medium text-foreground">No. Invoice</label>
           <input
             value={invoiceNumber}
             onChange={(e) => setInvoiceNumber(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input px-3 py-2 text-sm"
           />
         </div>
       </div>
 
-      <form onSubmit={handleScan} className="rounded-lg border border-gray-200 bg-white p-3">
-        <label className="mb-1 block text-xs font-medium text-gray-500">SCAN BARCODE PRODUK</label>
+      <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">SCAN BARCODE PRODUK</label>
         <input
           value={barcode}
           onChange={(e) => setBarcode(e.target.value)}
           autoFocus
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-md border border-input px-3 py-2 text-lg focus:border-ring focus:outline-none"
           placeholder="Ketik kode lalu Enter"
         />
       </form>
@@ -148,17 +149,17 @@ export default function BarangMasukPage() {
       <BarcodeInputHint />
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+        <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">{error}</div>
       )}
       {message && (
-        <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+        <div className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm text-success">
           {message}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-xs text-gray-500">
+          <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Produk</th>
               <th className="px-3 py-2">Qty</th>
@@ -168,20 +169,20 @@ export default function BarangMasukPage() {
           <tbody>
             {lines.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-3 py-6 text-center text-gray-400">
+                <td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">
                   Belum ada item di-scan.
                 </td>
               </tr>
             )}
             {lines.map((l) => (
-              <tr key={l.productId} className="border-t border-gray-100">
-                <td className="px-3 py-2 text-gray-900">{l.name}</td>
+              <tr key={l.productId} className="border-t border-border">
+                <td className="px-3 py-2 text-foreground">{l.name}</td>
                 <td className="px-3 py-2">
                   <input
                     type="number"
                     value={l.quantity}
                     onChange={(e) => updateLine(l.productId, "quantity", e.target.value)}
-                    className="w-20 rounded border border-gray-300 px-2 py-1"
+                    className="w-20 rounded border border-input px-2 py-1"
                   />
                 </td>
                 <td className="px-3 py-2">
@@ -189,7 +190,7 @@ export default function BarangMasukPage() {
                     type="number"
                     value={l.purchasePrice}
                     onChange={(e) => updateLine(l.productId, "purchasePrice", e.target.value)}
-                    className="w-28 rounded border border-gray-300 px-2 py-1"
+                    className="w-28 rounded border border-input px-2 py-1"
                   />
                 </td>
               </tr>
@@ -201,7 +202,7 @@ export default function BarangMasukPage() {
       <button
         onClick={confirmReceiving}
         disabled={!supplierId || lines.length === 0}
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
         Konfirmasi Barang Masuk
       </button>

@@ -18,7 +18,7 @@ export default function KasirPage() {
   }, [loadShift]);
 
   if (shiftId === undefined) {
-    return <p className="text-sm text-gray-500">Memuat...</p>;
+    return <p className="text-sm text-muted-foreground">Memuat...</p>;
   }
 
   if (shiftId === null) {

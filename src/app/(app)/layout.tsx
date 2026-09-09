@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           tabs on first paint — waiting for client-side useSession() would
           flash an empty (or briefly wrong) nav before hydration. */}
       <NavBar role={session?.user?.role} />
-      <main className="flex-1 bg-gray-50 p-4 md:p-6">{children}</main>
+      <main className="flex-1 bg-background p-4 md:p-6">{children}</main>
     </div>
   );
 }

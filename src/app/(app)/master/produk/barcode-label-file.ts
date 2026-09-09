@@ -55,12 +55,20 @@ export function buildLabelPng(opts: LabelFileOptions): Promise<Blob> {
   function drawLabel(x: number, y: number, w: number, h: number) {
     const nameFontPx = Math.max(10, Math.round(h * 0.09));
     ctx!.font = `${nameFontPx}px Arial, sans-serif`;
-    ctx!.fillText(truncateToWidth(ctx!, opts.productName, w - 8), x + w / 2, y + 2, w - 8);
 
     const bcW = w * 0.92;
     const bcH = Math.min(bcW * barcodeAspect, h - nameFontPx - 12);
     const bcDrawW = bcH / barcodeAspect;
-    ctx!.drawImage(barcodeBitmap, x + (w - bcDrawW) / 2, y + nameFontPx + 6, bcDrawW, bcH);
+
+    // Center the name+barcode block vertically in the cell rather than
+    // pinning it to the top — the barcode's own aspect ratio means it
+    // rarely fills a tall cell (esp. the A4 sheet grid), so anchoring top
+    // left a large dead gap at the bottom of every label.
+    const contentH = nameFontPx + 6 + bcH;
+    const startY = y + Math.max(0, (h - contentH) / 2);
+
+    ctx!.fillText(truncateToWidth(ctx!, opts.productName, w - 8), x + w / 2, startY, w - 8);
+    ctx!.drawImage(barcodeBitmap, x + (w - bcDrawW) / 2, startY + nameFontPx + 6, bcDrawW, bcH);
   }
 
   if (opts.sheet) {
