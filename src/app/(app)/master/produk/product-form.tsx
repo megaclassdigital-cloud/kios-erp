@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarcodePreview } from "./barcode-preview";
+import { BarcodeLabelPrinter } from "./barcode-label-printer";
 
 interface Category {
   id: string;
@@ -19,13 +19,17 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
   const [sellingPrice, setSellingPrice] = useState("");
   const [minimumStock, setMinimumStock] = useState("5");
   const [initialStock, setInitialStock] = useState("0");
-  const [barcodeMode, setBarcodeMode] = useState<"GENERATE_INTERNAL" | "SCAN_EXISTING" | "NONE">(
-    "GENERATE_INTERNAL"
-  );
+  // A barcode is generated automatically for every new product by default
+  // (PRD's barcode-first principle) — the admin only needs to do anything
+  // here if the item already carries a manufacturer barcode to link
+  // instead of minting a new internal one.
+  const [hasManufacturerBarcode, setHasManufacturerBarcode] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
-  const [previewBarcode, setPreviewBarcode] = useState<{ value: string; type: "CODE128" | "EAN13" } | null>(
-    null
-  );
+  const [createdProduct, setCreatedProduct] = useState<{
+    name: string;
+    barcodeValue: string;
+    barcodeType: "CODE128" | "EAN13";
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,12 +38,9 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
     setLoading(true);
     setError(null);
 
-    const barcode =
-      barcodeMode === "SCAN_EXISTING"
-        ? { mode: "SCAN_EXISTING" as const, value: scannedBarcode, unit: "PCS" }
-        : barcodeMode === "GENERATE_INTERNAL"
-          ? { mode: "GENERATE_INTERNAL" as const, unit: "PCS" }
-          : { mode: "NONE" as const };
+    const barcode = hasManufacturerBarcode
+      ? { mode: "SCAN_EXISTING" as const, value: scannedBarcode, unit: "PCS" }
+      : { mode: "GENERATE_INTERNAL" as const, unit: "PCS" };
 
     const isService = productType === "SERVICE";
     const res = await fetch("/api/products", {
@@ -69,8 +70,10 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
     }
 
     const createdBarcode = data.product?.barcodes?.[0];
-    setPreviewBarcode(
-      createdBarcode ? { value: createdBarcode.barcodeValue, type: createdBarcode.barcodeType } : null
+    setCreatedProduct(
+      createdBarcode
+        ? { name: data.product.name, barcodeValue: createdBarcode.barcodeValue, barcodeType: createdBarcode.barcodeType }
+        : null
     );
     setSku("");
     setName("");
@@ -78,6 +81,7 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
     setSellingPrice("");
     setInitialStock("0");
     setScannedBarcode("");
+    setHasManufacturerBarcode(false);
     setServiceProvider("");
     onCreated();
   }
@@ -145,27 +149,21 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
 
         <div className="rounded-md border border-gray-200 p-3">
           <p className="mb-2 text-xs font-medium text-gray-500">BARCODE</p>
-          <div className="mb-2 flex flex-wrap gap-2 text-sm">
-            <label className="flex items-center gap-1">
-              <input type="radio" checked={barcodeMode === "GENERATE_INTERNAL"}
-                onChange={() => setBarcodeMode("GENERATE_INTERNAL")} />
-              Generate Barcode Kios-ERP
-            </label>
-            <label className="flex items-center gap-1">
-              <input type="radio" checked={barcodeMode === "SCAN_EXISTING"}
-                onChange={() => setBarcodeMode("SCAN_EXISTING")} />
-              Scan Barcode Pabrik
-            </label>
-            <label className="flex items-center gap-1">
-              <input type="radio" checked={barcodeMode === "NONE"}
-                onChange={() => setBarcodeMode("NONE")} />
-              Tanpa Barcode
-            </label>
-          </div>
-          {barcodeMode === "SCAN_EXISTING" && (
+          <p className="mb-2 text-xs text-gray-500">
+            Barcode Kios-ERP dibuat otomatis begitu produk disimpan — tidak perlu diatur di sini.
+          </p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={hasManufacturerBarcode}
+              onChange={(e) => setHasManufacturerBarcode(e.target.checked)}
+            />
+            Produk ini sudah punya barcode dari pabrik
+          </label>
+          {hasManufacturerBarcode && (
             <input placeholder="Scan/ketik barcode pabrik" value={scannedBarcode}
-              onChange={(e) => setScannedBarcode(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              onChange={(e) => setScannedBarcode(e.target.value)} required
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
           )}
         </div>
 
@@ -177,11 +175,15 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
       </form>
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-gray-900">Preview Barcode</h2>
-        {previewBarcode ? (
-          <BarcodePreview value={previewBarcode.value} format={previewBarcode.type} />
+        <h2 className="mb-2 text-sm font-semibold text-gray-900">Barcode Produk</h2>
+        {createdProduct ? (
+          <BarcodeLabelPrinter
+            productName={createdProduct.name}
+            barcodeValue={createdProduct.barcodeValue}
+            barcodeType={createdProduct.barcodeType}
+          />
         ) : (
-          <p className="text-sm text-gray-400">Simpan produk untuk melihat barcode.</p>
+          <p className="text-sm text-gray-400">Simpan produk untuk melihat, mencetak, dan mengunduh barcode.</p>
         )}
       </div>
     </div>
