@@ -55,6 +55,11 @@ export default function MasterProdukPage() {
 
   useEffect(() => {
     load();
+    // Pre-fill from the header's global search (?search=...) without
+    // needing useSearchParams()/Suspense — reading location directly in
+    // an effect only ever runs client-side, after hydration.
+    const fromUrl = new URLSearchParams(window.location.search).get("search");
+    if (fromUrl) setSearch(fromUrl);
   }, []);
 
   async function generateBarcode(product: ProductRow) {
