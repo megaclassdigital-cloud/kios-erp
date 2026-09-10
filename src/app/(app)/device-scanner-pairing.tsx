@@ -39,6 +39,16 @@ export function DeviceScannerPairing({
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingRef = useRef(false);
   const failCountRef = useRef(0);
+  // pollOnce below is a self-scheduling loop started once per connect()
+  // call and kept alive across renders — it must dispatch through the
+  // *current* onScan (which closes over the latest barcode index/cache),
+  // not the one captured when the phone first paired, or every relayed
+  // scan after that permanently misses the fast in-memory lookup and
+  // falls back to the slow server round trip.
+  const onScanRef = useRef(onScan);
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
 
   function stopPolling() {
     pollingRef.current = false;
@@ -107,7 +117,7 @@ export function DeviceScannerPairing({
           setPhoneConnected(Boolean(pollData.connected));
           for (const event of pollData.events ?? []) {
             lastEventTimeRef.current = new Date(event.createdAt);
-            onScan(event.barcodeValue);
+            onScanRef.current(event.barcodeValue);
           }
           if (pollData.events?.length) {
             setScanCount((c) => c + pollData.events.length);

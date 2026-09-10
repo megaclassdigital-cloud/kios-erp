@@ -49,6 +49,16 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
   const POST_SCAN_PAUSE_MS = 600;
   const candidateRef = useRef<{ code: string; streak: number }>({ code: "", streak: 0 });
   const pausedUntilRef = useRef(0);
+  // The decode loop below is started once per `open` toggle and lives on
+  // as a long-running callback zxing invokes repeatedly — it must always
+  // call the *current* onScan (which closes over the latest barcode
+  // index/cache), never the one captured when the camera was opened, or
+  // every scan after that permanently misses the fast in-memory lookup
+  // and falls back to the slow server round trip.
+  const onScanRef = useRef(onScan);
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
 
   useEffect(() => {
     if (!open) return;
@@ -142,7 +152,7 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
                 // Vibration is a nice-to-have; some browsers/contexts
                 // reject it outright (e.g. no user-gesture) — ignore.
               }
-              onScan(code);
+              onScanRef.current(code);
             } catch (callbackError) {
               console.error("CameraScanner decode callback failed:", callbackError);
             }
