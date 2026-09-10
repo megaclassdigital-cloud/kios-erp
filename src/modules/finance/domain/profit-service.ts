@@ -40,4 +40,28 @@ export class ProfitService {
       cashless: cashlessRevenue,
     };
   }
+
+  /** Same grossProfit/operationalProfit derivation as summarize(), but
+   * for callers that already have revenue/cogs/cash/cashless/expense as
+   * pre-summed totals (e.g. computed by the database) instead of raw
+   * sale-item rows to reduce over. */
+  summarizeAggregates(input: {
+    revenue: Decimal;
+    cogs: Decimal;
+    cash: Decimal;
+    cashless: Decimal;
+    expense: Decimal;
+  }): FinancialSummary {
+    const grossProfit = input.revenue.minus(input.cogs);
+    const operationalProfit = grossProfit.minus(input.expense);
+    return {
+      revenue: input.revenue,
+      cogs: input.cogs,
+      grossProfit,
+      expense: input.expense,
+      operationalProfit,
+      cash: input.cash,
+      cashless: input.cashless,
+    };
+  }
 }

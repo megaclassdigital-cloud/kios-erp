@@ -46,4 +46,28 @@ describe("ProfitService", () => {
     expect(summary.grossProfit.toString()).toBe("4000");
     expect(summary.operationalProfit.toString()).toBe("3000");
   });
+
+  it("summarizeAggregates matches summarize's math for pre-summed totals (DB-aggregation path)", () => {
+    const service = new ProfitService();
+    const fromItems = service.summarize(
+      [
+        { quantity: new Decimal(2), unitPriceAtSale: new Decimal("3500"), costPriceAtSale: new Decimal("2750") },
+        { quantity: new Decimal(1), unitPriceAtSale: new Decimal("10000"), costPriceAtSale: new Decimal("6000") },
+      ],
+      new Decimal("7000"),
+      new Decimal("10000"),
+      new Decimal("1000")
+    );
+    const fromAggregate = service.summarizeAggregates({
+      revenue: new Decimal("17000"),
+      cogs: new Decimal("11500"),
+      cash: new Decimal("7000"),
+      cashless: new Decimal("10000"),
+      expense: new Decimal("1000"),
+    });
+    expect(fromAggregate.revenue.toString()).toBe(fromItems.revenue.toString());
+    expect(fromAggregate.cogs.toString()).toBe(fromItems.cogs.toString());
+    expect(fromAggregate.grossProfit.toString()).toBe(fromItems.grossProfit.toString());
+    expect(fromAggregate.operationalProfit.toString()).toBe(fromItems.operationalProfit.toString());
+  });
 });
