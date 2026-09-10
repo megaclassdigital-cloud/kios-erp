@@ -20,6 +20,9 @@ export class AddBarcodeToProductUseCase {
       const barcodes = new PrismaBarcodeRepository(tx);
       const audit = new AuditLogger(tx);
 
+      const activeForUnit = await barcodes.findActiveByProductAndUnit(productId, req.unit);
+      domain.assertNoActiveBarcodeForUnit(activeForUnit);
+
       let value: string;
       let source: "MANUFACTURER" | "INTERNAL";
       let conversionFactor = "1";

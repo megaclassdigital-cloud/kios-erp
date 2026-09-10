@@ -23,6 +23,10 @@ export class PrismaBarcodeRepository implements BarcodeRepository {
     return this.db.productBarcode.findUnique({ where: { barcodeValue } });
   }
 
+  async findActiveByProductAndUnit(productId: string, unit: string): Promise<ProductBarcode | null> {
+    return this.db.productBarcode.findFirst({ where: { productId, unit, status: "ACTIVE" } });
+  }
+
   async resolveBarcode(barcodeValue: string): Promise<ResolvedBarcode | null> {
     const row = await this.db.productBarcode.findUnique({
       where: { barcodeValue },

@@ -121,6 +121,11 @@ model ProductBarcode {
   createdAt        DateTime      @default(now())
   retiredAt        DateTime?
 
+  // Also enforced by a raw-SQL partial unique index (migration
+  // 20260911012805_one_active_barcode_per_product_unit) on
+  // (productId, unit) WHERE status = 'ACTIVE' -- not expressible in
+  // Prisma's schema DSL without the partial-index preview feature, so it
+  // exists only in that migration, not as an @@ annotation here.
   @@index([barcodeValue])
   @@index([productId])
   @@map("product_barcodes")

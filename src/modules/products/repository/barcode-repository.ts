@@ -28,6 +28,10 @@ export interface ResolvedBarcode {
 
 export interface BarcodeRepository {
   findByValue(barcodeValue: string): Promise<ProductBarcode | null>;
+  /** Guards the one-product-one-durable-barcode-per-unit invariant before
+   * AddBarcodeToProductUseCase inserts a new row (PRD 45's "extra unit
+   * barcode" is per-unit, not unlimited-per-product). */
+  findActiveByProductAndUnit(productId: string, unit: string): Promise<ProductBarcode | null>;
   /** Single joined read for the scan hot path — barcode + its product in
    * one round trip instead of findByValue then findById separately.
    * Deliberately NOT filtered by status: a retired barcode must still be

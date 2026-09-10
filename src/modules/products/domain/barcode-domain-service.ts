@@ -22,7 +22,21 @@ export class BarcodeDomainService {
       );
     }
   }
+
+  /** One product, one durable barcode per unit — a second ACTIVE barcode
+   * for the same product+unit would leave two live codes resolving to the
+   * same line item, splitting which one actually gets scanned/tracked
+   * going forward. Retiring the old one first (a deliberate, separate,
+   * audited action) is the only way to replace it. */
+  assertNoActiveBarcodeForUnit(existing: { barcodeValue: string } | null): void {
+    if (existing) {
+      throw new DuplicateActiveBarcodeError(
+        `Produk ini sudah punya barcode aktif untuk unit tersebut (${existing.barcodeValue}). Retire barcode lama dahulu sebelum menambah yang baru.`
+      );
+    }
+  }
 }
 
 export class BarcodeAlreadyLinkedError extends Error {}
 export class BarcodeRetiredError extends Error {}
+export class DuplicateActiveBarcodeError extends Error {}
