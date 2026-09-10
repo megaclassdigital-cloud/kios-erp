@@ -1,3 +1,4 @@
+import { Boxes, PackageMinus, PackageX } from "lucide-react";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { prisma } from "@/shared/infrastructure/prisma";
@@ -6,6 +7,7 @@ import { hasPermission } from "@/shared/security/permissions";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
+import { KpiCard } from "@/components/kios/kpi-card";
 import { BarcodeAudit } from "./barcode-audit";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "destructive"> = {
@@ -26,11 +28,29 @@ export default async function StokPage() {
   // (pulsa/token) never carry stock (PRD 46).
   const products = allProducts.filter((p) => p.trackInventory);
   const inventoryService = new InventoryService();
+  const lowStockCount = products.filter(
+    (p) => inventoryService.classifyStock(Number(p.currentStock), p.minimumStock) === "MENIPIS"
+  ).length;
+  const outOfStockCount = products.filter(
+    (p) => inventoryService.classifyStock(Number(p.currentStock), p.minimumStock) === "HABIS"
+  ).length;
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Stok Barang" />
+      <PageHeader
+        title="Stok Barang"
+        description="Kelola data stok barang fisik dengan mudah dan akurat."
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <KpiCard label="Total SKU Fisik" value={String(products.length)} icon={Boxes} />
+        <KpiCard label="Stok Menipis" value={String(lowStockCount)} icon={PackageMinus} tone="warning" />
+        <KpiCard label="Stok Habis" value={String(outOfStockCount)} icon={PackageX} tone="destructive" />
+      </div>
+
       <BarcodeAudit />
+
+      <h2 className="text-sm font-semibold text-foreground">Daftar Stok Barang (Produk Fisik)</h2>
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs text-muted-foreground">
