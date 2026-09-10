@@ -32,14 +32,23 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReaderType | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  // Dedup the *same* code within a short window so one held-up item
-  // doesn't get added twice — but a *different* code is always accepted
-  // immediately, with zero delay, so scanning several products back to
-  // back stays fast. (An earlier "wait until the code leaves the frame"
-  // version depended on the decode library reporting empty frames at a
-  // predictable rate, which doesn't hold on every device — this simpler,
-  // fully self-contained approach doesn't depend on that at all.)
-  const lastScanRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  // Real retail scanners (a dedicated USB/HID device, same pattern as the
+  // "Ketik kode lalu Enter" input below) decode exactly once per physical
+  // trigger pull and emit one atomic result — there's no ambiguity to
+  // resolve. A camera has no trigger, so it must approximate one in
+  // software; the reliable, standard way production scanning SDKs do
+  // this (Scandit, Dynamsoft, VisionCamera) is two parts: (1) require the
+  // same value to decode successfully several frames in a row before
+  // accepting it — filters out a single-frame misread or a code merely
+  // passing through the frame — then (2) pause briefly and deterministically
+  // right after accepting, mirroring a scanner's "decode once, wait for
+  // the next trigger pull" behavior, before it can fire again. Both steps
+  // depend only on successful decodes (never on the library reporting an
+  // empty frame at some assumed rate, which doesn't hold on every device).
+  const CONFIRM_FRAMES = 2;
+  const POST_SCAN_PAUSE_MS = 600;
+  const candidateRef = useRef<{ code: string; streak: number }>({ code: "", streak: 0 });
+  const pausedUntilRef = useRef(0);
 
   useEffect(() => {
     if (!open) return;
@@ -110,13 +119,20 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
             // no error surfaced anywhere in this app's own UI. Never let
             // anything here escape.
             try {
-              if (!result) return;
+              if (Date.now() < pausedUntilRef.current) return;
+              if (!result) {
+                candidateRef.current = { code: "", streak: 0 };
+                return;
+              }
               const code = result.getText();
-              const now = Date.now();
-              // Only the *same* code within the window is ignored — a
-              // different code always proceeds immediately below.
-              if (lastScanRef.current.code === code && now - lastScanRef.current.at < 1200) return;
-              lastScanRef.current = { code, at: now };
+              candidateRef.current =
+                candidateRef.current.code === code
+                  ? { code, streak: candidateRef.current.streak + 1 }
+                  : { code, streak: 1 };
+              if (candidateRef.current.streak < CONFIRM_FRAMES) return;
+
+              pausedUntilRef.current = Date.now() + POST_SCAN_PAUSE_MS;
+              candidateRef.current = { code: "", streak: 0 };
               setFlash(true);
               setTimeout(() => setFlash(false), 200);
               playScanBeep();

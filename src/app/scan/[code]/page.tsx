@@ -23,10 +23,15 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  // Dedup the *same* code within a short window — see camera-scanner.tsx
-  // for why this is a plain time+value check rather than trying to
-  // detect when the code leaves the camera's view.
-  const lastScanRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  // See camera-scanner.tsx for the reasoning: require the same value to
+  // decode successfully a couple of frames in a row before accepting it
+  // (filters out a single-frame misread), then pause briefly and
+  // deterministically after accepting — the same decode-once-per-trigger
+  // model a real handheld scanner uses.
+  const CONFIRM_FRAMES = 2;
+  const POST_SCAN_PAUSE_MS = 600;
+  const candidateRef = useRef<{ code: string; streak: number }>({ code: "", streak: 0 });
+  const pausedUntilRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,11 +78,21 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
           // treated as a fatal decode error and permanently kills the
           // camera stream. Never let anything here escape.
           try {
-            if (cancelled || !result) return;
+            if (cancelled) return;
+            if (Date.now() < pausedUntilRef.current) return;
+            if (!result) {
+              candidateRef.current = { code: "", streak: 0 };
+              return;
+            }
             const value = result.getText();
-            const now = Date.now();
-            if (lastScanRef.current.code === value && now - lastScanRef.current.at < 1200) return;
-            lastScanRef.current = { code: value, at: now };
+            candidateRef.current =
+              candidateRef.current.code === value
+                ? { code: value, streak: candidateRef.current.streak + 1 }
+                : { code: value, streak: 1 };
+            if (candidateRef.current.streak < CONFIRM_FRAMES) return;
+
+            pausedUntilRef.current = Date.now() + POST_SCAN_PAUSE_MS;
+            candidateRef.current = { code: "", streak: 0 };
             submitScan(value);
           } catch (callbackError) {
             console.error("Scan decode callback failed:", callbackError);
