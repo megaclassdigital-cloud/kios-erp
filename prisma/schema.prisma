@@ -220,6 +220,8 @@ model PurchaseItem {
   purchasePrice  Decimal  @db.Decimal(14, 2)
   subtotal       Decimal  @db.Decimal(14, 2)
 
+  // Backs receiving-detail lookups of a purchase's line items.
+  @@index([purchaseId])
   @@map("purchase_items")
 }
 
@@ -246,6 +248,9 @@ model CashierShift {
 
   sales Sale[]
 
+  // Backs findOpenForCashier — every Kasir page load and every checkout
+  // now looks up "the one OPEN shift for this cashier".
+  @@index([cashierId, status])
   @@map("cashier_shifts")
 }
 
@@ -288,6 +293,13 @@ model Sale {
 
   @@index([status])
   @@index([createdAt])
+  // Composite for "PAID sales in a date range" — the finance aggregate,
+  // dashboard, and laporan queries all filter exactly this way; a
+  // composite here serves them far better than the two single-column
+  // indexes above on their own.
+  @@index([status, paidAt])
+  // Backs the Transaksi page's "Shift Saya" (own-cashier) filtered list.
+  @@index([cashierId, createdAt])
   @@map("sales")
 }
 
@@ -305,6 +317,9 @@ model SaleItem {
 
   serviceDetail     ServiceSaleDetail?
 
+  // Backs the sale_items-joined-to-sales aggregate query and every
+  // include: { items: true } fetch of a sale's line items.
+  @@index([saleId])
   @@map("sale_items")
 }
 
@@ -345,6 +360,8 @@ model Payment {
   createdAt      DateTime      @default(now())
   paidAt         DateTime?
 
+  // Backs the transaction-detail lookup's include of a sale's payments.
+  @@index([saleId])
   @@map("payments")
 }
 
@@ -411,6 +428,8 @@ model Expense {
   createdBy   User            @relation(fields: [createdById], references: [id])
   createdAt   DateTime        @default(now())
 
+  // Backs the finance aggregate query's date-range filter.
+  @@index([expenseDate])
   @@map("expenses")
 }
 
