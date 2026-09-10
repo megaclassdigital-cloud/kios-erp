@@ -17,13 +17,15 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
   const [scanCount, setScanCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const lastEventTimeRef = useRef<Date | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingRef = useRef(false);
   const failCountRef = useRef(0);
 
   function stopPolling() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
+    pollingRef.current = false;
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
     }
   }
 
@@ -52,30 +54,50 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
     setQrDataUrl(await QRCode.toDataURL(url, { width: 200, margin: 1 }));
     setState("connected");
 
-    pollRef.current = setInterval(async () => {
-      const qs = lastEventTimeRef.current
-        ? `?after=${encodeURIComponent(lastEventTimeRef.current.toISOString())}`
-        : "";
-      const pollRes = await fetch(`/api/scan-session/${data.code}/events${qs}`);
-      if (!pollRes.ok) {
-        failCountRef.current += 1;
-        if (failCountRef.current >= 5) {
-          stopPolling();
-          setError("Sesi berakhir. Hubungkan ulang untuk melanjutkan.");
-          setState("error");
+    // A plain setInterval fires on a fixed clock regardless of whether the
+    // previous request has resolved yet — if one poll is slow (this
+    // environment has seen multi-second API round trips), several ticks
+    // end up in flight at once, all reading the same stale cursor, all
+    // forwarding the same not-yet-acknowledged event multiple times (one
+    // real scan arriving at the cart as many). A self-scheduling loop that
+    // only queues the next poll after the current one fully resolves
+    // guarantees at most one request — and one cursor update — in flight
+    // at any time.
+    pollingRef.current = true;
+    async function pollOnce() {
+      if (!pollingRef.current) return;
+      try {
+        const qs = lastEventTimeRef.current
+          ? `?after=${encodeURIComponent(lastEventTimeRef.current.toISOString())}`
+          : "";
+        const pollRes = await fetch(`/api/scan-session/${data.code}/events${qs}`);
+        if (!pollRes.ok) {
+          failCountRef.current += 1;
+          if (failCountRef.current >= 5) {
+            stopPolling();
+            setError("Sesi berakhir. Hubungkan ulang untuk melanjutkan.");
+            setState("error");
+            return;
+          }
+        } else {
+          failCountRef.current = 0;
+          const pollData = await pollRes.json();
+          for (const event of pollData.events ?? []) {
+            lastEventTimeRef.current = new Date(event.createdAt);
+            onScan(event.barcodeValue);
+          }
+          if (pollData.events?.length) {
+            setScanCount((c) => c + pollData.events.length);
+          }
         }
-        return;
+      } catch {
+        failCountRef.current += 1;
       }
-      failCountRef.current = 0;
-      const pollData = await pollRes.json();
-      for (const event of pollData.events ?? []) {
-        onScan(event.barcodeValue);
-        lastEventTimeRef.current = new Date(event.createdAt);
+      if (pollingRef.current) {
+        pollTimeoutRef.current = setTimeout(pollOnce, 1200);
       }
-      if (pollData.events?.length) {
-        setScanCount((c) => c + pollData.events.length);
-      }
-    }, 1200);
+    }
+    pollOnce();
   }
 
   function disconnect() {
