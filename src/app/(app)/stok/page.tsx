@@ -1,7 +1,6 @@
 import { Boxes, PackageMinus, PackageX } from "lucide-react";
-import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
+import { GetStockListUseCase } from "@/modules/inventory/application/get-stock-list-use-case";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
-import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { redirect } from "next/navigation";
@@ -22,11 +21,10 @@ export default async function StokPage() {
     redirect("/dashboard");
   }
 
-  const repo = new PrismaProductRepository(prisma);
-  const allProducts = await repo.list({});
-  // Stok Barang tracks physical inventory only — service products
-  // (pulsa/token) never carry stock (PRD 46).
-  const products = allProducts.filter((p) => p.trackInventory);
+  // Physical-only is filtered at the database now (service products never
+  // carry stock, PRD 46), and only the fields this table actually shows
+  // are selected — not a full Product with every barcode/relation.
+  const products = await new GetStockListUseCase().execute();
   const inventoryService = new InventoryService();
   const lowStockCount = products.filter(
     (p) => inventoryService.classifyStock(Number(p.currentStock), p.minimumStock) === "MENIPIS"
@@ -71,7 +69,7 @@ export default async function StokPage() {
                 <tr key={p.id} className="border-t border-border">
                   <td className="px-3 py-2 text-foreground">{p.name}</td>
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                    {p.barcodes.find((b) => b.status === "ACTIVE")?.barcodeValue ?? "-"}
+                    {p.primaryBarcode ?? "-"}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{p.sku}</td>
                   <td className="px-3 py-2 text-foreground tabular-nums">{Number(p.currentStock)}</td>
