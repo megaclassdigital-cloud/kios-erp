@@ -40,6 +40,14 @@ export class PrismaProductRepository implements ProductRepository {
     });
   }
 
+  async findByIds(ids: string[]): Promise<ProductWithBarcodes[]> {
+    if (ids.length === 0) return [];
+    return this.db.product.findMany({
+      where: { id: { in: ids } },
+      include: { barcodes: true },
+    });
+  }
+
   async findBySku(sku: string): Promise<Product | null> {
     return this.db.product.findUnique({ where: { sku } });
   }

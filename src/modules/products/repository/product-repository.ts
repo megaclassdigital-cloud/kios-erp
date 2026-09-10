@@ -33,6 +33,10 @@ export interface ProductRepository {
   create(input: CreateProductInput): Promise<Product>;
   update(id: string, input: UpdateProductInput): Promise<Product>;
   findById(id: string): Promise<ProductWithBarcodes | null>;
+  /** Batched read for checkout/receiving lines — one round trip for N
+   * product ids instead of N sequential findById calls. Order is not
+   * guaranteed to match `ids`; callers should index by `.id`. */
+  findByIds(ids: string[]): Promise<ProductWithBarcodes[]>;
   findBySku(sku: string): Promise<Product | null>;
   list(filter: {
     categoryId?: string;

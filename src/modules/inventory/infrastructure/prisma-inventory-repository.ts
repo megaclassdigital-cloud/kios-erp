@@ -12,6 +12,11 @@ export class PrismaInventoryRepository implements InventoryRepository {
     return this.db.stockMovement.create({ data: input });
   }
 
+  async recordMovements(inputs: RecordMovementInput[]): Promise<void> {
+    if (inputs.length === 0) return;
+    await this.db.stockMovement.createMany({ data: inputs });
+  }
+
   async listMovementsForProduct(productId: string): Promise<StockMovement[]> {
     return this.db.stockMovement.findMany({
       where: { productId },

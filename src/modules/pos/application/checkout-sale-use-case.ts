@@ -6,6 +6,7 @@ import { DailyCounterRepository } from "@/shared/infrastructure/daily-counter-re
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
 import type { ProductWithBarcodes } from "@/modules/products/repository/product-repository";
 import { PrismaInventoryRepository } from "@/modules/inventory/infrastructure/prisma-inventory-repository";
+import type { RecordMovementInput } from "@/modules/inventory/repository/inventory-repository";
 import { PrismaSaleRepository } from "../infrastructure/prisma-sale-repository";
 import { PrismaPaymentRepository } from "../infrastructure/prisma-payment-repository";
 import { PrismaShiftRepository } from "../infrastructure/prisma-shift-repository";
@@ -71,29 +72,34 @@ export class CheckoutSaleUseCase {
       const products = new PrismaProductRepository(tx);
       const domain = new CheckoutDomainService();
 
-      const resolvedItems = await Promise.all(
-        req.items.map(async (item) => {
-          const product = await products.findById(item.productId);
-          if (!product || !product.active) {
-            throw new Error(`Produk tidak ditemukan atau tidak aktif.`);
-          }
+      // One batched read for every line's product instead of N sequential
+      // findById calls — Promise.all does NOT make these run in parallel
+      // inside an interactive transaction (one reserved connection), so
+      // the old pattern paid N round trips serially for no benefit.
+      const foundProducts = await products.findByIds(req.items.map((i) => i.productId));
+      const productById = new Map(foundProducts.map((p) => [p.id, p]));
 
-          const serviceDetail =
-            product.productType === "SERVICE"
-              ? buildServiceDetail(product, item.serviceDetail)
-              : undefined;
+      const resolvedItems = req.items.map((item) => {
+        const product = productById.get(item.productId);
+        if (!product || !product.active) {
+          throw new Error(`Produk tidak ditemukan atau tidak aktif.`);
+        }
 
-          return {
-            productId: product.id,
-            productName: product.name,
-            quantity: new Decimal(item.quantity),
-            unitPrice: new Decimal(product.sellingPrice.toString()),
-            costPrice: new Decimal(product.purchasePrice.toString()),
-            trackInventory: product.trackInventory,
-            serviceDetail,
-          };
-        })
-      );
+        const serviceDetail =
+          product.productType === "SERVICE"
+            ? buildServiceDetail(product, item.serviceDetail)
+            : undefined;
+
+        return {
+          productId: product.id,
+          productName: product.name,
+          quantity: new Decimal(item.quantity),
+          unitPrice: new Decimal(product.sellingPrice.toString()),
+          costPrice: new Decimal(product.purchasePrice.toString()),
+          trackInventory: product.trackInventory,
+          serviceDetail,
+        };
+      });
 
       const totals = domain.computeTotals(
         resolvedItems,
@@ -199,21 +205,48 @@ export async function applyPaidStockEffects(
   const products = new PrismaProductRepository(tx);
   const inventory = new PrismaInventoryRepository(tx);
 
+  // The checkout path already knows trackInventory from resolvedItems;
+  // the cashless-confirmation path doesn't (SaleItem snapshots don't
+  // carry it), so it's looked up here — but batched for every item
+  // that's missing it, instead of one findById per item every time.
+  const missingIds = [...new Set(items.filter((i) => i.trackInventory === undefined).map((i) => i.productId))];
+  const trackInventoryById = new Map<string, boolean>();
+  if (missingIds.length > 0) {
+    const found = await products.findByIds(missingIds);
+    for (const p of found) trackInventoryById.set(p.id, p.trackInventory);
+  }
+
+  // Aggregate by product id before mutating stock — never assume a
+  // caller always sends unique ids, and this collapses N potential
+  // writes to the same product into one (both a correctness guard and
+  // a perf win).
+  const aggregatedQuantity = new Map<string, Decimal>();
   for (const item of items) {
-    const trackInventory =
-      item.trackInventory ?? (await products.findById(item.productId))?.trackInventory;
+    const trackInventory = item.trackInventory ?? trackInventoryById.get(item.productId) ?? false;
     if (!trackInventory) continue;
-    const ok = await products.decrementStockIfAvailable(item.productId, item.quantity.toString());
+    aggregatedQuantity.set(
+      item.productId,
+      (aggregatedQuantity.get(item.productId) ?? new Decimal(0)).plus(item.quantity)
+    );
+  }
+
+  const movements: RecordMovementInput[] = [];
+  for (const [productId, quantity] of aggregatedQuantity) {
+    const ok = await products.decrementStockIfAvailable(productId, quantity.toString());
     if (!ok) {
       throw new InsufficientStockError(`Stok tidak mencukupi untuk produk ini.`);
     }
-    await inventory.recordMovement({
-      productId: item.productId,
-      quantity: item.quantity.negated().toString(),
+    movements.push({
+      productId,
+      quantity: quantity.negated().toString(),
       movementType: "SALE",
       referenceType: "SALE",
       referenceId: saleId,
       actorId,
     });
   }
+  // One batched insert for every line's movement instead of one write
+  // per line — same atomicity (same transaction handle), fewer round
+  // trips.
+  await inventory.recordMovements(movements);
 }
