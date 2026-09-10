@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import type { OpenShift } from "./types";
 
-export function OpenShiftForm({ onOpened }: { onOpened: () => void }) {
+export function OpenShiftForm({ onOpened }: { onOpened: (shift: OpenShift) => void }) {
   const [openingCash, setOpeningCash] = useState("0");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,13 +16,15 @@ export function OpenShiftForm({ onOpened }: { onOpened: () => void }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ openingCash }),
     });
+    const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Gagal membuka shift.");
       return;
     }
-    onOpened();
+    // The open-shift response already contains the created shift — use it
+    // directly instead of a redundant GET /shifts/current read-back.
+    onOpened(data.shift);
   }
 
   return (

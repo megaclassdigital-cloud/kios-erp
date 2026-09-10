@@ -1,12 +1,52 @@
 import type { BarcodeSource, ProductBarcode } from "@prisma/client";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
-import type { BarcodeRepository } from "../repository/barcode-repository";
+import type { BarcodeRepository, ResolvedBarcode } from "../repository/barcode-repository";
+
+const RESOLVE_PRODUCT_SELECT = {
+  id: true,
+  name: true,
+  productType: true,
+  serviceType: true,
+  serviceProvider: true,
+  purchasePrice: true,
+  sellingPrice: true,
+  currentStock: true,
+  minimumStock: true,
+  trackInventory: true,
+  active: true,
+} as const;
 
 export class PrismaBarcodeRepository implements BarcodeRepository {
   constructor(private readonly db: Db) {}
 
   async findByValue(barcodeValue: string): Promise<ProductBarcode | null> {
     return this.db.productBarcode.findUnique({ where: { barcodeValue } });
+  }
+
+  async resolveBarcode(barcodeValue: string): Promise<ResolvedBarcode | null> {
+    const row = await this.db.productBarcode.findUnique({
+      where: { barcodeValue },
+      select: {
+        id: true,
+        barcodeValue: true,
+        barcodeType: true,
+        status: true,
+        productId: true,
+        product: { select: RESOLVE_PRODUCT_SELECT },
+      },
+    });
+    if (!row) return null;
+    return {
+      ...row,
+      product: row.product
+        ? {
+            ...row.product,
+            purchasePrice: row.product.purchasePrice.toString(),
+            sellingPrice: row.product.sellingPrice.toString(),
+            currentStock: row.product.currentStock.toString(),
+          }
+        : null,
+    };
   }
 
   async create(input: {

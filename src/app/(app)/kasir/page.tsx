@@ -1,30 +1,22 @@
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { OpenShiftForm } from "./open-shift-form";
-import { PosTerminal } from "./pos-terminal";
+import { auth } from "@/shared/security/auth";
+import { GetCurrentShiftUseCase } from "@/modules/pos/application/get-current-shift-use-case";
+import { KasirClient } from "./kasir-client";
 import type { OpenShift } from "./types";
 
-export default function KasirPage() {
-  const [shift, setShift] = useState<OpenShift | null | undefined>(undefined);
+/** Fetches the open shift server-side so the page arrives with it already
+ * known — no client mount -> useEffect -> fetch waterfall before the POS
+ * terminal (or the open-shift form) can render. */
+export default async function KasirPage() {
+  const session = await auth();
+  const shift = session ? await new GetCurrentShiftUseCase().execute(session.user.id) : null;
 
-  const loadShift = useCallback(async () => {
-    const res = await fetch("/api/pos/shifts/current");
-    const data = await res.json().catch(() => ({}));
-    setShift(data.shift ?? null);
-  }, []);
+  const initialShift: OpenShift | null = shift
+    ? {
+        id: shift.id,
+        openingCash: shift.openingCash.toString(),
+        openedAt: shift.openedAt.toISOString(),
+      }
+    : null;
 
-  useEffect(() => {
-    loadShift();
-  }, [loadShift]);
-
-  if (shift === undefined) {
-    return <p className="text-sm text-muted-foreground">Memuat...</p>;
-  }
-
-  if (shift === null) {
-    return <OpenShiftForm onOpened={loadShift} />;
-  }
-
-  return <PosTerminal shift={shift} onShiftClosed={() => setShift(null)} />;
+  return <KasirClient initialShift={initialShift} />;
 }

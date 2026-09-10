@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Clock, Power } from "lucide-react";
 import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
@@ -13,8 +14,29 @@ import { BarcodeInputHint } from "../barcode-input-hint";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
+import { BarcodeValue } from "@/shared/barcode/barcode-value";
+import type { PosCatalogItem } from "@/modules/products/repository/pos-catalog-repository";
 
 const inventoryService = new InventoryService();
+
+interface ScannedProduct {
+  id: string;
+  name: string;
+  productType: "PHYSICAL" | "SERVICE";
+  trackInventory: boolean;
+  currentStock: string;
+  minimumStock: number;
+  sellingPrice: string;
+  serviceType: "PULSA" | "TOKEN_LISTRIK" | null;
+  serviceProvider: string | null;
+}
+
+async function fetchPosCatalog(): Promise<PosCatalogItem[]> {
+  const res = await fetch("/api/pos/catalog");
+  if (!res.ok) return [];
+  const data = await res.json().catch(() => ({}));
+  return data.items ?? [];
+}
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -43,6 +65,24 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   const shiftId = shift.id;
   const { data: session } = useSession();
   const duration = useShiftDuration(shift.openedAt);
+  const queryClient = useQueryClient();
+  // Loaded once per POS session, not per scan — a known barcode then
+  // resolves from this in-memory index with zero network round trip.
+  // staleTime keeps it from silently refetching mid-shift; a fresh
+  // barcode discovered via the server fallback gets merged in directly
+  // (see processBarcode) rather than waiting for a refetch.
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["pos-catalog"],
+    queryFn: fetchPosCatalog,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const barcodeIndex = useMemo(() => {
+    const map = new Map<string, PosCatalogItem>();
+    for (const item of catalog) map.set(item.barcode, item);
+    return map;
+  }, [catalog]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [barcode, setBarcode] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
@@ -74,31 +114,16 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
     await processBarcode(raw);
   }
 
-  async function processBarcode(raw: string) {
-    if (!raw.trim()) return;
-
-    const res = await fetch("/api/barcodes/resolve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barcode: raw }),
-    });
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      setScanError(data.error ?? "Barcode tidak terdaftar.");
-      inputRef.current?.focus();
-      return;
-    }
-
-    setScanError(null);
-    const product = data.product;
-
+  /** Shared by both resolution paths (local index hit and server
+   * fallback) so the cart/stock-warning behavior is identical regardless
+   * of which one answered the scan. */
+  function applyScannedProduct(product: ScannedProduct) {
     if (product.productType === "SERVICE") {
       setPendingService({
         id: product.id,
         name: product.name,
         sellingPrice: product.sellingPrice,
-        serviceType: product.serviceType,
+        serviceType: product.serviceType as "PULSA" | "TOKEN_LISTRIK",
         serviceProvider: product.serviceProvider,
       });
       return;
@@ -141,6 +166,73 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
       ];
     });
     inputRef.current?.focus();
+  }
+
+  async function processBarcode(raw: string) {
+    if (!raw.trim()) return;
+    const normalized = BarcodeValue.normalize(raw).toString();
+
+    // Known product: resolve from the in-memory index, zero network
+    // round trip. This is the common case on a working shift — the
+    // catalog was already loaded before the first scan.
+    const cached = barcodeIndex.get(normalized);
+    if (cached) {
+      setScanError(null);
+      applyScannedProduct({
+        id: cached.productId,
+        name: cached.name,
+        productType: cached.productType,
+        trackInventory: cached.trackInventory,
+        currentStock: cached.currentStock,
+        minimumStock: cached.minimumStock,
+        sellingPrice: cached.sellingPrice,
+        serviceType: cached.serviceType,
+        serviceProvider: cached.serviceProvider,
+      });
+      return;
+    }
+
+    // Cache miss: a brand-new barcode, a catalog not loaded yet, or a
+    // genuinely unknown code — the server remains the authority either
+    // way (never removed, only bypassed when we already know the answer).
+    const res = await fetch("/api/barcodes/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcode: raw }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setScanError(data.error ?? "Barcode tidak terdaftar.");
+      inputRef.current?.focus();
+      return;
+    }
+
+    setScanError(null);
+    const product = data.product;
+
+    // Merge the newly-discovered barcode into the cached catalog so the
+    // next scan of the same code resolves locally too — no full refetch.
+    queryClient.setQueryData<PosCatalogItem[]>(["pos-catalog"], (prev = []) => {
+      if (prev.some((item) => item.barcode === normalized)) return prev;
+      return [
+        ...prev,
+        {
+          barcode: normalized,
+          productId: product.id,
+          name: product.name,
+          sellingPrice: product.sellingPrice,
+          currentStock: product.currentStock,
+          minimumStock: product.minimumStock,
+          productType: product.productType,
+          serviceType: product.serviceType ?? null,
+          serviceProvider: product.serviceProvider ?? null,
+          trackInventory: product.trackInventory,
+        },
+      ];
+    });
+
+    applyScannedProduct(product);
   }
 
   function addServiceLine(detail: ServiceDetailInput) {
