@@ -50,28 +50,28 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500">Stok Aman</p>
-          <p className="mt-1 text-lg font-semibold text-green-700">{aman}</p>
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <p className="text-xs text-muted-foreground">Stok Aman</p>
+          <p className="mt-1 text-lg font-semibold text-success">{aman}</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500">Stok Menipis</p>
-          <p className="mt-1 text-lg font-semibold text-amber-700">{menipis}</p>
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <p className="text-xs text-muted-foreground">Stok Menipis</p>
+          <p className="mt-1 text-lg font-semibold text-warning-foreground">{menipis}</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500">Stok Habis</p>
-          <p className="mt-1 text-lg font-semibold text-red-700">{habis}</p>
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <p className="text-xs text-muted-foreground">Stok Habis</p>
+          <p className="mt-1 text-lg font-semibold text-destructive">{habis}</p>
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">Mutasi Stok (Periode Ini)</h2>
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Mutasi Stok (Periode Ini)</h2>
         {movements.length === 0 ? (
-          <p className="text-sm text-gray-500">Tidak ada mutasi stok pada periode ini.</p>
+          <p className="text-sm text-muted-foreground">Tidak ada mutasi stok pada periode ini.</p>
         ) : (
           <div className="max-h-80 overflow-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-white text-left text-xs text-gray-500">
+              <thead className="sticky top-0 bg-card text-left text-xs text-muted-foreground">
                 <tr>
                   <th className="py-1">Waktu</th>
                   <th className="py-1">Produk</th>
@@ -81,13 +81,13 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
               </thead>
               <tbody>
                 {movements.map((m) => (
-                  <tr key={m.id} className="border-t border-gray-100">
-                    <td className="whitespace-nowrap py-1.5 text-gray-500">{m.createdAt.toLocaleString("id-ID")}</td>
-                    <td className="whitespace-nowrap py-1.5 text-gray-900">{m.product.name}</td>
-                    <td className="whitespace-nowrap py-1.5 text-gray-500">{MOVEMENT_LABEL[m.movementType] ?? m.movementType}</td>
+                  <tr key={m.id} className="border-t border-border">
+                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{m.createdAt.toLocaleString("id-ID")}</td>
+                    <td className="whitespace-nowrap py-1.5 text-foreground">{m.product.name}</td>
+                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{MOVEMENT_LABEL[m.movementType] ?? m.movementType}</td>
                     <td
-                      className={`py-1.5 font-medium ${
-                        Number(m.quantity) < 0 ? "text-red-600" : "text-green-700"
+                      className={`py-1.5 font-medium tabular-nums ${
+                        Number(m.quantity) < 0 ? "text-destructive" : "text-success"
                       }`}
                     >
                       {Number(m.quantity) > 0 ? "+" : ""}
@@ -101,14 +101,14 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
         )}
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">Selisih Stock Opname (Disetujui)</h2>
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Selisih Stock Opname (Disetujui)</h2>
         {opnameItems.length === 0 ? (
-          <p className="text-sm text-gray-500">Tidak ada selisih stock opname pada periode ini.</p>
+          <p className="text-sm text-muted-foreground">Tidak ada selisih stock opname pada periode ini.</p>
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500">
+            <thead className="text-left text-xs text-muted-foreground">
               <tr>
                 <th className="py-1">No. Opname</th>
                 <th className="py-1">Produk</th>
@@ -119,14 +119,14 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
             </thead>
             <tbody>
               {opnameItems.map((o) => (
-                <tr key={o.id} className="border-t border-gray-100">
-                  <td className="whitespace-nowrap py-1.5 font-mono text-xs text-gray-500">{o.stockOpname.opnameNumber}</td>
-                  <td className="whitespace-nowrap py-1.5 text-gray-900">{o.product.name}</td>
-                  <td className="py-1.5 text-gray-500">{Number(o.systemQty)}</td>
-                  <td className="py-1.5 text-gray-500">{Number(o.physicalQty)}</td>
+                <tr key={o.id} className="border-t border-border">
+                  <td className="whitespace-nowrap py-1.5 font-mono text-xs text-muted-foreground">{o.stockOpname.opnameNumber}</td>
+                  <td className="whitespace-nowrap py-1.5 text-foreground">{o.product.name}</td>
+                  <td className="py-1.5 text-muted-foreground tabular-nums">{Number(o.systemQty)}</td>
+                  <td className="py-1.5 text-muted-foreground tabular-nums">{Number(o.physicalQty)}</td>
                   <td
-                    className={`py-1.5 font-medium ${
-                      Number(o.difference) < 0 ? "text-red-600" : "text-green-700"
+                    className={`py-1.5 font-medium tabular-nums ${
+                      Number(o.difference) < 0 ? "text-destructive" : "text-success"
                     }`}
                   >
                     {Number(o.difference) > 0 ? "+" : ""}

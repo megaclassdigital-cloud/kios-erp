@@ -37,11 +37,18 @@ export default async function LaporanPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-gray-900">
-          Laporan <span className="text-sm font-normal text-gray-500">({period.label})</span>
-        </h1>
-        <ExportToolbar csvHref={csvHref} />
+      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-r from-primary-soft via-card to-card p-6 shadow-sm">
+        <div className="pointer-events-none absolute -top-10 right-6 h-36 w-36 rounded-full bg-primary/10" />
+        <div className="pointer-events-none absolute -bottom-16 right-28 h-28 w-28 rounded-full bg-info/10" />
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-foreground md:text-2xl">Laporan</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pantau perkembangan usaha Anda dengan laporan yang lengkap dan akurat — {period.label}.
+            </p>
+          </div>
+          <ExportToolbar csvHref={csvHref} />
+        </div>
       </div>
 
       <PeriodSelector basePath="/laporan" active={period.key} extraParams={{ tab }} />

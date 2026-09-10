@@ -1,25 +1,28 @@
+import { LineChart, Package, Boxes, Users } from "lucide-react";
+
 const TABS = [
-  { key: "penjualan", label: "Penjualan" },
-  { key: "produk", label: "Produk" },
-  { key: "inventaris", label: "Inventaris" },
-  { key: "kasir", label: "Kasir" },
+  { key: "penjualan", label: "Penjualan", icon: LineChart },
+  { key: "produk", label: "Produk", icon: Package },
+  { key: "inventaris", label: "Inventaris", icon: Boxes },
+  { key: "kasir", label: "Kasir", icon: Users },
 ] as const;
 
 export type ReportTab = (typeof TABS)[number]["key"];
 
 export function TabNav({ active, periodQuery }: { active: ReportTab; periodQuery: string }) {
   return (
-    <div className="flex gap-1 border-b border-gray-200">
+    <div className="flex gap-1 border-b border-border">
       {TABS.map((t) => (
         <a
           key={t.key}
           href={`/laporan?tab=${t.key}&${periodQuery}`}
-          className={`border-b-2 px-3 py-2 text-sm font-medium ${
+          className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${
             active === t.key
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
+          <t.icon className="h-4 w-4" />
           {t.label}
         </a>
       ))}

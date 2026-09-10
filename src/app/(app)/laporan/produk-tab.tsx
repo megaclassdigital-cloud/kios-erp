@@ -12,14 +12,14 @@ function ProductTable({
   rows: { productId: string; productNameSnapshot: string; qty: number; total: number }[];
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-gray-900">{title}</h2>
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <h2 className="mb-3 text-sm font-semibold text-foreground">{title}</h2>
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-500">Belum ada data penjualan pada periode ini.</p>
+        <p className="text-sm text-muted-foreground">Belum ada data penjualan pada periode ini.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500">
+            <thead className="text-left text-xs text-muted-foreground">
               <tr>
                 <th className="py-1">Produk</th>
                 <th className="py-1">Qty</th>
@@ -28,10 +28,10 @@ function ProductTable({
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.productId} className="border-t border-gray-100">
-                  <td className="whitespace-nowrap py-1.5 text-gray-900">{r.productNameSnapshot}</td>
-                  <td className="py-1.5 text-gray-500">{r.qty}</td>
-                  <td className="py-1.5 font-medium text-gray-900">{formatRupiah(r.total)}</td>
+                <tr key={r.productId} className="border-t border-border">
+                  <td className="whitespace-nowrap py-1.5 text-foreground">{r.productNameSnapshot}</td>
+                  <td className="py-1.5 text-muted-foreground tabular-nums">{r.qty}</td>
+                  <td className="py-1.5 font-medium text-foreground tabular-nums">{formatRupiah(r.total)}</td>
                 </tr>
               ))}
             </tbody>
