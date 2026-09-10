@@ -91,8 +91,34 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
         permissionStream.getTracks().forEach((track) => track.stop());
         if (cancelled) return;
 
-        const { BrowserMultiFormatReader } = await import("@zxing/browser");
-        const reader = new BrowserMultiFormatReader();
+        const { BrowserMultiFormatReader, BarcodeFormat } = await import("@zxing/browser");
+        const { DecodeHintType } = await import("@zxing/library");
+        // Retail 1D formats only — our own internal codes are CODE_128
+        // (see barcode-value.ts) and every real-world product barcode
+        // this store scans is EAN/UPC/CODE_39. zxing's default (no
+        // hints) instead runs every decoder it has, including 2D ones
+        // (QR/Data Matrix/Aztec/PDF417) and formats like Codabar/ITF/RSS
+        // that never appear here, on every single frame — pure wasted
+        // work that was stretching each decode attempt out for nothing.
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.CODE_39,
+        ]);
+        const reader = new BrowserMultiFormatReader(hints, {
+          // zxing's own default is a flat 500ms pause between every decode
+          // attempt (success or not) — on top of already-slow multi-format
+          // decoding, that alone put a hard floor of 1s+ under the 2
+          // confirmation frames this app requires before accepting a scan.
+          // Purely local/CPU-bound, no network round trip, so it's safe to
+          // run much tighter.
+          delayBetweenScanAttempts: 100,
+          delayBetweenScanSuccess: 100,
+        });
         readerRef.current = reader;
 
         const videoDevices = await BrowserMultiFormatReader.listVideoInputDevices();
@@ -117,8 +143,25 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
         setDeviceId(selected.deviceId);
 
         if (!videoRef.current) return;
-        const controls = await reader.decodeFromVideoDevice(
-          selected.deviceId,
+        // decodeFromVideoDevice only ever requests { deviceId }, leaving
+        // resolution/focus up to the browser's own default — often a low
+        // capture resolution that makes a barcode's bars blur together at
+        // normal scanning distance, forcing several failed decode
+        // attempts (each still paying the inter-attempt delay above)
+        // before one finally resolves. Asking for a higher resolution and
+        // continuous autofocus directly raises the odds any single frame
+        // decodes at all. Both are best-effort "ideal"/"advanced" hints —
+        // a device that doesn't support them just ignores them rather
+        // than failing getUserMedia.
+        const controls = await reader.decodeFromConstraints(
+          {
+            video: {
+              deviceId: { exact: selected.deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+            },
+          },
           videoRef.current,
           (result) => {
             // zxing's own decode loop calls this callback from inside its
