@@ -102,22 +102,38 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
           selected.deviceId,
           videoRef.current,
           (result) => {
-            if (!result) {
-              // A couple of consecutive "not found" frames means the code
-              // is no longer in view — safe to accept it again next time.
-              missStreakRef.current += 1;
-              if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
-              return;
+            // zxing's own decode loop calls this callback from inside its
+            // own try/catch with no isolation — anything thrown here
+            // (even something as environment-specific as navigator.vibrate
+            // misbehaving on a particular device) gets treated as a fatal
+            // decode error and permanently kills the camera stream, with
+            // no error surfaced anywhere in this app's own UI. Never let
+            // anything here escape.
+            try {
+              if (!result) {
+                // A couple of consecutive "not found" frames means the
+                // code is no longer in view — safe to accept it again.
+                missStreakRef.current += 1;
+                if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
+                return;
+              }
+              missStreakRef.current = 0;
+              const code = result.getText();
+              if (lastAcceptedRef.current === code) return;
+              lastAcceptedRef.current = code;
+              setFlash(true);
+              setTimeout(() => setFlash(false), 200);
+              playScanBeep();
+              try {
+                navigator.vibrate?.(80);
+              } catch {
+                // Vibration is a nice-to-have; some browsers/contexts
+                // reject it outright (e.g. no user-gesture) — ignore.
+              }
+              onScan(code);
+            } catch (callbackError) {
+              console.error("CameraScanner decode callback failed:", callbackError);
             }
-            missStreakRef.current = 0;
-            const code = result.getText();
-            if (lastAcceptedRef.current === code) return;
-            lastAcceptedRef.current = code;
-            setFlash(true);
-            setTimeout(() => setFlash(false), 200);
-            playScanBeep();
-            if (navigator.vibrate) navigator.vibrate(80);
-            onScan(code);
           }
         );
         if (cancelled) {

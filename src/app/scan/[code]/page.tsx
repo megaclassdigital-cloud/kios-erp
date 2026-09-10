@@ -69,17 +69,25 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
 
         setStatus("ready");
         const controls = await reader.decodeFromVideoDevice(target.deviceId, videoRef.current, (result) => {
-          if (cancelled) return;
-          if (!result) {
-            missStreakRef.current += 1;
-            if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
-            return;
+          // zxing's own decode loop calls this callback from inside its
+          // own try/catch with no isolation — anything thrown here gets
+          // treated as a fatal decode error and permanently kills the
+          // camera stream. Never let anything here escape.
+          try {
+            if (cancelled) return;
+            if (!result) {
+              missStreakRef.current += 1;
+              if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
+              return;
+            }
+            missStreakRef.current = 0;
+            const value = result.getText();
+            if (lastAcceptedRef.current === value) return;
+            lastAcceptedRef.current = value;
+            submitScan(value);
+          } catch (callbackError) {
+            console.error("Scan decode callback failed:", callbackError);
           }
-          missStreakRef.current = 0;
-          const value = result.getText();
-          if (lastAcceptedRef.current === value) return;
-          lastAcceptedRef.current = value;
-          submitScan(value);
         });
         if (cancelled) {
           controls.stop();
@@ -102,7 +110,11 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
       setFlash(true);
       setTimeout(() => setFlash(false), 250);
       playScanBeep();
-      if (navigator.vibrate) navigator.vibrate(80);
+      try {
+        navigator.vibrate?.(80);
+      } catch {
+        // Vibration is a nice-to-have; ignore if the browser rejects it.
+      }
 
       const res = await fetch(`/api/scan-session/${code}/events`, {
         method: "POST",
