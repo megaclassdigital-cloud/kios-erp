@@ -20,7 +20,7 @@ export function RefundButton({ saleId }: { saleId: string }) {
   }
 
   return (
-    <button onClick={handleRefund} disabled={loading} className="text-xs text-red-600 hover:underline disabled:opacity-50">
+    <button onClick={handleRefund} disabled={loading} className="text-xs text-destructive hover:underline disabled:opacity-50">
       {loading ? "..." : "Refund"}
     </button>
   );

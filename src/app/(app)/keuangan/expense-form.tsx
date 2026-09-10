@@ -39,13 +39,13 @@ export function ExpenseForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-gray-900">Tambah Pengeluaran</h2>
+    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <h2 className="mb-3 text-sm font-semibold text-foreground">Tambah Pengeluaran</h2>
       <div className="grid gap-3 md:grid-cols-4">
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="rounded-md border border-input px-3 py-2 text-sm"
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -59,23 +59,23 @@ export function ExpenseForm() {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           required
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="rounded-md border border-input px-3 py-2 text-sm"
         />
         <input
           placeholder="Keterangan"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm md:col-span-1"
+          className="rounded-md border border-input px-3 py-2 text-sm md:col-span-1"
         />
         <button
           type="submit"
           disabled={loading}
-          className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
           {loading ? "Menyimpan..." : "Simpan"}
         </button>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </form>
   );
 }
