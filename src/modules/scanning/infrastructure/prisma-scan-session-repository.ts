@@ -17,7 +17,19 @@ export class PrismaScanSessionRepository implements ScanSessionRepository {
     await this.db.scanSession.update({ where: { id }, data: { disconnectedAt: new Date() } });
   }
 
+  async claim(id: string): Promise<ScanSession> {
+    const now = new Date();
+    return this.db.scanSession.update({ where: { id }, data: { claimedAt: now, lastSeenAt: now } });
+  }
+
+  async touchLastSeen(id: string): Promise<void> {
+    await this.db.scanSession.update({ where: { id }, data: { lastSeenAt: new Date() } });
+  }
+
   async addEvent(sessionId: string, barcodeValue: string): Promise<ScanEvent> {
+    // A scan is itself proof the phone is alive — touch lastSeenAt in the
+    // same write instead of relying only on the separate heartbeat call.
+    await this.db.scanSession.update({ where: { id: sessionId }, data: { lastSeenAt: new Date() } });
     return this.db.scanEvent.create({ data: { sessionId, barcodeValue } });
   }
 

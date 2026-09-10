@@ -23,6 +23,7 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
+  const heartbeatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // See camera-scanner.tsx for the reasoning: require the same value to
   // decode successfully a couple of frames in a row before accepting it
   // (filters out a single-frame misread), then pause briefly and
@@ -103,6 +104,27 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
           return;
         }
         controlsRef.current = controls;
+
+        // Prove liveness to the desktop side even when nothing is being
+        // scanned right now — without this, the only signal a dropped
+        // connection ever produced was the *next* scan failing, which
+        // could be minutes away (or never, if the cashier gives up first).
+        async function heartbeatLoop() {
+          if (cancelled) return;
+          try {
+            const res = await fetch(`/api/scan-session/${code}/heartbeat`, { method: "POST" });
+            if (!res.ok && (res.status === 404 || res.status === 400)) {
+              controlsRef.current?.stop();
+              setStatus("disconnected");
+              return;
+            }
+          } catch {
+            // A single failed heartbeat (transient network blip) isn't
+            // fatal — only an explicit "session gone" response is.
+          }
+          if (!cancelled) heartbeatTimeoutRef.current = setTimeout(heartbeatLoop, 4000);
+        }
+        heartbeatTimeoutRef.current = setTimeout(heartbeatLoop, 4000);
       } catch (err) {
         if (!cancelled) {
           setErrorMessage(
@@ -143,6 +165,7 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
     return () => {
       cancelled = true;
       controlsRef.current?.stop();
+      if (heartbeatTimeoutRef.current) clearTimeout(heartbeatTimeoutRef.current);
     };
   }, [code]);
 

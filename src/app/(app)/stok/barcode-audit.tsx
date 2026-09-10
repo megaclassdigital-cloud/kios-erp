@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 import { StatusBadge } from "@/components/kios/status-badge";
+import { InventoryService } from "@/modules/inventory/domain/inventory-service";
+
+const inventoryService = new InventoryService();
 
 const MOVEMENT_LABEL: Record<string, string> = {
   PURCHASE: "Barang Masuk",
@@ -77,6 +81,14 @@ export function BarcodeAudit() {
       return;
     }
     setResult(data);
+    // Same immediate heads-up as the kasir scan — flag it right when
+    // scanned, not only when someone later checks the stock report.
+    const status = inventoryService.classifyStock(Number(data.product.currentStock), data.product.minimumStock);
+    if (status === "HABIS") {
+      toast.warning(`Stok ${data.product.name} habis.`);
+    } else if (status === "MENIPIS") {
+      toast.warning(`Stok ${data.product.name} menipis — sisa ${Number(data.product.currentStock)}.`);
+    }
     inputRef.current?.focus();
   }
 

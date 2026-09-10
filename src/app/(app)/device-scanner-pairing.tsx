@@ -9,13 +9,32 @@ type ConnState = "idle" | "connecting" | "connected" | "error";
  * nothing but a camera feed — and every code it decodes lands here via
  * polling, then goes through the exact same onScan callback this page's
  * own CameraScanner already uses. Same drop-in shape as CameraScanner by
- * design, so wiring it in anywhere is a one-line addition. */
-export function DeviceScannerPairing({ label, onScan }: { label: string; onScan: (code: string) => void }) {
+ * design, so wiring it in anywhere is a one-line addition.
+ *
+ * `resetSignal`: pass a value that changes once a customer's transaction
+ * finishes (e.g. the cart being cleared after payment) — an active
+ * pairing is disconnected and a fresh code/QR minted for the next
+ * customer, so one physical pairing never spans more than one checkout. */
+export function DeviceScannerPairing({
+  label,
+  onScan,
+  resetSignal,
+}: {
+  label: string;
+  onScan: (code: string) => void;
+  resetSignal?: unknown;
+}) {
   const [state, setState] = useState<ConnState>("idle");
   const [code, setCode] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Tracks the *live* connection, independent of `state` — a session can
+  // exist (QR shown) with nobody having scanned it yet, or with a phone
+  // that connected and then silently dropped. These read differently to
+  // the cashier ("waiting for a phone" vs "a phone was here and is gone").
+  const [phoneConnected, setPhoneConnected] = useState(false);
+  const everConnectedRef = useRef(false);
   const lastEventTimeRef = useRef<Date | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingRef = useRef(false);
@@ -32,6 +51,8 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
   async function connect() {
     setState("connecting");
     setError(null);
+    setPhoneConnected(false);
+    everConnectedRef.current = false;
     const res = await fetch("/api/scan-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -82,6 +103,8 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
         } else {
           failCountRef.current = 0;
           const pollData = await pollRes.json();
+          if (pollData.connected) everConnectedRef.current = true;
+          setPhoneConnected(Boolean(pollData.connected));
           for (const event of pollData.events ?? []) {
             lastEventTimeRef.current = new Date(event.createdAt);
             onScan(event.barcodeValue);
@@ -94,7 +117,11 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
         failCountRef.current += 1;
       }
       if (pollingRef.current) {
-        pollTimeoutRef.current = setTimeout(pollOnce, 1200);
+        // A single cashier terminal polling its one active pairing session
+        // is negligible load — worth polling faster than the original
+        // 1200ms to cut wireless scan-to-cart latency, since every ms
+        // here is added on top of the phone's own decode + network time.
+        pollTimeoutRef.current = setTimeout(pollOnce, 400);
       }
     }
     pollOnce();
@@ -106,9 +133,28 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
     setState("idle");
     setCode(null);
     setQrDataUrl(null);
+    setPhoneConnected(false);
   }
 
   useEffect(() => stopPolling, []);
+
+  // Rotate to a fresh pairing code once a customer's transaction finishes
+  // — one physical pairing per customer session, not per shift. Skipped
+  // on mount (only fires on a genuine change) and only when a pairing is
+  // actually active; an idle "Hubungkan Perangkat Lain" button is left
+  // alone so this never auto-connects a phone nobody asked for.
+  const isFirstRunRef = useRef(true);
+  useEffect(() => {
+    if (isFirstRunRef.current) {
+      isFirstRunRef.current = false;
+      return;
+    }
+    if (state === "connected") {
+      disconnect();
+      connect();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSignal]);
 
   if (state === "idle" || state === "error") {
     return (
@@ -116,34 +162,48 @@ export function DeviceScannerPairing({ label, onScan }: { label: string; onScan:
         <button
           type="button"
           onClick={connect}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          className="rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
         >
           Hubungkan Perangkat Lain
         </button>
-        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
       </div>
     );
   }
 
   if (state === "connecting") {
-    return <p className="text-xs text-gray-400">Membuat sesi...</p>;
+    return <p className="text-xs text-muted-foreground">Membuat sesi...</p>;
   }
 
   return (
-    <div className="rounded-md border border-gray-200 p-3">
+    <div className="rounded-md border border-border p-3">
       <div className="flex items-start gap-3">
         {qrDataUrl && (
           <img src={qrDataUrl} alt="QR untuk pairing perangkat" className="h-28 w-28 shrink-0 rounded" />
         )}
         <div className="min-w-0 flex-1 text-sm">
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Buka kamera HP dan pindai QR ini, atau ketik kode berikut di HP:
           </p>
-          <p className="mt-1 font-mono text-lg font-semibold tracking-widest text-gray-900">{code}</p>
-          <p className="mt-1 text-xs text-gray-400">{scanCount} kode diterima dari perangkat ini</p>
+          <p className="mt-1 font-mono text-lg font-semibold tracking-widest text-foreground">{code}</p>
+          <p className="mt-1.5 flex items-center gap-1.5 text-xs">
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${
+                phoneConnected ? "bg-success" : everConnectedRef.current ? "bg-destructive" : "bg-muted-foreground/40"
+              }`}
+            />
+            <span className={phoneConnected ? "text-success" : everConnectedRef.current ? "text-destructive" : "text-muted-foreground"}>
+              {phoneConnected
+                ? "Terhubung"
+                : everConnectedRef.current
+                  ? "Terputus — HP tidak merespon"
+                  : "Menunggu HP memindai QR..."}
+            </span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{scanCount} kode diterima dari perangkat ini</p>
           <button
             onClick={disconnect}
-            className="mt-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            className="mt-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
           >
             Putuskan
           </button>

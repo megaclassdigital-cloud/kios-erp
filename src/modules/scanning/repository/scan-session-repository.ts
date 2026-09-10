@@ -11,6 +11,10 @@ export interface ScanSessionRepository {
   create(input: CreateScanSessionInput): Promise<ScanSession>;
   findByCode(code: string): Promise<ScanSession | null>;
   disconnect(id: string): Promise<void>;
+  /** Locks the session to the connecting phone (sets claimedAt + lastSeenAt). */
+  claim(id: string): Promise<ScanSession>;
+  /** Heartbeat — proves the connected phone is still there. */
+  touchLastSeen(id: string): Promise<void>;
   addEvent(sessionId: string, barcodeValue: string): Promise<ScanEvent>;
   /** Events created strictly after `after` (exclusive), oldest first — the
    * desktop polls this with the last event id/timestamp it already has. */

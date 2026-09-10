@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { CartLine, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { ServiceDetailModal } from "./service-detail-modal";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
+import { InventoryService } from "@/modules/inventory/domain/inventory-service";
+
+const inventoryService = new InventoryService();
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -18,6 +22,10 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
   const [scanError, setScanError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  // Bumped once per completed sale — a paired phone rotates to a fresh
+  // code/QR when this changes, so one physical pairing spans exactly one
+  // customer's transaction rather than an entire shift.
+  const [completedSaleCount, setCompletedSaleCount] = useState(0);
   const [pendingService, setPendingService] = useState<{
     id: string;
     name: string;
@@ -68,6 +76,22 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
         serviceProvider: product.serviceProvider,
       });
       return;
+    }
+
+    // Warn right when the item is scanned — not only once the cashier
+    // reaches payment — so there's still time to check the shelf or tell
+    // the customer before the transaction is finished. Computed from the
+    // cart snapshot at scan time, outside setCart, since a state updater
+    // must stay a pure function (React can invoke it twice in dev).
+    if (product.trackInventory) {
+      const existingQty = cart.find((l) => l.productId === product.id)?.quantity ?? 0;
+      const remaining = Number(product.currentStock) - (existingQty + 1);
+      const status = inventoryService.classifyStock(remaining, product.minimumStock);
+      if (status === "HABIS") {
+        toast.warning(`Stok ${product.name} akan habis setelah transaksi ini.`);
+      } else if (status === "MENIPIS") {
+        toast.warning(`Stok ${product.name} menipis — sisa ${remaining} setelah transaksi ini.`);
+      }
     }
 
     setCart((prev) => {
@@ -154,7 +178,7 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
           />
         </form>
         <CameraScanner onScan={processBarcode} />
-        <DeviceScannerPairing label="Kasir" onScan={processBarcode} />
+        <DeviceScannerPairing label="Kasir" onScan={processBarcode} resetSignal={completedSaleCount} />
         <BarcodeInputHint />
         {scanError && (
           <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">
@@ -285,6 +309,7 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
             setFlash(message);
             setCart([]);
             setShowPayment(false);
+            setCompletedSaleCount((n) => n + 1);
             inputRef.current?.focus();
           }}
         />

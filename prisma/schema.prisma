@@ -460,6 +460,14 @@ model ScanSession {
   createdAt   DateTime    @default(now())
   expiresAt   DateTime
   disconnectedAt DateTime?
+  /// Set the first time a phone successfully connects — locks the code to
+  /// that one connection until it goes stale (see lastSeenAt) or is
+  /// explicitly disconnected, so a second device can't also attach mid-session.
+  claimedAt   DateTime?
+  /// Updated by the connected phone's periodic heartbeat and by every scan
+  /// it submits — lets both sides detect a silently dropped connection
+  /// instead of assuming "connected" forever once paired.
+  lastSeenAt  DateTime?
 
   events ScanEvent[]
 
