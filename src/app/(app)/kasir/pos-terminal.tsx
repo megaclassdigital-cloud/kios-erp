@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import type { CartLine, ServiceDetailInput } from "./types";
+import { Clock, Power } from "lucide-react";
+import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { ServiceDetailModal } from "./service-detail-modal";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
+import { PageHeader } from "@/components/kios/page-header";
+import { StatusBadge } from "@/components/kios/status-badge";
 
 const inventoryService = new InventoryService();
 
@@ -16,7 +20,29 @@ function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
 }
 
-export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShiftClosed: () => void }) {
+/** "2j 15m" style — ticks every minute, computed from the shift's own
+ * openedAt rather than tracked separately, so it survives a page refresh. */
+function useShiftDuration(openedAt: string) {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    function update() {
+      const ms = Date.now() - new Date(openedAt).getTime();
+      const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      setLabel(hours > 0 ? `${hours}j ${minutes}m` : `${minutes}m`);
+    }
+    update();
+    const id = setInterval(update, 30_000);
+    return () => clearInterval(id);
+  }, [openedAt]);
+  return label;
+}
+
+export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShiftClosed: () => void }) {
+  const shiftId = shift.id;
+  const { data: session } = useSession();
+  const duration = useShiftDuration(shift.openedAt);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [barcode, setBarcode] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
@@ -162,31 +188,67 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-3">
-        <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            SCAN BARCODE — siap menerima input scanner
-          </label>
-          <input
-            ref={inputRef}
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            className="w-full rounded-md border border-input px-3 py-2 text-lg tracking-wide focus:border-ring focus:outline-none"
-            placeholder="Ketik kode lalu Enter"
-            autoComplete="off"
-          />
-        </form>
-        <CameraScanner onScan={processBarcode} />
-        <DeviceScannerPairing label="Kasir" onScan={processBarcode} resetSignal={completedSaleCount} />
-        <BarcodeInputHint />
-        {scanError && (
-          <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">
-            {scanError}
-          </div>
-        )}
+    <div className="space-y-4">
+      <PageHeader
+        title="Kasir / POS"
+        description="Scan barcode, cari barang, dan selesaikan transaksi dengan cepat."
+        actions={
+          <>
+            <StatusBadge tone="success">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              Shift Aktif
+            </StatusBadge>
+            <span className="text-sm text-muted-foreground">
+              Kasir: <span className="font-medium text-foreground">{session?.user?.name ?? "..."}</span>
+            </span>
+            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              Durasi: {duration || "..."}
+            </span>
+            <button
+              onClick={closeShift}
+              className="flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive-soft px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/20"
+            >
+              <Power className="h-4 w-4" />
+              Tutup Shift
+            </button>
+          </>
+        }
+      />
 
-        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-3">
+          <div className="grid gap-3 md:grid-cols-3">
+            <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm md:col-span-1">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                SCAN BARCODE — siap menerima input scanner
+              </label>
+              <input
+                ref={inputRef}
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                className="w-full rounded-md border border-input px-3 py-2 text-lg tracking-wide focus:border-ring focus:outline-none"
+                placeholder="Ketik kode lalu Enter"
+                autoComplete="off"
+              />
+            </form>
+            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">SCANNER KAMERA</p>
+              <CameraScanner onScan={processBarcode} />
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">DEVICE SCANNER</p>
+              <DeviceScannerPairing label="Kasir" onScan={processBarcode} resetSignal={completedSaleCount} />
+            </div>
+          </div>
+          <BarcodeInputHint />
+          {scanError && (
+            <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">
+              {scanError}
+            </div>
+          )}
+
+          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-muted text-left text-xs text-muted-foreground">
               <tr>
@@ -257,35 +319,55 @@ export function PosTerminal({ shiftId, onShiftClosed }: { shiftId: string; onShi
         </div>
       </div>
 
-      <div className="space-y-3">
-        {flash && (
-          <div className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm text-success">
-            {flash}
+        <div className="space-y-3">
+          {flash && (
+            <div className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm text-success">
+              {flash}
+            </div>
+          )}
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h2 className="mb-2 text-sm font-semibold text-foreground">Ringkasan Transaksi</h2>
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span className="tabular-nums">{formatRupiah(grandTotal)}</span>
+            </div>
+            <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold text-foreground">
+              <span>Total</span>
+              <span className="tabular-nums">{formatRupiah(grandTotal)}</span>
+            </div>
+            <button
+              onClick={() => setShowPayment(true)}
+              disabled={cart.length === 0}
+              className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+            >
+              Bayar
+            </button>
           </div>
-        )}
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Subtotal</span>
-            <span className="tabular-nums">{formatRupiah(grandTotal)}</span>
+
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h2 className="mb-2 text-sm font-semibold text-foreground">Informasi Shift</h2>
+            <dl className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Kasir</dt>
+                <dd className="font-medium text-foreground">{session?.user?.name ?? "..."}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Mulai Shift</dt>
+                <dd className="text-foreground tabular-nums">
+                  {new Date(shift.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Durasi</dt>
+                <dd className="text-foreground tabular-nums">{duration || "..."}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Modal Awal</dt>
+                <dd className="text-foreground tabular-nums">{formatRupiah(Number(shift.openingCash))}</dd>
+              </div>
+            </dl>
           </div>
-          <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold text-foreground">
-            <span>Grand Total</span>
-            <span className="tabular-nums">{formatRupiah(grandTotal)}</span>
-          </div>
-          <button
-            onClick={() => setShowPayment(true)}
-            disabled={cart.length === 0}
-            className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-          >
-            Bayar
-          </button>
         </div>
-        <button
-          onClick={closeShift}
-          className="w-full rounded-md border border-border py-2 text-sm font-medium text-foreground hover:bg-muted"
-        >
-          Tutup Shift
-        </button>
       </div>
 
       {pendingService && (

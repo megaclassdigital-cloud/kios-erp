@@ -3,7 +3,6 @@ import { GetFinancialSummaryUseCase } from "@/modules/finance/application/get-fi
 import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
-import { PageHeader } from "@/components/kios/page-header";
 import { KpiCard } from "@/components/kios/kpi-card";
 import { EmptyState } from "@/components/kios/empty-state";
 import { resolvePeriod } from "../laporan/resolve-period";
@@ -22,6 +21,13 @@ function dayLabel(d: Date) {
 
 function dayKey(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+
+function greeting(hour: number) {
+  if (hour < 11) return "Selamat Pagi";
+  if (hour < 15) return "Selamat Siang";
+  if (hour < 18) return "Selamat Sore";
+  return "Selamat Malam";
 }
 
 /** Fills every day in [start,end] with 0 so a quiet day still shows as a
@@ -103,9 +109,20 @@ export default async function DashboardPage({
   );
   const outOfStock = products.filter((p) => Number(p.currentStock) <= 0);
 
+  const firstName = session?.user?.name?.split(" ")[0] ?? "Admin";
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" />
+      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-r from-primary-soft via-card to-card p-6 shadow-sm">
+        <div className="pointer-events-none absolute -top-10 right-6 h-36 w-36 rounded-full bg-primary/10" />
+        <div className="pointer-events-none absolute -bottom-16 right-28 h-28 w-28 rounded-full bg-info/10" />
+        <div className="relative">
+          <h1 className="text-xl font-bold text-foreground md:text-2xl">
+            {greeting(now.getHours())}, {firstName}!
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Semangat hari ini! Berikut ringkasan aktivitas toko Anda.</p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label="Penjualan Hari Ini" value={formatRupiah(summary.revenue.toFixed(2))} icon={Wallet} />
