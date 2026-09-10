@@ -33,7 +33,20 @@ export default async function TransaksiPage() {
       where: cashierFilter,
       orderBy: { createdAt: "desc" },
       take: 100,
-      include: { cashier: true, items: true },
+      // The list only ever displays the cashier's name and an item
+      // count — select instead of the previous include: { cashier: true,
+      // items: true }, which pulled every SaleItem field and the full
+      // User row (passwordHash included) just to show two things.
+      select: {
+        id: true,
+        transactionNumber: true,
+        createdAt: true,
+        paymentMethod: true,
+        grandTotal: true,
+        status: true,
+        cashier: { select: { name: true } },
+        _count: { select: { items: true } },
+      },
     }),
     prisma.sale.findMany({
       where: { ...cashierFilter, createdAt: { gte: startOfDay, lte: now } },
@@ -91,7 +104,7 @@ export default async function TransaksiPage() {
                 <td className="px-3 py-2 font-mono text-xs text-foreground">{s.transactionNumber}</td>
                 <td className="px-3 py-2 text-muted-foreground">{s.createdAt.toLocaleString("id-ID")}</td>
                 <td className="px-3 py-2 text-foreground">{s.cashier.name}</td>
-                <td className="px-3 py-2 text-muted-foreground">{s.items.length} item</td>
+                <td className="px-3 py-2 text-muted-foreground">{s._count.items} item</td>
                 <td className="px-3 py-2 text-muted-foreground">{s.paymentMethod}</td>
                 <td className="px-3 py-2 font-medium text-foreground tabular-nums">
                   {formatRupiah(Number(s.grandTotal))}
