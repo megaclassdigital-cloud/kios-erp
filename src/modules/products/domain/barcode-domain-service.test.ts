@@ -8,8 +8,8 @@ import {
 describe("BarcodeDomainService", () => {
   const service = new BarcodeDomainService();
 
-  it("formats a sequence into the KERP internal barcode scheme", () => {
-    expect(service.formatInternalBarcode(1n)).toBe("KERP000000000001");
+  it("formats a sequence into the internal barcode scheme", () => {
+    expect(service.formatInternalBarcode(1n)).toBe("2000000001");
   });
 
   it("rejects attaching a barcode already linked to a different product", () => {

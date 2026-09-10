@@ -52,13 +52,28 @@ export function buildLabelPng(opts: LabelFileOptions): Promise<Blob> {
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
 
+  // renderBarcodeBitmap rendered the source bitmap at 2px per module (its
+  // jsbarcode `width` option) — general-purpose 1D scanners need each bar
+  // to be at least ~0.4mm wide to resolve reliably at normal distance/
+  // lighting, so the print scale must never shrink below that no matter
+  // how small the chosen label size is (PRD 71: printed/downloaded
+  // barcodes must actually scan, not just look right).
+  const nativeModulePx = 2;
+  const minModulePx = mmToPx(0.4, dpi);
+  const minBcDrawW = barcodeBitmap.width * (minModulePx / nativeModulePx);
+
   function drawLabel(x: number, y: number, w: number, h: number) {
     const nameFontPx = Math.max(10, Math.round(h * 0.09));
     ctx!.font = `${nameFontPx}px Arial, sans-serif`;
 
     const bcW = w * 0.92;
-    const bcH = Math.min(bcW * barcodeAspect, h - nameFontPx - 12);
-    const bcDrawW = bcH / barcodeAspect;
+    const fittedBcH = Math.min(bcW * barcodeAspect, h - nameFontPx - 12);
+    const fittedBcDrawW = fittedBcH / barcodeAspect;
+    // Prefer scannability over a tidy fit: if the cell is too small to hit
+    // the minimum module width, grow past the cell (capped at the full
+    // canvas) rather than rendering bars too thin to scan.
+    const bcDrawW = Math.min(Math.max(fittedBcDrawW, minBcDrawW), widthPx * 0.98);
+    const bcH = bcDrawW * barcodeAspect;
 
     // Center the name+barcode block vertically in the cell rather than
     // pinning it to the top — the barcode's own aspect ratio means it

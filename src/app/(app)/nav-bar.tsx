@@ -11,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -94,12 +95,16 @@ export function NavBar({ role }: { role?: Role }) {
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            {visibleLinks.length > 0 && <DropdownMenuLabel>Administrasi</DropdownMenuLabel>}
-            {visibleLinks.map((link) => (
-              <DropdownMenuItem key={link.href} render={<Link href={link.href} />}>
-                {link.label}
-              </DropdownMenuItem>
-            ))}
+            {visibleLinks.length > 0 && (
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Administrasi</DropdownMenuLabel>
+                {visibleLinks.map((link) => (
+                  <DropdownMenuItem key={link.href} render={<Link href={link.href} />}>
+                    {link.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"

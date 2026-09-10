@@ -16,7 +16,13 @@ export function BarcodePreview({ value, format }: { value: string; format: "CODE
     if (!ref.current || !value) return;
     setFailed(false);
 
-    const options = { width: 2, height: 60, displayValue: true, fontSize: 14 };
+    // width:3 (module width in CSS px) gives more margin than jsbarcode's
+    // default 2px — CSS px maps to a roughly fixed physical size across
+    // devices, but browser print scaling and screen-to-camera distance
+    // both eat into that margin, so a bit of headroom here meaningfully
+    // improves real-world scan reliability for both the browser print
+    // path and scanning straight off a screen.
+    const options = { width: 3, height: 60, displayValue: true, fontSize: 14 };
     try {
       JsBarcode(ref.current, value, { ...options, format: format === "EAN13" ? "EAN13" : "CODE128" });
     } catch {

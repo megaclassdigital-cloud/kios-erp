@@ -21,15 +21,15 @@ describe("isValidEan13", () => {
   });
 
   it("rejects non-13-digit values (Code128/UPC-A/internal codes) rather than throwing", () => {
-    expect(isValidEan13("KERP000000000001")).toBe(false);
+    expect(isValidEan13("2000000001")).toBe(false);
     expect(isValidEan13("123456789012")).toBe(false);
   });
 });
 
 describe("formatInternalBarcode", () => {
-  it("produces a stable KERP-prefixed, zero-padded value", () => {
-    expect(formatInternalBarcode(1n)).toBe("KERP000000000001");
-    expect(formatInternalBarcode(152n)).toBe("KERP000000000152");
+  it("produces a stable, short, all-numeric value in GS1's internal-use (20-29) range", () => {
+    expect(formatInternalBarcode(1n)).toBe("2000000001");
+    expect(formatInternalBarcode(152n)).toBe("2000000152");
   });
 
   it("never collides for sequential values", () => {

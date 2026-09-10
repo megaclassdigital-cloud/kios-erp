@@ -27,10 +27,19 @@ export class BarcodeValue {
 
 export class InvalidBarcodeError extends Error {}
 
-export const INTERNAL_BARCODE_PREFIX = "KERP";
+// "20" is within GS1's 20-29 restricted-circulation prefix range, reserved
+// for internal/in-store use and never allocated to real manufacturer
+// barcodes — a recognized convention for an internally-minted code.
+// The whole value is kept short and all-numeric (10 digits total) so
+// jsbarcode's CODE128 renderer can use its numeric "subset C" mode (two
+// digits per symbol instead of one character per symbol), roughly halving
+// the physical width versus a mixed letter/digit code — the difference
+// between a barcode that fits a small thermal label at a scannable module
+// width and one that doesn't (PRD 71: printed barcodes must actually scan).
+export const INTERNAL_BARCODE_PREFIX = "20";
 
 export function formatInternalBarcode(sequence: bigint): string {
-  return `${INTERNAL_BARCODE_PREFIX}${sequence.toString().padStart(12, "0")}`;
+  return `${INTERNAL_BARCODE_PREFIX}${sequence.toString().padStart(8, "0")}`;
 }
 
 /** EAN13 requires exactly 13 digits with a valid check digit — most
