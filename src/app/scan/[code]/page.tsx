@@ -23,11 +23,10 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  // Dedup by presence, not by time — see camera-scanner.tsx for why: a
-  // product held in view for a couple of seconds must submit exactly
-  // once, not once per debounce window.
-  const lastAcceptedRef = useRef<string | null>(null);
-  const missStreakRef = useRef(0);
+  // Dedup the *same* code within a short window — see camera-scanner.tsx
+  // for why this is a plain time+value check rather than trying to
+  // detect when the code leaves the camera's view.
+  const lastScanRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
   useEffect(() => {
     let cancelled = false;
@@ -74,16 +73,11 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
           // treated as a fatal decode error and permanently kills the
           // camera stream. Never let anything here escape.
           try {
-            if (cancelled) return;
-            if (!result) {
-              missStreakRef.current += 1;
-              if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
-              return;
-            }
-            missStreakRef.current = 0;
+            if (cancelled || !result) return;
             const value = result.getText();
-            if (lastAcceptedRef.current === value) return;
-            lastAcceptedRef.current = value;
+            const now = Date.now();
+            if (lastScanRef.current.code === value && now - lastScanRef.current.at < 1200) return;
+            lastScanRef.current = { code: value, at: now };
             submitScan(value);
           } catch (callbackError) {
             console.error("Scan decode callback failed:", callbackError);

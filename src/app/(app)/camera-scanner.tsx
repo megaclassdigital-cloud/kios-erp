@@ -32,14 +32,14 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReaderType | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  // Dedup by presence, not by time: a product held in view for a couple of
-  // seconds (entirely normal) used to get re-submitted every 1.5s, silently
-  // adding it to the cart again and again. Instead, once a code is
-  // accepted it's locked out until the decoder reports the code is no
-  // longer visible for a few consecutive frames (the item was pulled away)
-  // — only then can the same code be scanned again.
-  const lastAcceptedRef = useRef<string | null>(null);
-  const missStreakRef = useRef(0);
+  // Dedup the *same* code within a short window so one held-up item
+  // doesn't get added twice — but a *different* code is always accepted
+  // immediately, with zero delay, so scanning several products back to
+  // back stays fast. (An earlier "wait until the code leaves the frame"
+  // version depended on the decode library reporting empty frames at a
+  // predictable rate, which doesn't hold on every device — this simpler,
+  // fully self-contained approach doesn't depend on that at all.)
+  const lastScanRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -110,17 +110,13 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
             // no error surfaced anywhere in this app's own UI. Never let
             // anything here escape.
             try {
-              if (!result) {
-                // A couple of consecutive "not found" frames means the
-                // code is no longer in view — safe to accept it again.
-                missStreakRef.current += 1;
-                if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
-                return;
-              }
-              missStreakRef.current = 0;
+              if (!result) return;
               const code = result.getText();
-              if (lastAcceptedRef.current === code) return;
-              lastAcceptedRef.current = code;
+              const now = Date.now();
+              // Only the *same* code within the window is ignored — a
+              // different code always proceeds immediately below.
+              if (lastScanRef.current.code === code && now - lastScanRef.current.at < 1200) return;
+              lastScanRef.current = { code, at: now };
               setFlash(true);
               setTimeout(() => setFlash(false), 200);
               playScanBeep();
