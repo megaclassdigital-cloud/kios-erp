@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { use } from "react";
+import { playScanBeep } from "@/shared/barcode/scan-feedback";
 
 type Status = "loading" | "invalid" | "ready" | "denied" | "disconnected";
 
@@ -22,7 +23,11 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  const lastScanRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  // Dedup by presence, not by time — see camera-scanner.tsx for why: a
+  // product held in view for a couple of seconds must submit exactly
+  // once, not once per debounce window.
+  const lastAcceptedRef = useRef<string | null>(null);
+  const missStreakRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,11 +69,16 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
 
         setStatus("ready");
         const controls = await reader.decodeFromVideoDevice(target.deviceId, videoRef.current, (result) => {
-          if (!result || cancelled) return;
+          if (cancelled) return;
+          if (!result) {
+            missStreakRef.current += 1;
+            if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
+            return;
+          }
+          missStreakRef.current = 0;
           const value = result.getText();
-          const now = Date.now();
-          if (lastScanRef.current.code === value && now - lastScanRef.current.at < 1500) return;
-          lastScanRef.current = { code: value, at: now };
+          if (lastAcceptedRef.current === value) return;
+          lastAcceptedRef.current = value;
           submitScan(value);
         });
         if (cancelled) {
@@ -91,6 +101,7 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
     async function submitScan(barcodeValue: string) {
       setFlash(true);
       setTimeout(() => setFlash(false), 250);
+      playScanBeep();
       if (navigator.vibrate) navigator.vibrate(80);
 
       const res = await fetch(`/api/scan-session/${code}/events`, {

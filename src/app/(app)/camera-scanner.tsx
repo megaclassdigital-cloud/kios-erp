@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { BrowserMultiFormatReader as BrowserMultiFormatReaderType } from "@zxing/browser";
+import { playScanBeep } from "@/shared/barcode/scan-feedback";
 
 interface VideoDevice {
   deviceId: string;
@@ -27,10 +28,18 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
   const [devices, setDevices] = useState<VideoDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReaderType | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  const lastScanRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  // Dedup by presence, not by time: a product held in view for a couple of
+  // seconds (entirely normal) used to get re-submitted every 1.5s, silently
+  // adding it to the cart again and again. Instead, once a code is
+  // accepted it's locked out until the decoder reports the code is no
+  // longer visible for a few consecutive frames (the item was pulled away)
+  // — only then can the same code be scanned again.
+  const lastAcceptedRef = useRef<string | null>(null);
+  const missStreakRef = useRef(0);
 
   useEffect(() => {
     if (!open) return;
@@ -93,13 +102,21 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
           selected.deviceId,
           videoRef.current,
           (result) => {
-            if (!result) return;
+            if (!result) {
+              // A couple of consecutive "not found" frames means the code
+              // is no longer in view — safe to accept it again next time.
+              missStreakRef.current += 1;
+              if (missStreakRef.current >= 2) lastAcceptedRef.current = null;
+              return;
+            }
+            missStreakRef.current = 0;
             const code = result.getText();
-            const now = Date.now();
-            // Debounce: the same code sits in frame for many decode cycles —
-            // only forward it once every 1.5s so it isn't scanned repeatedly.
-            if (lastScanRef.current.code === code && now - lastScanRef.current.at < 1500) return;
-            lastScanRef.current = { code, at: now };
+            if (lastAcceptedRef.current === code) return;
+            lastAcceptedRef.current = code;
+            setFlash(true);
+            setTimeout(() => setFlash(false), 200);
+            playScanBeep();
+            if (navigator.vibrate) navigator.vibrate(80);
             onScan(code);
           }
         );
@@ -167,7 +184,10 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
           {error ? (
             <p className="p-2 text-xs text-red-600">{error}</p>
           ) : (
-            <video ref={videoRef} className="w-full rounded-md bg-black" muted playsInline />
+            <div className="relative overflow-hidden rounded-md">
+              <video ref={videoRef} className="w-full bg-black" muted playsInline />
+              {flash && <div className="pointer-events-none absolute inset-0 bg-green-400/40" />}
+            </div>
           )}
         </div>
       )}
