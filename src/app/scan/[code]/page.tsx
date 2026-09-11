@@ -63,8 +63,28 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
         permissionStream.getTracks().forEach((track) => track.stop());
         if (cancelled) return;
 
-        const { BrowserMultiFormatReader } = await import("@zxing/browser");
-        const reader = new BrowserMultiFormatReader();
+        const { BrowserMultiFormatReader, BarcodeFormat } = await import("@zxing/browser");
+        const { DecodeHintType } = await import("@zxing/library");
+        // See camera-scanner.tsx for the full reasoning: restricting to
+        // the retail 1D formats this app actually scans (instead of
+        // zxing's default of trying every decoder it has, including 2D
+        // ones) and tightening the fixed inter-attempt pause both cut
+        // real decode-to-confirm time dramatically. This page had its own
+        // separate zxing setup that never got that tuning, which is why
+        // the phone path stayed slow after the main terminal camera did not.
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.CODE_39,
+        ]);
+        const reader = new BrowserMultiFormatReader(hints, {
+          delayBetweenScanAttempts: 100,
+          delayBetweenScanSuccess: 100,
+        });
         const devices = await BrowserMultiFormatReader.listVideoInputDevices();
         const target =
           devices.find((d) => d.deviceId === rearDeviceId) ??
@@ -73,32 +93,48 @@ export default function ScanPage({ params }: { params: Promise<{ code: string }>
         if (!target || !videoRef.current) return;
 
         setStatus("ready");
-        const controls = await reader.decodeFromVideoDevice(target.deviceId, videoRef.current, (result) => {
-          // zxing's own decode loop calls this callback from inside its
-          // own try/catch with no isolation — anything thrown here gets
-          // treated as a fatal decode error and permanently kills the
-          // camera stream. Never let anything here escape.
-          try {
-            if (cancelled) return;
-            if (Date.now() < pausedUntilRef.current) return;
-            if (!result) {
-              candidateRef.current = { code: "", streak: 0 };
-              return;
-            }
-            const value = result.getText();
-            candidateRef.current =
-              candidateRef.current.code === value
-                ? { code: value, streak: candidateRef.current.streak + 1 }
-                : { code: value, streak: 1 };
-            if (candidateRef.current.streak < CONFIRM_FRAMES) return;
+        // Same as camera-scanner.tsx: request a higher resolution and
+        // continuous autofocus instead of decodeFromVideoDevice's bare
+        // { deviceId }, which leaves capture quality at the browser's low
+        // default and forces extra failed decode attempts at normal
+        // scanning distance. Both are best-effort and degrade gracefully.
+        const controls = await reader.decodeFromConstraints(
+          {
+            video: {
+              deviceId: { exact: target.deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+            },
+          },
+          videoRef.current,
+          (result) => {
+            // zxing's own decode loop calls this callback from inside its
+            // own try/catch with no isolation — anything thrown here gets
+            // treated as a fatal decode error and permanently kills the
+            // camera stream. Never let anything here escape.
+            try {
+              if (cancelled) return;
+              if (Date.now() < pausedUntilRef.current) return;
+              if (!result) {
+                candidateRef.current = { code: "", streak: 0 };
+                return;
+              }
+              const value = result.getText();
+              candidateRef.current =
+                candidateRef.current.code === value
+                  ? { code: value, streak: candidateRef.current.streak + 1 }
+                  : { code: value, streak: 1 };
+              if (candidateRef.current.streak < CONFIRM_FRAMES) return;
 
-            pausedUntilRef.current = Date.now() + POST_SCAN_PAUSE_MS;
-            candidateRef.current = { code: "", streak: 0 };
-            submitScan(value);
-          } catch (callbackError) {
-            console.error("Scan decode callback failed:", callbackError);
+              pausedUntilRef.current = Date.now() + POST_SCAN_PAUSE_MS;
+              candidateRef.current = { code: "", streak: 0 };
+              submitScan(value);
+            } catch (callbackError) {
+              console.error("Scan decode callback failed:", callbackError);
+            }
           }
-        });
+        );
         if (cancelled) {
           controls.stop();
           return;
