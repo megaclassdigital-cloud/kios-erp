@@ -138,11 +138,11 @@ export function TransactionDetailButton({ saleId }: { saleId: string }) {
                   ) : (
                     <ul className="space-y-1 text-xs text-muted-foreground">
                       {data.stockMovements.map((m) => (
-                        <li key={m.id} className="flex justify-between">
-                          <span>
+                        <li key={m.id} className="flex justify-between gap-2">
+                          <span className="min-w-0 break-words">
                             {m.product.name} · {m.movementType}
                           </span>
-                          <span className={Number(m.quantity) < 0 ? "text-destructive" : "text-success"}>
+                          <span className={`shrink-0 ${Number(m.quantity) < 0 ? "text-destructive" : "text-success"}`}>
                             {Number(m.quantity) > 0 ? "+" : ""}
                             {Number(m.quantity)}
                           </span>

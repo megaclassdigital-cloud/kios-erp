@@ -24,16 +24,16 @@ export function KpiCard({
   tone?: keyof typeof TONE_STYLES;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="min-w-0 break-words text-xs text-muted-foreground">{label}</p>
         {Icon && (
           <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", TONE_STYLES[tone])}>
             <Icon className="h-4 w-4" />
           </span>
         )}
       </div>
-      <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</p>
+      <p className="mt-1 break-words text-xl font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   );
 }

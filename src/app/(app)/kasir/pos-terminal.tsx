@@ -439,9 +439,11 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
           <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-semibold text-foreground">Informasi Shift</h2>
             <dl className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Kasir</dt>
-                <dd className="font-medium text-foreground">{session?.user?.name ?? "..."}</dd>
+              <div className="flex justify-between gap-2">
+                <dt className="shrink-0 text-muted-foreground">Kasir</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-foreground">
+                  {session?.user?.name ?? "..."}
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Mulai Shift</dt>

@@ -225,13 +225,13 @@ export default function BarangMasukPage() {
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm lg:sticky lg:top-20 lg:self-start">
           <h2 className="mb-3 text-sm font-semibold text-foreground">Ringkasan Penerimaan</h2>
           <dl className="space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Supplier</dt>
-              <dd className="text-right font-medium text-foreground">{supplierName ?? "-"}</dd>
+            <div className="flex justify-between gap-2">
+              <dt className="shrink-0 text-muted-foreground">Supplier</dt>
+              <dd className="min-w-0 truncate text-right font-medium text-foreground">{supplierName ?? "-"}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">No. Invoice</dt>
-              <dd className="text-foreground">{invoiceNumber || "-"}</dd>
+            <div className="flex justify-between gap-2">
+              <dt className="shrink-0 text-muted-foreground">No. Invoice</dt>
+              <dd className="min-w-0 truncate text-right text-foreground">{invoiceNumber || "-"}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Jumlah Item</dt>

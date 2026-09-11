@@ -15,11 +15,11 @@ export function TopProductsWidget({
       ) : (
         <ul className="space-y-2 text-sm">
           {items.map((item) => (
-            <li key={item.productId} className="flex justify-between">
-              <span className="text-foreground">
+            <li key={item.productId} className="flex justify-between gap-2">
+              <span className="min-w-0 truncate text-foreground">
                 {item.name} <span className="text-muted-foreground">×{item.qty}</span>
               </span>
-              <span className="font-medium text-foreground tabular-nums">{formatRupiah(item.total)}</span>
+              <span className="shrink-0 font-medium text-foreground tabular-nums">{formatRupiah(item.total)}</span>
             </li>
           ))}
         </ul>

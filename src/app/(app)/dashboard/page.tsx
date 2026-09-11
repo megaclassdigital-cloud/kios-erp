@@ -163,8 +163,8 @@ export default async function DashboardPage({
           ) : (
             <ul className="space-y-2 text-sm">
               {openShifts.map((shift) => (
-                <li key={shift.id} className="flex justify-between">
-                  <span className="text-foreground">{shift.cashier.name}</span>
+                <li key={shift.id} className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
+                  <span className="min-w-0 break-words text-foreground">{shift.cashier.name}</span>
                   <span className="text-muted-foreground">
                     Sejak {shift.openedAt.toLocaleTimeString("id-ID")} · Modal{" "}
                     {formatRupiah(shift.openingCash.toString())}
@@ -184,11 +184,12 @@ export default async function DashboardPage({
           ) : (
             <ul className="space-y-2 text-sm">
               {[...outOfStock, ...lowStock].slice(0, 8).map((p) => (
-                <li key={p.id} className="flex justify-between">
-                  <span className="text-foreground">{p.name}</span>
+                <li key={p.id} className="flex justify-between gap-2">
+                  <span className="min-w-0 truncate text-foreground">{p.name}</span>
                   <span
                     className={
-                      Number(p.currentStock) <= 0 ? "font-medium text-destructive" : "font-medium text-warning-foreground"
+                      "shrink-0 " +
+                      (Number(p.currentStock) <= 0 ? "font-medium text-destructive" : "font-medium text-warning-foreground")
                     }
                   >
                     {Number(p.currentStock)} / min {p.minimumStock}
@@ -206,9 +207,9 @@ export default async function DashboardPage({
           ) : (
             <ul className="space-y-2 text-sm">
               {recentSales.map((s) => (
-                <li key={s.id} className="flex justify-between">
-                  <span className="text-foreground">{s.transactionNumber}</span>
-                  <span className="text-foreground tabular-nums">{formatRupiah(s.grandTotal.toString())}</span>
+                <li key={s.id} className="flex justify-between gap-2">
+                  <span className="min-w-0 truncate text-foreground">{s.transactionNumber}</span>
+                  <span className="shrink-0 text-foreground tabular-nums">{formatRupiah(s.grandTotal.toString())}</span>
                 </li>
               ))}
             </ul>

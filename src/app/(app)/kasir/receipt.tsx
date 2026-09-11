@@ -51,9 +51,9 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
 
           {sale.items.map((item, i) => (
             <div key={i} className="mb-1.5">
-              <div className="flex justify-between">
-                <span>{item.productNameSnapshot}</span>
-                <span>{formatRupiah(item.subtotal)}</span>
+              <div className="flex justify-between gap-2">
+                <span className="min-w-0 break-words">{item.productNameSnapshot}</span>
+                <span className="shrink-0 tabular-nums">{formatRupiah(item.subtotal)}</span>
               </div>
               <div className="flex justify-between text-gray-500">
                 <span>
