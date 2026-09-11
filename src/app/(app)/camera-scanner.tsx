@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { BrowserMultiFormatReader as BrowserMultiFormatReaderType } from "@zxing/browser";
 import { playScanBeep } from "@/shared/barcode/scan-feedback";
+import { createNativeBarcodeDetector } from "@/shared/barcode/native-barcode-detector";
 
 interface VideoDevice {
   deviceId: string;
@@ -66,6 +67,171 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
     let cancelled = false;
     setError(null);
 
+    function acceptScan(code: string) {
+      setFlash(true);
+      setTimeout(() => setFlash(false), 200);
+      playScanBeep();
+      try {
+        navigator.vibrate?.(80);
+      } catch {
+        // Vibration is a nice-to-have; some browsers/contexts reject it
+        // outright (e.g. no user-gesture) — ignore.
+      }
+      onScanRef.current(code);
+    }
+
+    /** Shared by both scan engines below: filters a single frame's
+     * decoded value (or null, meaning nothing was read this attempt)
+     * through the confirm-frames + post-scan-pause dedup logic. */
+    function handleFrameResult(value: string | null) {
+      if (Date.now() < pausedUntilRef.current) return;
+      if (!value) {
+        candidateRef.current = { code: "", streak: 0 };
+        return;
+      }
+      candidateRef.current =
+        candidateRef.current.code === value
+          ? { code: value, streak: candidateRef.current.streak + 1 }
+          : { code: value, streak: 1 };
+      if (candidateRef.current.streak < CONFIRM_FRAMES) return;
+
+      pausedUntilRef.current = Date.now() + POST_SCAN_PAUSE_MS;
+      candidateRef.current = { code: "", streak: 0 };
+      acceptScan(value);
+    }
+
+    /** The fast path: the browser/OS's own hardware-accelerated barcode
+     * engine, polled on a plain setTimeout loop — no JS-side frame
+     * decoding at all. */
+    async function startNativeScan(detector: BarcodeDetector, deviceId: string) {
+      if (!videoRef.current) return;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: { exact: deviceId },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+        },
+      });
+      if (cancelled) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      if (cancelled) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let stopped = false;
+      // Assigned before the loop starts (synchronously, no await in
+      // between) so the effect's cleanup can always reach this stream —
+      // never a window where a stream is live but nothing can stop it.
+      controlsRef.current = {
+        stop: () => {
+          stopped = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          stream.getTracks().forEach((track) => track.stop());
+        },
+      };
+
+      async function tick() {
+        if (stopped) return;
+        if (videoRef.current && videoRef.current.readyState >= 2) {
+          try {
+            const codes = await detector.detect(videoRef.current);
+            handleFrameResult(codes[0]?.rawValue ?? null);
+          } catch (detectError) {
+            // A single failed detection attempt isn't fatal — some
+            // implementations throw on a frame with nothing recognizable
+            // in it. Just try again next tick.
+            console.error("Native barcode detect failed:", detectError);
+          }
+        }
+        if (!stopped) timeoutId = setTimeout(tick, 80);
+      }
+      tick();
+    }
+
+    /** The fallback path for browsers without the Shape Detection API
+     * (mainly iOS Safari). */
+    async function startZxingScan(deviceId: string) {
+      const { BrowserMultiFormatReader, BarcodeFormat } = await import("@zxing/browser");
+      const { DecodeHintType } = await import("@zxing/library");
+      // Retail 1D formats only — our own internal codes are CODE_128
+      // (see barcode-value.ts) and every real-world product barcode
+      // this store scans is EAN/UPC/CODE_39. zxing's default (no
+      // hints) instead runs every decoder it has, including 2D ones
+      // (QR/Data Matrix/Aztec/PDF417) and formats like Codabar/ITF/RSS
+      // that never appear here, on every single frame — pure wasted
+      // work that was stretching each decode attempt out for nothing.
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_39,
+      ]);
+      const reader = new BrowserMultiFormatReader(hints, {
+        // zxing's own default is a flat 500ms pause between every decode
+        // attempt (success or not) — on top of already-slow multi-format
+        // decoding, that alone put a hard floor of 1s+ under the 2
+        // confirmation frames this app requires before accepting a scan.
+        // Purely local/CPU-bound, no network round trip, so it's safe to
+        // run much tighter.
+        delayBetweenScanAttempts: 100,
+        delayBetweenScanSuccess: 100,
+      });
+      readerRef.current = reader;
+      if (!videoRef.current) return;
+
+      // decodeFromVideoDevice only ever requests { deviceId }, leaving
+      // resolution/focus up to the browser's own default — often a low
+      // capture resolution that makes a barcode's bars blur together at
+      // normal scanning distance, forcing several failed decode
+      // attempts (each still paying the inter-attempt delay above)
+      // before one finally resolves. Asking for a higher resolution and
+      // continuous autofocus directly raises the odds any single frame
+      // decodes at all. Both are best-effort "ideal"/"advanced" hints —
+      // a device that doesn't support them just ignores them rather
+      // than failing getUserMedia.
+      const controls = await reader.decodeFromConstraints(
+        {
+          video: {
+            deviceId: { exact: deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+          },
+        },
+        videoRef.current,
+        (result) => {
+          // zxing's own decode loop calls this callback from inside its
+          // own try/catch with no isolation — anything thrown here
+          // (even something as environment-specific as navigator.vibrate
+          // misbehaving on a particular device) gets treated as a fatal
+          // decode error and permanently kills the camera stream, with
+          // no error surfaced anywhere in this app's own UI. Never let
+          // anything here escape.
+          try {
+            if (cancelled) return;
+            handleFrameResult(result ? result.getText() : null);
+          } catch (callbackError) {
+            console.error("CameraScanner decode callback failed:", callbackError);
+          }
+        }
+      );
+      if (cancelled) {
+        controls.stop();
+        return;
+      }
+      controlsRef.current = controls;
+    }
+
     async function start() {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -91,43 +257,19 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
         permissionStream.getTracks().forEach((track) => track.stop());
         if (cancelled) return;
 
-        const { BrowserMultiFormatReader, BarcodeFormat } = await import("@zxing/browser");
-        const { DecodeHintType } = await import("@zxing/library");
-        // Retail 1D formats only — our own internal codes are CODE_128
-        // (see barcode-value.ts) and every real-world product barcode
-        // this store scans is EAN/UPC/CODE_39. zxing's default (no
-        // hints) instead runs every decoder it has, including 2D ones
-        // (QR/Data Matrix/Aztec/PDF417) and formats like Codabar/ITF/RSS
-        // that never appear here, on every single frame — pure wasted
-        // work that was stretching each decode attempt out for nothing.
-        const hints = new Map();
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.CODE_128,
-          BarcodeFormat.EAN_13,
-          BarcodeFormat.EAN_8,
-          BarcodeFormat.UPC_A,
-          BarcodeFormat.UPC_E,
-          BarcodeFormat.CODE_39,
-        ]);
-        const reader = new BrowserMultiFormatReader(hints, {
-          // zxing's own default is a flat 500ms pause between every decode
-          // attempt (success or not) — on top of already-slow multi-format
-          // decoding, that alone put a hard floor of 1s+ under the 2
-          // confirmation frames this app requires before accepting a scan.
-          // Purely local/CPU-bound, no network round trip, so it's safe to
-          // run much tighter.
-          delayBetweenScanAttempts: 100,
-          delayBetweenScanSuccess: 100,
-        });
-        readerRef.current = reader;
-
-        const videoDevices = await BrowserMultiFormatReader.listVideoInputDevices();
+        // Device list is needed either way (for the picker dropdown), so
+        // enumerate it directly instead of through zxing's helper — that
+        // way the native-detector fast path below never needs to import
+        // zxing at all.
+        const videoDevices = (await navigator.mediaDevices.enumerateDevices())
+          .filter((d) => d.kind === "videoinput")
+          .map((d) => ({ deviceId: d.deviceId, label: d.label || "Kamera" }));
         if (cancelled) return;
         if (videoDevices.length === 0) {
           setError("Tidak ada kamera yang terdeteksi.");
           return;
         }
-        setDevices(videoDevices.map((d) => ({ deviceId: d.deviceId, label: d.label || "Kamera" })));
+        setDevices(videoDevices);
 
         // Prefer, in order: the user's own last manual pick, the device
         // the browser resolved facingMode "environment" to, a device
@@ -141,71 +283,20 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
           videoDevices.find((d) => /back|rear|environment/i.test(d.label)) ??
           videoDevices[0];
         setDeviceId(selected.deviceId);
-
         if (!videoRef.current) return;
-        // decodeFromVideoDevice only ever requests { deviceId }, leaving
-        // resolution/focus up to the browser's own default — often a low
-        // capture resolution that makes a barcode's bars blur together at
-        // normal scanning distance, forcing several failed decode
-        // attempts (each still paying the inter-attempt delay above)
-        // before one finally resolves. Asking for a higher resolution and
-        // continuous autofocus directly raises the odds any single frame
-        // decodes at all. Both are best-effort "ideal"/"advanced" hints —
-        // a device that doesn't support them just ignores them rather
-        // than failing getUserMedia.
-        const controls = await reader.decodeFromConstraints(
-          {
-            video: {
-              deviceId: { exact: selected.deviceId },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
-            },
-          },
-          videoRef.current,
-          (result) => {
-            // zxing's own decode loop calls this callback from inside its
-            // own try/catch with no isolation — anything thrown here
-            // (even something as environment-specific as navigator.vibrate
-            // misbehaving on a particular device) gets treated as a fatal
-            // decode error and permanently kills the camera stream, with
-            // no error surfaced anywhere in this app's own UI. Never let
-            // anything here escape.
-            try {
-              if (Date.now() < pausedUntilRef.current) return;
-              if (!result) {
-                candidateRef.current = { code: "", streak: 0 };
-                return;
-              }
-              const code = result.getText();
-              candidateRef.current =
-                candidateRef.current.code === code
-                  ? { code, streak: candidateRef.current.streak + 1 }
-                  : { code, streak: 1 };
-              if (candidateRef.current.streak < CONFIRM_FRAMES) return;
 
-              pausedUntilRef.current = Date.now() + POST_SCAN_PAUSE_MS;
-              candidateRef.current = { code: "", streak: 0 };
-              setFlash(true);
-              setTimeout(() => setFlash(false), 200);
-              playScanBeep();
-              try {
-                navigator.vibrate?.(80);
-              } catch {
-                // Vibration is a nice-to-have; some browsers/contexts
-                // reject it outright (e.g. no user-gesture) — ignore.
-              }
-              onScanRef.current(code);
-            } catch (callbackError) {
-              console.error("CameraScanner decode callback failed:", callbackError);
-            }
-          }
-        );
-        if (cancelled) {
-          controls.stop();
-          return;
+        // Try the browser/OS's own hardware-accelerated barcode engine
+        // first (see barcode-detector.d.ts) — the same class of API a
+        // native QRIS-scanning app uses, reading a barcode in a handful
+        // of milliseconds regardless of angle/lighting, unlike decoding
+        // video frames in pure JS. Falls back to the zxing path below
+        // wherever it isn't available (mainly iOS Safari).
+        const nativeDetector = await createNativeBarcodeDetector();
+        if (nativeDetector) {
+          await startNativeScan(nativeDetector, selected.deviceId);
+        } else {
+          await startZxingScan(selected.deviceId);
         }
-        controlsRef.current = controls;
       } catch (err) {
         if (!cancelled) {
           setError(
