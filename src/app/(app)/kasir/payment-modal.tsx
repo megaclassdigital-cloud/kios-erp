@@ -93,7 +93,7 @@ export function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl bg-card p-5 shadow-xl">
         <h2 className="mb-4 text-base font-semibold text-foreground">Pembayaran</h2>
         <p className="mb-4 text-sm text-muted-foreground">
           Total: <span className="font-semibold text-foreground tabular-nums">{formatRupiah(grandTotal)}</span>

@@ -145,8 +145,8 @@ export function BarcodeAudit() {
             )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
-            <table className="w-full text-sm">
+          <div className="max-h-96 overflow-x-auto overflow-y-auto">
+            <table className="w-full min-w-[480px] text-sm">
               <thead className="sticky top-0 bg-card text-left text-xs text-muted-foreground">
                 <tr>
                   <th className="py-1">Waktu</th>
