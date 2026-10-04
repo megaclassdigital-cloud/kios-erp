@@ -509,3 +509,62 @@ model ScanEvent {
   @@index([sessionId, createdAt])
   @@map("scan_events")
 }
+
+// ---------------------------------------------------------------------------
+// POS terminals & their attached hardware
+//
+// A wedge scanner is invisible to the browser (no API exposes VID/PID for a
+// HID keyboard), so a terminal's hardware is recorded from what was actually
+// observed when it was used: the burst timing and suffix a real scan
+// produced, confirmed once by whoever was standing at the machine. That
+// gives the owner an answer to "which till has a scanner problem?" without
+// anything having to be configured per boot.
+// ---------------------------------------------------------------------------
+
+enum TerminalDeviceKind {
+  SCANNER
+  PRINTER
+}
+
+model PosTerminal {
+  id         String   @id @default(uuid())
+  /// Minted in the browser and kept in that machine's localStorage. It is
+  /// the only stable link between a physical till and this row — losing it
+  /// means the terminal is simply registered again, never that an existing
+  /// row is corrupted.
+  deviceKey  String   @unique
+  name       String
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  devices TerminalDevice[]
+
+  @@map("pos_terminals")
+}
+
+model TerminalDevice {
+  id         String             @id @default(uuid())
+  terminalId String
+  terminal   PosTerminal        @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  kind       TerminalDeviceKind
+  label      String
+
+  /// Observed characteristics of the scan that identified this device.
+  /// Nullable because a printer is confirmed by the operator rather than
+  /// detected, so it has no burst timing of its own.
+  medianIntervalMs Int?
+  codeLength       Int?
+  /// The scanner's configured suffix as observed: "enter", "tab" or "idle"
+  /// (no suffix at all). Stored for display — recognition never depends on
+  /// it, which is what keeps a replacement scanner drop-in.
+  terminator String?
+
+  connectedAt DateTime  @default(now())
+  lastUsedAt  DateTime?
+
+  /// One device of each kind per terminal: confirming a new scanner at a
+  /// till replaces the record rather than accumulating duplicates.
+  @@unique([terminalId, kind])
+  @@map("terminal_devices")
+}

@@ -19,7 +19,8 @@ export type Permission =
   | "users.manage"
   | "refund.manage"
   | "audit.view"
-  | "shifts.monitor";
+  | "shifts.monitor"
+  | "terminals.view";
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   OWNER: [
@@ -42,6 +43,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "refund.manage",
     "audit.view",
     "shifts.monitor",
+    "terminals.view",
   ],
   ADMIN: [
     "dashboard.view",
@@ -59,6 +61,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "suppliers.manage",
     "refund.manage",
     "shifts.monitor",
+    "terminals.view",
   ],
   KASIR: [
     "dashboard.view",

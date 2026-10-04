@@ -11,6 +11,8 @@ import { ServiceDetailModal } from "./service-detail-modal";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
+import { useScannerRegistry } from "./scanner-registry";
+import { ScannerPromptBanner } from "./scanner-prompt";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
@@ -111,7 +113,16 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   // vanish silently. Capture it page-wide instead -- but stay off while a
   // modal is up, where a stray scan would quietly add a line to a cart the
   // cashier is already paying for.
-  useKeyboardWedgeScanner(processBarcode, !showPayment && !pendingService);
+  const scannerRegistry = useScannerRegistry();
+  useKeyboardWedgeScanner(
+    (value, scan) => {
+      void processBarcode(value);
+      // Fire-and-forget: working out which scanner this till has must never
+      // delay the item reaching the cart.
+      void scannerRegistry.reportScan(scan);
+    },
+    !showPayment && !pendingService
+  );
 
   const grandTotal = cart.reduce((acc, l) => acc + l.unitPrice * l.quantity, 0);
 
@@ -342,6 +353,14 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
             </div>
           </div>
           <BarcodeInputHint />
+          {scannerRegistry.prompt && (
+            <ScannerPromptBanner
+              prompt={scannerRegistry.prompt}
+              saving={scannerRegistry.saving}
+              onConnect={(label) => void scannerRegistry.connect(label)}
+              onDismiss={scannerRegistry.dismiss}
+            />
+          )}
           {scanError && (
             <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">
               {scanError}
