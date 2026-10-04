@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 import { PageHeader } from "@/components/kios/page-header";
 import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
+import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface Line {
   productId: string;
@@ -28,6 +29,13 @@ export default function StokOpnamePage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [review, setReview] = useState<ReviewLine[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The worst page in the app for a focus-bound scanner: the whole job is
+  // scan an item, type its counted quantity, scan the next -- so focus
+  // leaves the barcode box after every single line. Only while counting;
+  // once submitted for review a stray scan must not add anything.
+  useKeyboardWedgeScanner((value) => void processBarcode(value), status === "DRAFT");
 
   async function start() {
     const res = await fetch("/api/stock-opname", { method: "POST" });
@@ -58,9 +66,11 @@ export default function StokOpnamePage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(data.error ?? "Barcode tidak terdaftar.");
+      inputRef.current?.focus();
       return;
     }
     setError(null);
+    inputRef.current?.focus();
     const product = data.product;
     setLines((prev) => {
       if (prev.find((l) => l.productId === product.id)) return prev;
@@ -147,7 +157,7 @@ export default function StokOpnamePage() {
         <>
           <form onSubmit={handleScan} className="rounded-lg border border-gray-200 bg-white p-3">
             <label className="mb-1 block text-xs font-medium text-gray-500">SCAN PRODUK</label>
-            <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
+            <input ref={inputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Ketik kode lalu Enter" />
           </form>
           <CameraScanner onScan={processBarcode} />

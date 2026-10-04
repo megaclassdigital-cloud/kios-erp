@@ -331,7 +331,11 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
       <KasirHelp />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-3">
+        {/* min-w-0: a grid item defaults to min-width:auto, so without this
+            the column refuses to shrink below the cart table.s min-content
+            and the whole page scrolls sideways on a phone the moment the
+            cart is not empty. */}
+        <div className="min-w-0 lg:col-span-2 space-y-3">
           <div className="grid gap-3 md:grid-cols-3">
             <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm md:col-span-1">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">

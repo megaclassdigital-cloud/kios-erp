@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 import { PageHeader } from "@/components/kios/page-header";
 import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
+import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface Supplier {
   id: string;
@@ -31,6 +32,13 @@ export default function BarangMasukPage() {
   const [lines, setLines] = useState<ReceivingLine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Same page-wide capture as the POS. Receiving is a type-then-scan loop
+  // -- quantity, price, next item -- so focus leaves the barcode box after
+  // every single line, which is precisely when a scan would otherwise be
+  // swallowed.
+  useKeyboardWedgeScanner((value) => void processBarcode(value));
 
   useEffect(() => {
     fetch("/api/suppliers")
@@ -56,9 +64,14 @@ export default function BarangMasukPage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(data.error ?? "Barcode tidak terdaftar.");
+      inputRef.current?.focus();
       return;
     }
     setError(null);
+    // Hand focus back after every scan, the way the POS and the stock
+    // lookup already do, so the next item can be scanned or typed without
+    // reaching for the mouse.
+    inputRef.current?.focus();
     const product = data.product;
     setLines((prev) => {
       const existing = prev.find((l) => l.productId === product.id);
@@ -168,11 +181,14 @@ export default function BarangMasukPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-3 lg:col-span-2">
+        {/* min-w-0: see the same note in pos-terminal.tsx -- the received
+            items table holds this column open otherwise. */}
+        <div className="min-w-0 space-y-3 lg:col-span-2">
           <div className="grid gap-3 md:grid-cols-3">
             <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">SCAN BARCODE PRODUK</label>
               <input
+                ref={inputRef}
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
                 autoFocus

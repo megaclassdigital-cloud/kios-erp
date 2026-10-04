@@ -5,6 +5,7 @@ import { AlertTriangle, Check, ScanLine, Sparkles } from "lucide-react";
 import { BarcodeValue, isValidEan13 } from "@/shared/barcode/barcode-value";
 import { CameraScanner } from "../../camera-scanner";
 import { DeviceScannerPairing } from "../../device-scanner-pairing";
+import { BarcodeInputHint } from "../../barcode-input-hint";
 
 export type BarcodeMode = "EXISTING" | "INTERNAL";
 
@@ -120,6 +121,7 @@ export function BarcodeStep({
             <CameraScanner onScan={onValueChange} />
             <DeviceScannerPairing label="Barcode Produk" onScan={onValueChange} />
           </div>
+          <BarcodeInputHint />
         </div>
       )}
 

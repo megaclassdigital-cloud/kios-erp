@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { BarcodeLabelPrinter } from "./barcode-label-printer";
 import { BarcodeStep, type BarcodeMode, type KnownProduct } from "./barcode-step";
+import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface Category {
   id: string;
@@ -15,10 +16,14 @@ export function ProductForm({
   categories,
   knownProducts,
   onCreated,
+  onAwaitingBarcodeChange,
 }: {
   categories: Category[];
   knownProducts: KnownProduct[];
   onCreated: () => void;
+  /** Lets the page stand its own page-wide scan capture down while this
+   * form is the one waiting for a code — see the comment on the hook below. */
+  onAwaitingBarcodeChange?: (awaiting: boolean) => void;
 }) {
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
@@ -47,6 +52,17 @@ export function ProductForm({
   // does not apply to it.
   const needsBarcodeChoice = !isService;
   const canSubmit = !loading && (!needsBarcodeChoice || barcodeMode !== null);
+
+  // This page has two things a scan could mean: find an existing product, or
+  // fill in the barcode of the one being added. Once someone has said the new
+  // product carries a factory barcode, that is unambiguously what the next
+  // scan is for — so this capture takes over and the page's search capture
+  // steps aside, rather than both firing and the code landing in both places.
+  const awaitingBarcode = needsBarcodeChoice && barcodeMode === "EXISTING";
+  useKeyboardWedgeScanner(setScannedBarcode, awaitingBarcode);
+  useEffect(() => {
+    onAwaitingBarcodeChange?.(awaitingBarcode);
+  }, [awaitingBarcode, onAwaitingBarcodeChange]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

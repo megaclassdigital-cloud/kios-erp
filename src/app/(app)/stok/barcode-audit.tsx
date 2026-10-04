@@ -7,6 +7,7 @@ import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
+import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 const inventoryService = new InventoryService();
 
@@ -57,6 +58,11 @@ export function BarcodeAudit() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Page-wide capture, same as every other scan surface: this box refocuses
+  // itself after each lookup, but a click on the movement history below it
+  // would still have stranded the next scan.
+  useKeyboardWedgeScanner((value) => void processBarcode(value));
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault();

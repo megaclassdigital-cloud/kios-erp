@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
@@ -9,6 +9,8 @@ import { DeviceScannerPairing } from "../../device-scanner-pairing";
 import { PageHeader } from "@/components/kios/page-header";
 import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
 import { StatusBadge } from "@/components/kios/status-badge";
+import { BarcodeInputHint } from "../../barcode-input-hint";
+import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface ProductRow {
   id: string;
@@ -36,6 +38,16 @@ export default function MasterProdukPage() {
     barcode: string;
     barcodeType: "CODE128" | "EAN13";
   } | null>(null);
+  // Set by the form while it is waiting for the barcode of a new product.
+  // Exactly one of the two captures on this page is live at a time.
+  const [formAwaitingBarcode, setFormAwaitingBarcode] = useState(false);
+
+  // Scanning with nothing else going on means "find this product".
+  useKeyboardWedgeScanner(setSearch, !formAwaitingBarcode && !labelFor);
+
+  const handleAwaitingBarcodeChange = useCallback((awaiting: boolean) => {
+    setFormAwaitingBarcode(awaiting);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -123,7 +135,12 @@ export default function MasterProdukPage() {
         </HelpStep>
       </HelpPanel>
 
-      <ProductForm categories={categories} knownProducts={products} onCreated={load} />
+      <ProductForm
+        categories={categories}
+        knownProducts={products}
+        onCreated={load}
+        onAwaitingBarcodeChange={handleAwaitingBarcodeChange}
+      />
 
       <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
         <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="cari-produk">
@@ -141,6 +158,7 @@ export default function MasterProdukPage() {
           <CameraScanner onScan={(code) => setSearch(code)} />
           <DeviceScannerPairing label="Cari Produk" onScan={(code) => setSearch(code)} />
         </div>
+        <BarcodeInputHint />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
