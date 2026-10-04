@@ -1,81 +1,150 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
- * Whether a USB scanner appears to be plugged into this machine.
+ * Whether a scanner is attached — reported by source, never as a single
+ * guess dressed up as a fact.
  *
- * It is *appears* on purpose. No browser API reports a HID keyboard, so the
- * honest answer can only ever be inferred from behaviour: a burst of
- * keystrokes at scanner speed is the one piece of evidence available. The
- * indicator therefore lights only after a scan has actually been seen, and
- * never claims a device is present before that — a light that guessed would
- * be worse than no light, because the cashier would stop trusting it.
+ * There are two honest answers available, and they mean different things:
  *
- * The timestamp lives in localStorage so the status survives moving between
- * tabs and reloading, and so a second tab on the same till agrees.
+ *   "hid"       The browser itself reports a granted HID device that is
+ *               connected right now. This is a real hardware fact: unplug
+ *               the scanner and a disconnect event fires immediately.
+ *
+ *   "observed"  A burst of keystrokes at scanner speed arrived on this page
+ *               during this session. That the burst happened is a fact; that
+ *               the scanner is *still* plugged in is not. It is the only
+ *               thing available for a scanner running in keyboard-wedge
+ *               mode, which browsers deliberately hide from WebHID so a web
+ *               page cannot read a keyboard.
+ *
+ * An earlier version stored the last sighting for eight hours and called the
+ * result "terdeteksi". That was a guess with a long memory: a scanner
+ * unplugged in the morning still showed green at lunch. Nothing is persisted
+ * now — "observed" lasts only as long as the page, so the light can never
+ * claim something older than what it actually saw.
  */
-const STORAGE_KEY = "kios-erp.scanner.last-seen";
-
-/** How long a sighting keeps the light on. Long enough to cover a whole
- * shift without re-scanning, short enough that a scanner unplugged
- * yesterday is not still reported as present this morning. */
-const FRESH_WINDOW_MS = 8 * 60 * 60 * 1000;
-
-type Listener = () => void;
-const listeners = new Set<Listener>();
-
-function readLastSeen(): number | null {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Called when a scan arrives through the keyboard-wedge path — the only
- * path that implies physical hardware. Camera and phone scans deliberately
- * do not mark presence: they are what you use *instead of* a scanner. */
-export function markScannerSeen() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, String(Date.now()));
-  } catch {
-    // Still notify: the light should come on for this session even when
-    // storage is unavailable.
-  }
-  for (const listener of listeners) listener();
-}
+export type ScannerSource = "hid" | "observed" | "none";
 
 export interface ScannerPresence {
-  /** True when a wedge scan was seen within the freshness window. */
-  connected: boolean;
-  lastSeenAt: Date | null;
+  source: ScannerSource;
+  /** Product name when the browser could tell us one. */
+  deviceName: string | null;
+  /** False on browsers without WebHID, where only "observed" is possible. */
+  hidSupported: boolean;
+  /** Opens the browser's device picker. Needs a user gesture, so it must be
+   * called straight from a click. */
+  requestDevice: () => Promise<void>;
+}
+
+interface HidDeviceLike {
+  productName?: string;
+  vendorId?: number;
+  productId?: number;
+}
+
+interface HidLike {
+  getDevices(): Promise<HidDeviceLike[]>;
+  requestDevice(options: { filters: unknown[] }): Promise<HidDeviceLike[]>;
+  addEventListener(type: string, listener: () => void): void;
+  removeEventListener(type: string, listener: () => void): void;
+}
+
+function hid(): HidLike | null {
+  if (typeof navigator === "undefined") return null;
+  return (navigator as unknown as { hid?: HidLike }).hid ?? null;
+}
+
+// Session-scoped, module-level: shared by every ScanSources on the page so
+// they agree, and gone the moment the page is gone.
+let observedThisSession = false;
+const listeners = new Set<() => void>();
+
+/** Called only from the keyboard-wedge path — the one input that implies a
+ * physical scanner typed something. Camera and phone scans are what you use
+ * *instead of* a scanner, so they must never light this. */
+export function markScannerSeen() {
+  if (observedThisSession) return;
+  observedThisSession = true;
+  for (const l of listeners) l();
 }
 
 export function useScannerPresence(): ScannerPresence {
-  // Starts disconnected on both server and client so hydration matches; the
-  // effect below corrects it immediately after mount.
-  const [lastSeen, setLastSeen] = useState<number | null>(null);
+  const hidSupported = typeof navigator !== "undefined" && !!hid();
+  // Starts empty on both server and client so hydration matches; the effect
+  // below fills it in immediately after mount.
+  const [device, setDevice] = useState<HidDeviceLike | null>(null);
+  const [observed, setObserved] = useState(false);
+
+  const refreshHid = useCallback(async () => {
+    const api = hid();
+    if (!api) return;
+    try {
+      // getDevices() lists devices this origin was granted *and* that are
+      // currently connected, so its emptiness is itself meaningful.
+      const devices = await api.getDevices();
+      setDevice(devices[0] ?? null);
+    } catch {
+      setDevice(null);
+    }
+  }, []);
 
   useEffect(() => {
+    // Sweep the key the old eight-hour version wrote. Nothing reads it any
+    // more, but leaving it behind in every till's browser is litter.
+    try {
+      window.localStorage.removeItem("kios-erp.scanner.last-seen");
+    } catch {
+      // Private window or blocked storage — nothing to clean up there.
+    }
+
     function sync() {
-      setLastSeen(readLastSeen());
+      setObserved(observedThisSession);
     }
     sync();
     listeners.add(sync);
-    // Another tab on the same till scanning counts as the same scanner.
-    window.addEventListener("storage", sync);
     return () => {
       listeners.delete(sync);
-      window.removeEventListener("storage", sync);
     };
   }, []);
 
+  useEffect(() => {
+    const api = hid();
+    if (!api) return;
+    void refreshHid();
+    // Real hardware events: plugging or unplugging the scanner updates the
+    // light with no polling and no staleness window.
+    const onChange = () => void refreshHid();
+    api.addEventListener("connect", onChange);
+    api.addEventListener("disconnect", onChange);
+    return () => {
+      api.removeEventListener("connect", onChange);
+      api.removeEventListener("disconnect", onChange);
+    };
+  }, [refreshHid]);
+
+  const requestDevice = useCallback(async () => {
+    const api = hid();
+    if (!api) return;
+    try {
+      // No filters: a barcode scanner has no standard vendor id, so the user
+      // picks theirs from the list. Browsers hide keyboard-class devices from
+      // this picker on purpose, so a wedge-mode scanner will not appear —
+      // that is a browser security boundary, not something to work around.
+      await api.requestDevice({ filters: [] });
+      await refreshHid();
+    } catch {
+      // Dismissing the picker is a normal outcome, not an error.
+    }
+  }, [refreshHid]);
+
+  const source: ScannerSource = device ? "hid" : observed ? "observed" : "none";
+
   return {
-    connected: lastSeen !== null && Date.now() - lastSeen < FRESH_WINDOW_MS,
-    lastSeenAt: lastSeen === null ? null : new Date(lastSeen),
+    source,
+    deviceName: device?.productName ?? null,
+    hidSupported,
+    requestDevice,
   };
 }

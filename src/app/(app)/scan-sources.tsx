@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ScanLine, Smartphone } from "lucide-react";
+import { Smartphone, Usb } from "lucide-react";
 import { CameraScanner } from "./camera-scanner";
 import { DeviceScannerPairing } from "./device-scanner-pairing";
 import { BarcodeInputHint } from "./barcode-input-hint";
@@ -11,13 +11,12 @@ import type { WedgeScan } from "@/shared/barcode/keyboard-wedge";
 
 /**
  * The three ways a barcode can reach a page, in one place: the USB scanner
- * (captured page-wide, with a light saying whether one is there), the
- * camera, and a paired phone.
+ * (captured page-wide, with a status line saying what is actually known about
+ * it), the camera, and a paired phone.
  *
  * Every screen that accepts a barcode used to wire these up itself, which is
- * how they drifted apart — different combinations, different wording,
- * page-wide capture on one screen only. Owning all three here means a change
- * to how scanning works lands everywhere at once.
+ * how they drifted apart. Owning all three here means a change to how
+ * scanning works lands everywhere at once.
  */
 export function ScanSources({
   label,
@@ -37,51 +36,37 @@ export function ScanSources({
   /** Raw timing of a hardware scan, for the terminal's device registry. */
   onHardwareScan?: (scan: WedgeScan) => void;
 }) {
-  const { connected, lastSeenAt } = useScannerPresence();
+  const { source, deviceName, hidSupported, requestDevice } = useScannerPresence();
   const [showPhone, setShowPhone] = useState(false);
 
   useKeyboardWedgeScanner((value, scan) => {
-    // Only this path implies a physical scanner, so only this path lights
-    // the indicator.
+    // Only this path implies a physical scanner, so only this path counts as
+    // having seen one.
     markScannerSeen();
     onHardwareScan?.(scan);
     onScan(value);
   }, enabled);
 
+  // A scanner is "there" for layout purposes in both known states; the status
+  // line below is what distinguishes a reported device from an observed scan.
+  const present = source !== "none";
+
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-sm">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span
-          aria-hidden
-          className={`h-2 w-2 shrink-0 rounded-full ${connected ? "bg-success" : "bg-muted-foreground/40"}`}
-        />
-        <span className={`text-xs font-medium ${connected ? "text-success" : "text-muted-foreground"}`}>
-          {connected ? "Scanner terdeteksi" : "Scanner belum terdeteksi"}
-        </span>
-        <span className="text-[11px] text-muted-foreground">
-          {connected
-            ? "siap dipakai — langsung tembak barcodenya"
-            : lastSeenAt
-              ? // Says "it worked here before", which points at a loose cable
-                // rather than at the app, and is the first thing worth checking.
-                `terakhir terdeteksi ${lastSeenAt.toLocaleString("id-ID", {
-                  day: "2-digit",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })} — periksa kabelnya, atau pakai cara di bawah`
-              : "colok scanner lalu scan sekali, atau pakai cara di bawah"}
-        </span>
-      </div>
+      <ScannerStatus
+        source={source}
+        deviceName={deviceName}
+        hidSupported={hidSupported}
+        onRequestDevice={requestDevice}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <CameraScanner onScan={onScan} />
 
-        {/* With a scanner on the till the phone is a fallback, not a peer:
-            leaving a second pairing UI at full size invites a cashier to set
-            one up they do not need, and then wonder which device a scan came
-            from. It stays one click away either way. */}
-        {connected && !showPhone ? (
+        {/* With a scanner working the phone is a fallback, not a peer: two
+            full-size pairing panels invite a cashier to set up one they do
+            not need, then wonder which device a scan came from. */}
+        {present && !showPhone ? (
           <button
             type="button"
             onClick={() => setShowPhone(true)}
@@ -93,19 +78,78 @@ export function ScanSources({
         ) : null}
       </div>
 
-      {(!connected || showPhone) && (
-        <div className={connected ? "border-t border-border pt-2" : undefined}>
-          {connected && (
-            <p className="mb-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <ScanLine className="h-3.5 w-3.5 shrink-0" />
-              Scanner sudah terpasang — HP hanya perlu kalau scannernya bermasalah.
-            </p>
-          )}
+      {(!present || showPhone) && (
+        <div className={present ? "border-t border-border pt-2" : undefined}>
           <DeviceScannerPairing label={label} onScan={onScan} resetSignal={resetSignal} />
         </div>
       )}
 
       <BarcodeInputHint />
+    </div>
+  );
+}
+
+/**
+ * Says what is actually known, and how it is known.
+ *
+ * The three states are deliberately worded differently rather than collapsed
+ * into one green light. "Terhubung" is the browser reporting a live device;
+ * "pernah dipakai" is an observation about the past that says nothing about
+ * right now. Showing both as the same green dot is what made the old
+ * indicator untrustworthy.
+ */
+function ScannerStatus({
+  source,
+  deviceName,
+  hidSupported,
+  onRequestDevice,
+}: {
+  source: "hid" | "observed" | "none";
+  deviceName: string | null;
+  hidSupported: boolean;
+  onRequestDevice: () => Promise<void>;
+}) {
+  if (source === "hid") {
+    return (
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-success" />
+        <span className="text-xs font-medium text-success">Scanner terhubung</span>
+        <span className="text-[11px] text-muted-foreground">
+          {deviceName ? `${deviceName} — terbaca langsung dari perangkatnya` : "terbaca langsung dari perangkatnya"}
+        </span>
+      </p>
+    );
+  }
+
+  if (source === "observed") {
+    return (
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-info" />
+        <span className="text-xs font-medium text-info">Scanner pernah dipakai di halaman ini</span>
+        <span className="text-[11px] text-muted-foreground">
+          Terbaca dari scan terakhir, bukan dari perangkatnya — kalau kabelnya dicabut sekarang,
+          sistem tidak bisa tahu.
+        </span>
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
+      <span className="text-xs font-medium text-muted-foreground">Scanner belum terdeteksi</span>
+      <span className="text-[11px] text-muted-foreground">Colok scanner lalu scan sekali.</span>
+      {hidSupported && (
+        <button
+          type="button"
+          onClick={() => void onRequestDevice()}
+          title="Hanya untuk scanner mode HID-POS. Scanner mode keyboard sengaja disembunyikan browser demi keamanan, dan tidak akan muncul di daftar."
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+        >
+          <Usb className="h-3.5 w-3.5" />
+          Hubungkan perangkat
+        </button>
+      )}
     </div>
   );
 }
