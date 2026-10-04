@@ -3,9 +3,7 @@
 import { useMemo } from "react";
 import { AlertTriangle, Check, ScanLine, Sparkles } from "lucide-react";
 import { BarcodeValue, isValidEan13 } from "@/shared/barcode/barcode-value";
-import { CameraScanner } from "../../camera-scanner";
-import { DeviceScannerPairing } from "../../device-scanner-pairing";
-import { BarcodeInputHint } from "../../barcode-input-hint";
+import { ScanSources } from "../../scan-sources";
 
 export type BarcodeMode = "EXISTING" | "INTERNAL";
 
@@ -117,11 +115,7 @@ export function BarcodeStep({
             className="w-full rounded-md border border-input px-3 py-2 font-mono text-sm tracking-wide focus:border-ring focus:outline-none"
           />
           {feedback && <FeedbackLine feedback={feedback} />}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <CameraScanner onScan={onValueChange} />
-            <DeviceScannerPairing label="Barcode Produk" onScan={onValueChange} />
-          </div>
-          <BarcodeInputHint />
+          <ScanSources label="Barcode Produk" onScan={onValueChange} />
         </div>
       )}
 

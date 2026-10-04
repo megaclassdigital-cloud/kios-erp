@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CameraScanner } from "../camera-scanner";
-import { DeviceScannerPairing } from "../device-scanner-pairing";
-import { BarcodeInputHint } from "../barcode-input-hint";
+import { ScanSources } from "../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
 import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
-import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface Supplier {
   id: string;
@@ -34,11 +31,6 @@ export default function BarangMasukPage() {
   const [message, setMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Same page-wide capture as the POS. Receiving is a type-then-scan loop
-  // -- quantity, price, next item -- so focus leaves the barcode box after
-  // every single line, which is precisely when a scan would otherwise be
-  // swallowed.
-  useKeyboardWedgeScanner((value) => void processBarcode(value));
 
   useEffect(() => {
     fetch("/api/suppliers")
@@ -184,7 +176,7 @@ export default function BarangMasukPage() {
         {/* min-w-0: see the same note in pos-terminal.tsx -- the received
             items table holds this column open otherwise. */}
         <div className="min-w-0 space-y-3 lg:col-span-2">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">SCAN BARCODE PRODUK</label>
               <input
@@ -196,16 +188,8 @@ export default function BarangMasukPage() {
                 placeholder="Ketik kode lalu Enter"
               />
             </form>
-            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">SCANNER KAMERA</p>
-              <CameraScanner onScan={processBarcode} />
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">DEVICE SCANNER</p>
-              <DeviceScannerPairing label="Barang Masuk" onScan={processBarcode} />
-            </div>
+            <ScanSources label="Barang Masuk" onScan={processBarcode} />
           </div>
-          <BarcodeInputHint />
 
           {error && (
             <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">{error}</div>

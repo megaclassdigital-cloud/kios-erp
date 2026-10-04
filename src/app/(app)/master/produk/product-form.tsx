@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { BarcodeLabelPrinter } from "./barcode-label-printer";
 import { BarcodeStep, type BarcodeMode, type KnownProduct } from "./barcode-step";
-import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface Category {
   id: string;
@@ -54,12 +53,11 @@ export function ProductForm({
   const canSubmit = !loading && (!needsBarcodeChoice || barcodeMode !== null);
 
   // This page has two things a scan could mean: find an existing product, or
-  // fill in the barcode of the one being added. Once someone has said the new
-  // product carries a factory barcode, that is unambiguously what the next
-  // scan is for — so this capture takes over and the page's search capture
-  // steps aside, rather than both firing and the code landing in both places.
+  // fill in the barcode of the one being added. The capture itself lives in
+  // the <ScanSources> inside the barcode step, which only renders once the
+  // factory-barcode option is chosen; telling the page lets its own search
+  // capture step aside, so one scan never lands in both fields.
   const awaitingBarcode = needsBarcodeChoice && barcodeMode === "EXISTING";
-  useKeyboardWedgeScanner(setScannedBarcode, awaitingBarcode);
   useEffect(() => {
     onAwaitingBarcodeChange?.(awaitingBarcode);
   }, [awaitingBarcode, onAwaitingBarcodeChange]);

@@ -1,12 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CameraScanner } from "../camera-scanner";
-import { DeviceScannerPairing } from "../device-scanner-pairing";
-import { BarcodeInputHint } from "../barcode-input-hint";
+import { ScanSources } from "../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
 import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
-import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface Line {
   productId: string;
@@ -31,11 +28,6 @@ export default function StokOpnamePage() {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // The worst page in the app for a focus-bound scanner: the whole job is
-  // scan an item, type its counted quantity, scan the next -- so focus
-  // leaves the barcode box after every single line. Only while counting;
-  // once submitted for review a stray scan must not add anything.
-  useKeyboardWedgeScanner((value) => void processBarcode(value), status === "DRAFT");
 
   async function start() {
     const res = await fetch("/api/stock-opname", { method: "POST" });
@@ -160,9 +152,9 @@ export default function StokOpnamePage() {
             <input ref={inputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Ketik kode lalu Enter" />
           </form>
-          <CameraScanner onScan={processBarcode} />
-          <DeviceScannerPairing label="Stock Opname" onScan={processBarcode} />
-          <BarcodeInputHint />
+          {/* Only while counting: a stray scan during review must not add
+              anything to a list already submitted for approval. */}
+          <ScanSources label="Stock Opname" onScan={processBarcode} enabled={status === "DRAFT"} />
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs text-gray-500">

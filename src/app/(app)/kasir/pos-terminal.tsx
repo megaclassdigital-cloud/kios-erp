@@ -8,9 +8,7 @@ import { Clock, Power } from "lucide-react";
 import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { ServiceDetailModal } from "./service-detail-modal";
-import { CameraScanner } from "../camera-scanner";
-import { DeviceScannerPairing } from "../device-scanner-pairing";
-import { BarcodeInputHint } from "../barcode-input-hint";
+import { ScanSources } from "../scan-sources";
 import { useScannerRegistry } from "./scanner-registry";
 import { ScannerPromptBanner } from "./scanner-prompt";
 import { KasirHelp } from "./kasir-help";
@@ -18,7 +16,6 @@ import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { BarcodeValue } from "@/shared/barcode/barcode-value";
-import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 import type { PosCatalogItem } from "@/modules/products/repository/pos-catalog-repository";
 
 const inventoryService = new InventoryService();
@@ -109,21 +106,9 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
     inputRef.current?.focus();
   }, []);
 
-  // A USB wedge scanner types wherever focus happens to be, so a scan fired
-  // right after the cashier clicked a qty button or closed a dialog used to
-  // vanish silently. Capture it page-wide instead -- but stay off while a
-  // modal is up, where a stray scan would quietly add a line to a cart the
-  // cashier is already paying for.
   const scannerRegistry = useScannerRegistry();
-  useKeyboardWedgeScanner(
-    (value, scan) => {
-      void processBarcode(value);
-      // Fire-and-forget: working out which scanner this till has must never
-      // delay the item reaching the cart.
-      void scannerRegistry.reportScan(scan);
-    },
-    !showPayment && !pendingService
-  );
+  // Page-wide scanner capture now lives in <ScanSources> below, together
+  // with the camera, the phone pairing and the indicator light.
 
   const grandTotal = cart.reduce((acc, l) => acc + l.unitPrice * l.quantity, 0);
 
@@ -336,8 +321,8 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
             and the whole page scrolls sideways on a phone the moment the
             cart is not empty. */}
         <div className="min-w-0 lg:col-span-2 space-y-3">
-          <div className="grid gap-3 md:grid-cols-3">
-            <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm md:col-span-1">
+          <div className="grid gap-3 md:grid-cols-2">
+            <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 SCAN BARCODE — siap menerima input scanner
               </label>
@@ -350,16 +335,16 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
                 autoComplete="off"
               />
             </form>
-            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">SCANNER KAMERA</p>
-              <CameraScanner onScan={processBarcode} />
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">DEVICE SCANNER</p>
-              <DeviceScannerPairing label="Kasir" onScan={processBarcode} resetSignal={completedSaleCount} />
-            </div>
+            <ScanSources
+              label="Kasir"
+              onScan={processBarcode}
+              // Stand down while a dialog is up: a stray scan must not add a
+              // line to a cart that is already being paid for.
+              enabled={!showPayment && !pendingService}
+              resetSignal={completedSaleCount}
+              onHardwareScan={(scan) => void scannerRegistry.reportScan(scan)}
+            />
           </div>
-          <BarcodeInputHint />
           {scannerRegistry.prompt && (
             <ScannerPromptBanner
               prompt={scannerRegistry.prompt}

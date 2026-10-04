@@ -4,13 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
-import { CameraScanner } from "../../camera-scanner";
-import { DeviceScannerPairing } from "../../device-scanner-pairing";
+import { ScanSources } from "../../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
 import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
 import { StatusBadge } from "@/components/kios/status-badge";
-import { BarcodeInputHint } from "../../barcode-input-hint";
-import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 interface ProductRow {
   id: string;
@@ -42,8 +39,6 @@ export default function MasterProdukPage() {
   // Exactly one of the two captures on this page is live at a time.
   const [formAwaitingBarcode, setFormAwaitingBarcode] = useState(false);
 
-  // Scanning with nothing else going on means "find this product".
-  useKeyboardWedgeScanner(setSearch, !formAwaitingBarcode && !labelFor);
 
   const handleAwaitingBarcodeChange = useCallback((awaiting: boolean) => {
     setFormAwaitingBarcode(awaiting);
@@ -154,11 +149,15 @@ export default function MasterProdukPage() {
           autoComplete="off"
           className="w-full rounded-md border border-input px-3 py-2 text-sm focus:border-ring focus:outline-none"
         />
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <CameraScanner onScan={(code) => setSearch(code)} />
-          <DeviceScannerPairing label="Cari Produk" onScan={(code) => setSearch(code)} />
+        <div className="mt-2">
+          {/* Only live while the add-product form is not itself waiting for a
+              barcode, so one scan never lands in both fields. */}
+          <ScanSources
+            label="Cari Produk"
+            onScan={setSearch}
+            enabled={!formAwaitingBarcode && !labelFor}
+          />
         </div>
-        <BarcodeInputHint />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">

@@ -2,12 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CameraScanner } from "../camera-scanner";
-import { DeviceScannerPairing } from "../device-scanner-pairing";
-import { BarcodeInputHint } from "../barcode-input-hint";
+import { ScanSources } from "../scan-sources";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
-import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 
 const inventoryService = new InventoryService();
 
@@ -59,10 +56,6 @@ export function BarcodeAudit() {
     inputRef.current?.focus();
   }, []);
 
-  // Page-wide capture, same as every other scan surface: this box refocuses
-  // itself after each lookup, but a click on the movement history below it
-  // would still have stranded the next scan.
-  useKeyboardWedgeScanner((value) => void processBarcode(value));
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault();
@@ -114,9 +107,7 @@ export function BarcodeAudit() {
           className="w-full rounded-md border border-input px-3 py-2 text-sm tracking-wide focus:border-ring focus:outline-none"
         />
       </form>
-      <CameraScanner onScan={processBarcode} />
-      <DeviceScannerPairing label="Cek Stok" onScan={processBarcode} />
-      <BarcodeInputHint />
+      <ScanSources label="Cek Stok" onScan={processBarcode} />
 
       {loading && <p className="text-sm text-muted-foreground">Memuat...</p>}
       {error && (
