@@ -15,6 +15,7 @@ import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { BarcodeValue } from "@/shared/barcode/barcode-value";
+import { useKeyboardWedgeScanner } from "@/shared/barcode/use-keyboard-wedge-scanner";
 import type { PosCatalogItem } from "@/modules/products/repository/pos-catalog-repository";
 
 const inventoryService = new InventoryService();
@@ -104,6 +105,13 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // A USB wedge scanner types wherever focus happens to be, so a scan fired
+  // right after the cashier clicked a qty button or closed a dialog used to
+  // vanish silently. Capture it page-wide instead -- but stay off while a
+  // modal is up, where a stray scan would quietly add a line to a cart the
+  // cashier is already paying for.
+  useKeyboardWedgeScanner(processBarcode, !showPayment && !pendingService);
 
   const grandTotal = cart.reduce((acc, l) => acc + l.unitPrice * l.quantity, 0);
 
