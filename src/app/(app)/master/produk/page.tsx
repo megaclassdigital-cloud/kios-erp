@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
+import { ProductEditModal, type EditableProduct } from "./product-edit-modal";
+import { ExpiryService } from "@/modules/inventory/domain/expiry-service";
 import { ScanSources } from "../../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
@@ -16,6 +18,10 @@ interface ProductRow {
   sellingPrice: string;
   active: boolean;
   productType: "PHYSICAL" | "SERVICE";
+  purchasePrice: string;
+  minimumStock: number;
+  expiryDate: string | null;
+  expiryWarnDays: number;
   barcodes: { barcodeValue: string; barcodeType: "CODE128" | "EAN13"; status: string }[];
 }
 
@@ -37,11 +43,17 @@ export default function MasterProdukPage() {
   // Set by the form while it is waiting for the barcode of a new product.
   // Exactly one of the two captures on this page is live at a time.
   const [formAwaitingBarcode, setFormAwaitingBarcode] = useState(false);
+  const [editing, setEditing] = useState<EditableProduct | null>(null);
 
 
   const handleAwaitingBarcodeChange = useCallback((awaiting: boolean) => {
     setFormAwaitingBarcode(awaiting);
   }, []);
+
+  const expiryService = useMemo(() => new ExpiryService(), []);
+  // Plain value, not memoised: it is one Date per render, and every row in
+  // this render then compares against the same instant.
+  const now = new Date();
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -139,13 +151,14 @@ export default function MasterProdukPage() {
               <th className="px-3 py-2">Barcode</th>
               <th className="px-3 py-2">Stok</th>
               <th className="px-3 py-2">Harga Jual</th>
+              <th className="px-3 py-2">Kedaluwarsa</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                   {products.length === 0 ? "Belum ada produk." : "Tidak ada produk yang cocok."}
                 </td>
               </tr>
@@ -170,7 +183,39 @@ export default function MasterProdukPage() {
                   <td className="px-3 py-2 text-muted-foreground tabular-nums">
                     Rp{Number(p.sellingPrice).toLocaleString("id-ID")}
                   </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {p.productType === "SERVICE" ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : (() => {
+                      const expiry = p.expiryDate ? new Date(p.expiryDate) : null;
+                      const status = expiryService.classify(expiry, p.expiryWarnDays, now);
+                      if (status === "TIDAK_DIPANTAU") {
+                        return <span className="text-xs text-muted-foreground">belum diisi</span>;
+                      }
+                      const days = expiryService.daysUntil(expiry as Date, now);
+                      return (
+                        <span className={
+                          status === "KEDALUWARSA" ? "text-xs font-medium text-destructive"
+                          : status === "MENDEKATI" ? "text-xs font-medium text-warning-foreground"
+                          : "text-xs text-muted-foreground"
+                        }>
+                          {expiryService.describe(status, days)}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-3 py-2 text-right">
+                    <button
+                      onClick={() => setEditing({
+                        id: p.id, name: p.name, sku: p.sku, productType: p.productType,
+                        purchasePrice: p.purchasePrice, sellingPrice: p.sellingPrice,
+                        minimumStock: p.minimumStock, active: p.active,
+                        expiryDate: p.expiryDate, expiryWarnDays: p.expiryWarnDays,
+                      })}
+                      className="mr-3 text-xs text-primary hover:underline"
+                    >
+                      Ubah
+                    </button>
                     {activeBarcode ? (
                       <button
                         onClick={() =>
@@ -201,6 +246,14 @@ export default function MasterProdukPage() {
           </tbody>
         </table>
       </div>
+
+      {editing && (
+        <ProductEditModal
+          product={editing}
+          onClose={() => setEditing(null)}
+          onSaved={load}
+        />
+      )}
 
       {labelFor && (
         <BarcodeLabelModal
