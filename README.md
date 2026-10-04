@@ -51,6 +51,37 @@ barcode lifecycle, atomic checkout, RBAC enforcement, money as Decimal).
 - `npm run db:deploy` — apply migrations in production
 - `npm run db:seed` — development seed data (never used in production)
 
+## Database connection: pick the right pooler
+
+Supabase exposes two poolers on the same database, and which one `DATABASE_URL`
+points at makes a large, measured difference. Six sequential queries on one
+Prisma client, from Indonesia against the Sydney project:
+
+| Port | Mode | First query | Steady state |
+|------|------|-------------|--------------|
+| 6543 | transaction | 4054ms | **~1575ms** |
+| 5432 | session | 3264ms | **~318ms** |
+
+The pool is reused in both cases — only the first query pays setup. But the
+transaction pooler adds roughly 1250ms to *every* query after that. 318ms is
+simply the round trip to the database region; 1575ms is that plus pgbouncer.
+
+- **Locally**, point `DATABASE_URL` at **5432**. `next dev` is a single
+  long-lived process and does not need transaction-mode pooling. This cut cold
+  page navigation from ~3.7–5.8s to ~2.2–2.6s.
+- **On Vercel**, keep **6543**. Serverless functions genuinely need it, and
+  there the server sits beside the database, so the overhead is paid over a
+  ~1ms link instead of a Sydney-length one.
+- `DIRECT_URL` must always be the 5432 one — `prisma migrate` needs a session
+  connection and cannot run through the transaction pooler.
+
+Migrations also need the advisory lock disabled, because the pooler does not
+support it:
+
+```bash
+PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true npx prisma migrate deploy
+```
+
 ## Deployment
 
 - **Database**: Supabase Postgres (`DATABASE_URL` in Vercel env vars)
