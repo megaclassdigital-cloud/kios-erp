@@ -25,6 +25,8 @@ export class PrismaProductRepository implements ProductRepository {
         sellingPrice: input.sellingPrice,
         minimumStock: input.minimumStock,
         trackInventory: input.trackInventory,
+        expiryDate: input.expiryDate ?? undefined,
+        expiryWarnDays: input.expiryWarnDays ?? undefined,
       },
     });
   }

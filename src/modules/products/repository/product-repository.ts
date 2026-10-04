@@ -13,6 +13,9 @@ export interface CreateProductInput {
   sellingPrice: string;
   minimumStock: number;
   trackInventory: boolean;
+  /** Null for a service, which has nothing to expire. */
+  expiryDate?: Date | null;
+  expiryWarnDays?: number;
 }
 
 export interface UpdateProductInput {
@@ -23,6 +26,8 @@ export interface UpdateProductInput {
   minimumStock?: number;
   active?: boolean;
   serviceProvider?: string | null;
+  expiryDate?: Date | null;
+  expiryWarnDays?: number;
 }
 
 export type ProductWithBarcodes = Product & { barcodes: ProductBarcode[] };

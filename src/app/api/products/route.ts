@@ -18,6 +18,10 @@ const createProductSchema = z.object({
   sellingPrice: z.string(),
   minimumStock: z.number().int().nonnegative(),
   trackInventory: z.boolean(),
+  // ISO date from the form's <input type="date">. Optional at this layer so a
+  // service can omit it; the form is what requires it for physical goods.
+  expiryDate: z.string().optional(),
+  expiryWarnDays: z.number().int().min(0).max(3650).optional(),
   initialStock: z.string().optional(),
   barcode: z.union([
     z.object({ mode: z.literal("SCAN_EXISTING"), value: z.string(), unit: z.string(), conversionFactor: z.string().optional() }),
@@ -49,7 +53,11 @@ export async function POST(req: NextRequest) {
     const session = await requireSession("products.manage");
     const body = createProductSchema.parse(await req.json());
     const useCase = new CreateProductUseCase();
-    const product = await useCase.execute({ ...body, actorId: session.user.id });
+    const product = await useCase.execute({
+      ...body,
+      expiryDate: body.expiryDate ? new Date(body.expiryDate) : null,
+      actorId: session.user.id,
+    });
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);

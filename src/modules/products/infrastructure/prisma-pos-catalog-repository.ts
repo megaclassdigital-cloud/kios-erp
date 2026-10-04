@@ -20,6 +20,8 @@ export class PrismaPosCatalogRepository implements PosCatalogRepository {
             serviceType: true,
             serviceProvider: true,
             trackInventory: true,
+            expiryDate: true,
+            expiryWarnDays: true,
           },
         },
       },
@@ -36,6 +38,8 @@ export class PrismaPosCatalogRepository implements PosCatalogRepository {
       serviceType: row.product.serviceType,
       serviceProvider: row.product.serviceProvider,
       trackInventory: row.product.trackInventory,
+      expiryDate: row.product.expiryDate ? row.product.expiryDate.toISOString() : null,
+      expiryWarnDays: row.product.expiryWarnDays,
     }));
   }
 }

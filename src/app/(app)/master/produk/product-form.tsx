@@ -34,6 +34,8 @@ export function ProductForm({
   const [sellingPrice, setSellingPrice] = useState("");
   const [minimumStock, setMinimumStock] = useState("5");
   const [initialStock, setInitialStock] = useState("0");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [expiryWarnDays, setExpiryWarnDays] = useState("30");
   // No default: see barcode-step.tsx for why letting this be picked
   // silently was the most damaging thing the old form did.
   const [barcodeMode, setBarcodeMode] = useState<BarcodeMode | null>(null);
@@ -88,6 +90,8 @@ export function ProductForm({
         sellingPrice,
         minimumStock: isService ? 0 : Number(minimumStock),
         trackInventory: !isService,
+        expiryDate: isService || !expiryDate ? undefined : expiryDate,
+        expiryWarnDays: isService ? undefined : Number(expiryWarnDays || 30),
         initialStock: isService ? undefined : initialStock,
         barcode,
       }),
@@ -116,6 +120,8 @@ export function ProductForm({
     setPurchasePrice("");
     setSellingPrice("");
     setInitialStock("0");
+    setExpiryDate("");
+    setExpiryWarnDays("30");
     setScannedBarcode("");
     setBarcodeMode(null);
     setServiceProvider("");
@@ -282,17 +288,43 @@ export function ProductForm({
               />
             </Field>
             {!isService && (
-              <Field
-                label="Stok awal"
-                hint="Jumlah barang yang ada sekarang. Isi 0 bila barangnya belum datang."
-              >
-                <input
-                  type="number"
-                  value={initialStock}
-                  onChange={(e) => setInitialStock(e.target.value)}
-                  className={inputClass}
-                />
-              </Field>
+              <>
+                <Field
+                  label="Stok awal"
+                  hint="Jumlah barang yang ada sekarang. Isi 0 bila barangnya belum datang."
+                >
+                  <input
+                    type="number"
+                    value={initialStock}
+                    onChange={(e) => setInitialStock(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field
+                  label="Tanggal kedaluwarsa"
+                  hint="Lihat tanggal di kemasan. Wajib diisi untuk barang fisik."
+                >
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    required
+                    className={inputClass}
+                  />
+                </Field>
+                <Field
+                  label="Ingatkan berapa hari sebelumnya?"
+                  hint="Roti cukup beberapa hari, makanan kaleng bisa berbulan-bulan. Sistem mulai memperingatkan saat sisa harinya segini."
+                >
+                  <input
+                    type="number"
+                    min={0}
+                    value={expiryWarnDays}
+                    onChange={(e) => setExpiryWarnDays(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+              </>
             )}
           </div>
         </fieldset>

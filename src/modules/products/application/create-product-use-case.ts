@@ -20,6 +20,8 @@ export interface CreateProductRequest {
   sellingPrice: string;
   minimumStock: number;
   trackInventory: boolean;
+  expiryDate?: Date | null;
+  expiryWarnDays?: number;
   initialStock?: string;
   barcode:
     | { mode: "SCAN_EXISTING"; value: string; unit: string; conversionFactor?: string }
@@ -65,6 +67,11 @@ export class CreateProductUseCase {
         sellingPrice: req.sellingPrice,
         minimumStock: req.minimumStock,
         trackInventory: req.trackInventory,
+        // A service has nothing physical to expire, so any date sent for one
+        // is dropped here rather than stored and later shown as a warning
+        // about pulsa going off.
+        expiryDate: req.productType === "SERVICE" ? null : (req.expiryDate ?? null),
+        expiryWarnDays: req.expiryWarnDays,
       });
 
       if (req.barcode.mode === "SCAN_EXISTING") {

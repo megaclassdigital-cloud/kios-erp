@@ -82,6 +82,16 @@ model Product {
   purchasePrice   Decimal     @db.Decimal(14, 2)
   sellingPrice    Decimal     @db.Decimal(14, 2)
   minimumStock    Int         @default(0)
+  /// Expiry of the stock currently on the shelf. Nullable because a service
+  /// (pulsa, token listrik) has nothing to expire, and because products that
+  /// existed before this column have no date yet -- the form requires it for
+  /// physical goods instead, so a gap shows up as something to fill rather
+  /// than being silently defaulted to a wrong date.
+  expiryDate      DateTime?
+  /// Days before expiryDate that this product starts warning. Per product
+  /// because the sensible lead time differs: bread needs days, canned goods
+  /// months.
+  expiryWarnDays  Int         @default(30)
   currentStock    Decimal     @default(0) @db.Decimal(14, 3)
   trackInventory  Boolean     @default(true)
   active          Boolean     @default(true)

@@ -16,6 +16,10 @@ export interface PosCatalogItem {
   serviceType: "PULSA" | "TOKEN_LISTRIK" | null;
   serviceProvider: string | null;
   trackInventory: boolean;
+  /** ISO string, or null for a service / a product with no date yet. The
+   * cashier must be told before the item is in the cart, not after. */
+  expiryDate: string | null;
+  expiryWarnDays: number;
 }
 
 export interface PosCatalogRepository {

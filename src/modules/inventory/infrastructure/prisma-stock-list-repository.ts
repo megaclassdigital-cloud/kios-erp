@@ -19,6 +19,8 @@ export class PrismaStockListRepository implements StockListRepository {
         currentStock: true,
         minimumStock: true,
         sellingPrice: true,
+        expiryDate: true,
+        expiryWarnDays: true,
         barcodes: {
           where: { status: "ACTIVE" },
           select: { barcodeValue: true },
@@ -35,6 +37,8 @@ export class PrismaStockListRepository implements StockListRepository {
       currentStock: row.currentStock.toString(),
       minimumStock: row.minimumStock,
       sellingPrice: row.sellingPrice.toString(),
+      expiryDate: row.expiryDate,
+      expiryWarnDays: row.expiryWarnDays,
     }));
   }
 }

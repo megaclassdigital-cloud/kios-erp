@@ -13,12 +13,14 @@ import { useScannerRegistry } from "./scanner-registry";
 import { ScannerPromptBanner } from "./scanner-prompt";
 import { KasirHelp } from "./kasir-help";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
+import { ExpiryService } from "@/modules/inventory/domain/expiry-service";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { BarcodeValue } from "@/shared/barcode/barcode-value";
 import type { PosCatalogItem } from "@/modules/products/repository/pos-catalog-repository";
 
 const inventoryService = new InventoryService();
+const expiryService = new ExpiryService();
 
 interface ScannedProduct {
   id: string;
@@ -30,6 +32,8 @@ interface ScannedProduct {
   sellingPrice: string;
   serviceType: "PULSA" | "TOKEN_LISTRIK" | null;
   serviceProvider: string | null;
+  expiryDate: string | null;
+  expiryWarnDays: number;
 }
 
 async function fetchPosCatalog(): Promise<PosCatalogItem[]> {
@@ -139,6 +143,22 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
     // the customer before the transaction is finished. Computed from the
     // cart snapshot at scan time, outside setCart, since a state updater
     // must stay a pure function (React can invoke it twice in dev).
+    // Checked before the stock warning: an expired item should not be sold
+    // at all, which matters more than whether the shelf is running low. Shown
+    // at scan time so the cashier can put it aside while the customer is
+    // still standing there, not after the receipt prints.
+    if (product.expiryDate) {
+      const expiry = new Date(product.expiryDate);
+      const now = new Date();
+      const status = expiryService.classify(expiry, product.expiryWarnDays, now);
+      const days = expiryService.daysUntil(expiry, now);
+      if (status === "KEDALUWARSA") {
+        toast.error(`${product.name} sudah kedaluwarsa (${expiryService.describe(status, days)}). Jangan dijual.`, { duration: 10000 });
+      } else if (status === "MENDEKATI") {
+        toast.warning(`${product.name}: ${expiryService.describe(status, days).toLowerCase()}.`);
+      }
+    }
+
     if (product.trackInventory) {
       const existingQty = cart.find((l) => l.productId === product.id)?.quantity ?? 0;
       const remaining = Number(product.currentStock) - (existingQty + 1);
@@ -193,6 +213,8 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
         sellingPrice: cached.sellingPrice,
         serviceType: cached.serviceType,
         serviceProvider: cached.serviceProvider,
+        expiryDate: cached.expiryDate,
+        expiryWarnDays: cached.expiryWarnDays,
       });
       return;
     }
@@ -233,6 +255,10 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
           serviceType: product.serviceType ?? null,
           serviceProvider: product.serviceProvider ?? null,
           trackInventory: product.trackInventory,
+          // Already an ISO string here: the resolve endpoint returns the
+          // whole product and JSON has no Date type.
+          expiryDate: product.expiryDate ?? null,
+          expiryWarnDays: product.expiryWarnDays ?? 30,
         },
       ];
     });

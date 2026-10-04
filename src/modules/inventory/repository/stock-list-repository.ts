@@ -10,6 +10,8 @@ export interface StockListItem {
   currentStock: string;
   minimumStock: number;
   sellingPrice: string;
+  expiryDate: Date | null;
+  expiryWarnDays: number;
 }
 
 export interface StockListRepository {
