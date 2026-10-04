@@ -11,12 +11,15 @@ export type ReportTab = (typeof TABS)[number]["key"];
 
 export function TabNav({ active, periodQuery }: { active: ReportTab; periodQuery: string }) {
   return (
-    <div className="flex gap-1 border-b border-border">
+    // Scrolls horizontally on a narrow viewport, like the primary nav —
+    // without it the fourth tab lands past the right edge of a phone screen
+    // and can't be reached at all.
+    <div className="flex gap-1 overflow-x-auto border-b border-border whitespace-nowrap">
       {TABS.map((t) => (
         <a
           key={t.key}
           href={`/laporan?tab=${t.key}&${periodQuery}`}
-          className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${
+          className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${
             active === t.key
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"

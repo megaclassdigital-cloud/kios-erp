@@ -14,7 +14,7 @@ npm run db:seed
 npm run dev
 ```
 
-Seeded accounts (password: `password123` for all):
+Seeded accounts (password: `pass123` for all — see `prisma/seed.ts`):
 
 | username    | role       |
 |-------------|------------|

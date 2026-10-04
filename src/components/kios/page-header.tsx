@@ -16,7 +16,11 @@ export function PageHeader({
         <h1 className="text-lg font-semibold text-foreground md:text-xl">{title}</h1>
         {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {/* No `shrink-0` here: it would pin this row to its content width, so
+          `flex-wrap` could never kick in and a crowded header (the POS one
+          carries four actions) would push its last button off a phone
+          screen instead of wrapping onto the next line. */}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

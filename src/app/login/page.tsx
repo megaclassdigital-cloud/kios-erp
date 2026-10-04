@@ -16,12 +16,25 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const result = await signIn("credentials", {
-      username,
-      password,
-      redirect: false,
-    });
-    setLoading(false);
+
+    // signIn() rejects outright when the server can't answer (database
+    // unreachable, network dropped). Without this guard the rejection is
+    // unhandled, `loading` is never cleared, and the button sits on
+    // "Memproses..." forever with nothing telling the cashier why.
+    let result;
+    try {
+      result = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
+      });
+    } catch {
+      setError("Tidak dapat menghubungi server. Periksa koneksi lalu coba lagi.");
+      return;
+    } finally {
+      setLoading(false);
+    }
+
     if (result?.error) {
       setError("Username atau password salah.");
       return;
