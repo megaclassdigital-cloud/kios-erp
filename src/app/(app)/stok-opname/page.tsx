@@ -4,6 +4,8 @@ import { useState } from "react";
 import { CameraScanner } from "../camera-scanner";
 import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
+import { PageHeader } from "@/components/kios/page-header";
+import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
 
 interface Line {
   productId: string;
@@ -106,7 +108,31 @@ export default function StokOpnamePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-gray-900">Stock Opname</h1>
+      <PageHeader
+        title="Stock Opname"
+        description="Cocokkan stok di sistem dengan jumlah barang yang benar-benar ada di rak."
+      />
+
+      <HelpPanel id="stok-opname" title="Panduan stock opname">
+        <HelpStep n={1}>
+          <strong className="text-foreground">Hitung fisik dulu, baru catat.</strong> Jangan melihat
+          angka sistem sebelum menghitung — begitu angkanya terlihat, tangan cenderung mengikutinya
+          dan selisih yang sebenarnya jadi tidak ketahuan.
+        </HelpStep>
+        <HelpStep n={2}>
+          Scan barangnya, lalu isi <strong className="text-foreground">Qty Fisik</strong> dengan
+          jumlah hasil hitungan Anda — bukan selisihnya. Selisih dihitung sistem.
+        </HelpStep>
+        <HelpStep n={3}>
+          Tekan <strong className="text-foreground">Review &amp; Submit</strong> untuk melihat
+          perbandingan Sistem vs Fisik beserta selisihnya.
+        </HelpStep>
+        <HelpStep n={4}>
+          <strong className="text-foreground">Stok belum berubah sampai disetujui.</strong>{" "}
+          Persetujuan dilakukan oleh pemilik atau admin, supaya penyesuaian stok tidak bisa
+          dilakukan sendirian tanpa sepengetahuan siapa pun.
+        </HelpStep>
+      </HelpPanel>
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
       )}

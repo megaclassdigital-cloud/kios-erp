@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
 import { CameraScanner } from "../../camera-scanner";
 import { DeviceScannerPairing } from "../../device-scanner-pairing";
+import { PageHeader } from "@/components/kios/page-header";
+import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
+import { StatusBadge } from "@/components/kios/status-badge";
 
 interface ProductRow {
   id: string;
@@ -27,7 +31,6 @@ export default function MasterProdukPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
   const [generatingId, setGeneratingId] = useState<string | null>(null);
-  const [genError, setGenError] = useState<string | null>(null);
   const [labelFor, setLabelFor] = useState<{
     name: string;
     barcode: string;
@@ -64,7 +67,6 @@ export default function MasterProdukPage() {
 
   async function generateBarcode(product: ProductRow) {
     setGeneratingId(product.id);
-    setGenError(null);
     const res = await fetch(`/api/products/${product.id}/barcodes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -73,36 +75,77 @@ export default function MasterProdukPage() {
     const data = await res.json().catch(() => ({}));
     setGeneratingId(null);
     if (!res.ok) {
-      setGenError(data.error ?? "Gagal membuat barcode.");
+      toast.error(data.error ?? "Gagal membuat barcode.");
       return;
     }
     await load();
-    setLabelFor({ name: product.name, barcode: data.barcode.barcodeValue, barcodeType: data.barcode.barcodeType });
+    setLabelFor({
+      name: product.name,
+      barcode: data.barcode.barcodeValue,
+      barcodeType: data.barcode.barcodeType,
+    });
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-gray-900">Master Produk</h1>
-      <ProductForm categories={categories} onCreated={load} />
+      <PageHeader
+        title="Master Produk"
+        description="Daftarkan barang dan layanan yang dijual, beserta barcodenya."
+      />
 
-      <div className="rounded-lg border border-gray-200 bg-white p-3">
-        <label className="mb-1 block text-xs font-medium text-gray-500">CARI PRODUK</label>
+      <HelpPanel id="master-produk" title="Panduan menambah produk">
+        <HelpStep n={1}>
+          <strong className="text-foreground">Lihat kemasan barangnya dulu.</strong> Kalau sudah ada
+          barcode tercetak (Indomie, minyak botol, sabun), pilih{" "}
+          <em>&ldquo;Ya, sudah ada barcode&rdquo;</em> lalu scan kodenya. Kalau barang curah atau
+          bungkus sendiri (beras literan, gula kiloan), pilih{" "}
+          <em>&ldquo;Belum ada, buatkan&rdquo;</em>.
+        </HelpStep>
+        <HelpStep n={2}>
+          <strong className="text-foreground">Jangan buat barcode baru untuk barang pabrikan.</strong>{" "}
+          Kalau kemasannya sudah ada barcode tapi Anda membuat kode sendiri, kasir akan menscan
+          kemasan dan muncul &ldquo;Barcode tidak terdaftar&rdquo; saat ada pembeli menunggu.
+        </HelpStep>
+        <HelpStep n={3}>
+          <strong className="text-foreground">Satu barcode untuk satu produk.</strong> Kalau kode
+          yang Anda masukkan sudah dipakai produk lain, sistem langsung memberi tahu nama produknya
+          sebelum disimpan.
+        </HelpStep>
+        <HelpStep n={4}>
+          <strong className="text-foreground">Setelah tersimpan, cetak stikernya</strong> untuk
+          barang bungkus sendiri, lalu tempel di kemasan. Barang pabrikan tidak perlu ditempeli apa
+          pun — barcode aslinya sudah cukup.
+        </HelpStep>
+        <HelpStep n={5}>
+          <strong className="text-foreground">Harga beli wajib diisi dengan benar.</strong> Laporan
+          laba dihitung dari selisih harga beli dan harga jual. Salah di sini membuat semua laporan
+          laba ikut salah.
+        </HelpStep>
+      </HelpPanel>
+
+      <ProductForm categories={categories} knownProducts={products} onCreated={load} />
+
+      <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="cari-produk">
+          CARI PRODUK
+        </label>
         <input
+          id="cari-produk"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Nama, SKU, atau ketik kode barcode..."
+          placeholder="Nama, SKU, atau scan barcodenya..."
           autoComplete="off"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-md border border-input px-3 py-2 text-sm focus:border-ring focus:outline-none"
         />
-        <CameraScanner onScan={(code) => setSearch(code)} />
-        <DeviceScannerPairing label="Cari Produk" onScan={(code) => setSearch(code)} />
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <CameraScanner onScan={(code) => setSearch(code)} />
+          <DeviceScannerPairing label="Cari Produk" onScan={(code) => setSearch(code)} />
+        </div>
       </div>
 
-      {genError && <p className="text-sm text-red-600">{genError}</p>}
-
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-xs text-gray-500">
+          <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Produk</th>
               <th className="px-3 py-2">Tipe</th>
@@ -116,63 +159,59 @@ export default function MasterProdukPage() {
           <tbody>
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-gray-400">
+                <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                   {products.length === 0 ? "Belum ada produk." : "Tidak ada produk yang cocok."}
                 </td>
               </tr>
             )}
-            {filteredProducts.map((p) => (
-              <tr key={p.id} className="border-t border-gray-100">
-                <td className="px-3 py-2 text-gray-900">{p.name}</td>
-                <td className="px-3 py-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    p.productType === "SERVICE" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-700"
-                  }`}>
-                    {p.productType === "SERVICE" ? "Layanan" : "Fisik"}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-gray-500">{p.sku}</td>
-                <td className="px-3 py-2 font-mono text-xs text-gray-500">
-                  {p.barcodes.find((b) => b.status === "ACTIVE")?.barcodeValue ?? "-"}
-                </td>
-                <td className="px-3 py-2 text-gray-900">
-                  {p.productType === "SERVICE" ? "-" : Number(p.currentStock)}
-                </td>
-                <td className="px-3 py-2 text-gray-500">
-                  Rp{Number(p.sellingPrice).toLocaleString("id-ID")}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {(() => {
-                    const activeBarcode = p.barcodes.find((b) => b.status === "ACTIVE");
-                    if (activeBarcode) {
-                      return (
-                        <button
-                          onClick={() =>
-                            setLabelFor({
-                              name: p.name,
-                              barcode: activeBarcode.barcodeValue,
-                              barcodeType: activeBarcode.barcodeType,
-                            })
-                          }
-                          className="text-xs text-blue-600 hover:underline"
-                        >
-                          Lihat Barcode
-                        </button>
-                      );
-                    }
-                    return (
+            {filteredProducts.map((p) => {
+              const activeBarcode = p.barcodes.find((b) => b.status === "ACTIVE");
+              return (
+                <tr key={p.id} className="border-t border-border">
+                  <td className="px-3 py-2 text-foreground">{p.name}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge tone={p.productType === "SERVICE" ? "purple" : "neutral"}>
+                      {p.productType === "SERVICE" ? "Layanan" : "Fisik"}
+                    </StatusBadge>
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{p.sku}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                    {activeBarcode?.barcodeValue ?? "—"}
+                  </td>
+                  <td className="px-3 py-2 text-foreground tabular-nums">
+                    {p.productType === "SERVICE" ? "—" : Number(p.currentStock)}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground tabular-nums">
+                    Rp{Number(p.sellingPrice).toLocaleString("id-ID")}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {activeBarcode ? (
+                      <button
+                        onClick={() =>
+                          setLabelFor({
+                            name: p.name,
+                            barcode: activeBarcode.barcodeValue,
+                            barcodeType: activeBarcode.barcodeType,
+                          })
+                        }
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Lihat Barcode
+                      </button>
+                    ) : (
                       <button
                         onClick={() => generateBarcode(p)}
                         disabled={generatingId === p.id}
-                        className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                        title="Membuat barcode milik toko untuk produk ini, lalu menampilkannya untuk dicetak. Jangan dipakai bila kemasannya sudah punya barcode pabrik."
+                        className="text-xs text-primary hover:underline disabled:opacity-50"
                       >
-                        {generatingId === p.id ? "Membuat..." : "Buat Barcode"}
+                        {generatingId === p.id ? "Membuat..." : "Buatkan Barcode"}
                       </button>
-                    );
-                  })()}
-                </td>
-              </tr>
-            ))}
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

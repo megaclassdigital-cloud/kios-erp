@@ -1,14 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
+import { CheckCircle2 } from "lucide-react";
 import { BarcodeLabelPrinter } from "./barcode-label-printer";
+import { BarcodeStep, type BarcodeMode, type KnownProduct } from "./barcode-step";
 
 interface Category {
   id: string;
   name: string;
 }
 
-export function ProductForm({ categories, onCreated }: { categories: Category[]; onCreated: () => void }) {
+export function ProductForm({
+  categories,
+  knownProducts,
+  onCreated,
+}: {
+  categories: Category[];
+  knownProducts: KnownProduct[];
+  onCreated: () => void;
+}) {
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -19,11 +30,9 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
   const [sellingPrice, setSellingPrice] = useState("");
   const [minimumStock, setMinimumStock] = useState("5");
   const [initialStock, setInitialStock] = useState("0");
-  // A barcode is generated automatically for every new product by default
-  // (PRD's barcode-first principle) — the admin only needs to do anything
-  // here if the item already carries a manufacturer barcode to link
-  // instead of minting a new internal one.
-  const [hasManufacturerBarcode, setHasManufacturerBarcode] = useState(false);
+  // No default: see barcode-step.tsx for why letting this be picked
+  // silently was the most damaging thing the old form did.
+  const [barcodeMode, setBarcodeMode] = useState<BarcodeMode | null>(null);
   const [scannedBarcode, setScannedBarcode] = useState("");
   const [createdProduct, setCreatedProduct] = useState<{
     name: string;
@@ -33,16 +42,23 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const isService = productType === "SERVICE";
+  // A service has nothing physical to carry a barcode, so the step simply
+  // does not apply to it.
+  const needsBarcodeChoice = !isService;
+  const canSubmit = !loading && (!needsBarcodeChoice || barcodeMode !== null);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const barcode = hasManufacturerBarcode
-      ? { mode: "SCAN_EXISTING" as const, value: scannedBarcode, unit: "PCS" }
-      : { mode: "GENERATE_INTERNAL" as const, unit: "PCS" };
+    const barcode = isService
+      ? ({ mode: "NONE" } as const)
+      : barcodeMode === "EXISTING"
+        ? ({ mode: "SCAN_EXISTING", value: scannedBarcode, unit: "PCS" } as const)
+        : ({ mode: "GENERATE_INTERNAL", unit: "PCS" } as const);
 
-    const isService = productType === "SERVICE";
     const res = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -72,120 +88,266 @@ export function ProductForm({ categories, onCreated }: { categories: Category[];
     const createdBarcode = data.product?.barcodes?.[0];
     setCreatedProduct(
       createdBarcode
-        ? { name: data.product.name, barcodeValue: createdBarcode.barcodeValue, barcodeType: createdBarcode.barcodeType }
+        ? {
+            name: data.product.name,
+            barcodeValue: createdBarcode.barcodeValue,
+            barcodeType: createdBarcode.barcodeType,
+          }
         : null
     );
+    toast.success(`${data.product.name} tersimpan.`);
+
     setSku("");
     setName("");
     setPurchasePrice("");
     setSellingPrice("");
     setInitialStock("0");
     setScannedBarcode("");
-    setHasManufacturerBarcode(false);
+    setBarcodeMode(null);
     setServiceProvider("");
     onCreated();
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 lg:col-span-2">
-        <h2 className="text-sm font-semibold text-gray-900">Tambah Produk</h2>
-
-        <div className="flex flex-wrap gap-2 text-sm">
-          <label className="flex items-center gap-1">
-            <input type="radio" checked={productType === "PHYSICAL"}
-              onChange={() => setProductType("PHYSICAL")} />
-            Barang Fisik
-          </label>
-          <label className="flex items-center gap-1">
-            <input type="radio" checked={productType === "SERVICE"}
-              onChange={() => setProductType("SERVICE")} />
-            Layanan (Pulsa/Token Listrik)
-          </label>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <input placeholder="SKU" value={sku} onChange={(e) => setSku(e.target.value)} required
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <input placeholder="Nama produk" value={name} onChange={(e) => setName(e.target.value)} required
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="">Tanpa kategori</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          {productType === "SERVICE" ? (
-            <>
-              <select value={serviceType} onChange={(e) => setServiceType(e.target.value as "PULSA" | "TOKEN_LISTRIK")}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-                <option value="PULSA">Pulsa</option>
-                <option value="TOKEN_LISTRIK">Token Listrik</option>
-              </select>
-              <input placeholder="Provider (mis. Telkomsel, PLN)" value={serviceProvider}
-                onChange={(e) => setServiceProvider(e.target.value)}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-            </>
-          ) : (
-            <input type="number" placeholder="Stok minimum" value={minimumStock}
-              onChange={(e) => setMinimumStock(e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          )}
-          <input type="number" placeholder={productType === "SERVICE" ? "Harga modal (beli ke provider)" : "Harga beli"}
-            value={purchasePrice}
-            onChange={(e) => setPurchasePrice(e.target.value)} required
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <input type="number" placeholder={productType === "SERVICE" ? "Harga jual (nominal + admin)" : "Harga jual"}
-            value={sellingPrice}
-            onChange={(e) => setSellingPrice(e.target.value)} required
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          {productType === "PHYSICAL" && (
-            <input type="number" placeholder="Stok awal" value={initialStock}
-              onChange={(e) => setInitialStock(e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          )}
-        </div>
-
-        <div className="rounded-md border border-gray-200 p-3">
-          <p className="mb-2 text-xs font-medium text-gray-500">BARCODE</p>
-          <p className="mb-2 text-xs text-gray-500">
-            Barcode Kios-ERP dibuat otomatis begitu produk disimpan — tidak perlu diatur di sini.
+    <div className="space-y-3">
+      {/* Above the form, not beside it: on a phone a side column lands below
+          the entire form, so the one thing needed next — the barcode to print
+          and stick on — sat off-screen exactly when it mattered. */}
+      {createdProduct && (
+        <div className="rounded-xl border border-success/30 bg-success-soft p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-success">
+            <CheckCircle2 className="h-4 w-4" />
+            {createdProduct.name} tersimpan
           </p>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={hasManufacturerBarcode}
-              onChange={(e) => setHasManufacturerBarcode(e.target.checked)}
-            />
-            Produk ini sudah punya barcode dari pabrik
-          </label>
-          {hasManufacturerBarcode && (
-            <input placeholder="Scan/ketik barcode pabrik" value={scannedBarcode}
-              onChange={(e) => setScannedBarcode(e.target.value)} required
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          )}
-        </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button type="submit" disabled={loading}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-          {loading ? "Menyimpan..." : "Simpan Produk"}
-        </button>
-      </form>
-
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-gray-900">Barcode Produk</h2>
-        {createdProduct ? (
+          <p className="mt-1 mb-3 text-xs text-muted-foreground">
+            Barcode: <span className="font-mono">{createdProduct.barcodeValue}</span> — cetak dan
+            tempel di kemasan bila ini barang bungkus sendiri.
+          </p>
           <BarcodeLabelPrinter
             productName={createdProduct.name}
             barcodeValue={createdProduct.barcodeValue}
             barcodeType={createdProduct.barcodeType}
           />
-        ) : (
-          <p className="text-sm text-gray-400">Simpan produk untuk melihat, mencetak, dan mengunduh barcode.</p>
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm"
+      >
+        <h2 className="text-sm font-semibold text-foreground">Tambah Produk</h2>
+
+        <fieldset className="rounded-lg border border-border p-3">
+          <legend className="px-1 text-xs font-semibold text-muted-foreground">JENIS</legend>
+          <div className="flex flex-wrap gap-2">
+            <TypeChip active={!isService} onClick={() => setProductType("PHYSICAL")}>
+              Barang Fisik
+            </TypeChip>
+            <TypeChip active={isService} onClick={() => setProductType("SERVICE")}>
+              Layanan (Pulsa / Token Listrik)
+            </TypeChip>
+          </div>
+        </fieldset>
+
+        {needsBarcodeChoice && (
+          <BarcodeStep
+            mode={barcodeMode}
+            onModeChange={setBarcodeMode}
+            value={scannedBarcode}
+            onValueChange={setScannedBarcode}
+            knownProducts={knownProducts}
+          />
         )}
-      </div>
+
+        <fieldset className="rounded-lg border border-border p-3">
+          <legend className="px-1 text-xs font-semibold text-muted-foreground">
+            {needsBarcodeChoice ? "LANGKAH 2 — DATA PRODUK" : "DATA LAYANAN"}
+          </legend>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Nama produk" hint="Nama yang muncul di struk, mis. Indomie Goreng.">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </Field>
+            <Field
+              label="SKU"
+              hint="Kode singkat milik toko untuk pencarian, mis. INDOMIE-GRG. Tidak boleh sama antar produk."
+            >
+              <input
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Kategori" hint="Opsional. Memudahkan laporan per kelompok barang.">
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Tanpa kategori</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {isService ? (
+              <>
+                <Field label="Jenis layanan">
+                  <select
+                    value={serviceType}
+                    onChange={(e) => setServiceType(e.target.value as "PULSA" | "TOKEN_LISTRIK")}
+                    className={inputClass}
+                  >
+                    <option value="PULSA">Pulsa</option>
+                    <option value="TOKEN_LISTRIK">Token Listrik</option>
+                  </select>
+                </Field>
+                <Field label="Provider" hint="Mis. Telkomsel, PLN.">
+                  <input
+                    value={serviceProvider}
+                    onChange={(e) => setServiceProvider(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+              </>
+            ) : (
+              <Field label="Stok minimum" hint="Sistem memberi peringatan saat stok tinggal segini.">
+                <input
+                  type="number"
+                  value={minimumStock}
+                  onChange={(e) => setMinimumStock(e.target.value)}
+                  className={inputClass}
+                />
+              </Field>
+            )}
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-border p-3">
+          <legend className="px-1 text-xs font-semibold text-muted-foreground">
+            {needsBarcodeChoice ? "LANGKAH 3 — HARGA & STOK" : "HARGA"}
+          </legend>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field
+              label={isService ? "Harga modal" : "Harga beli"}
+              hint={
+                isService
+                  ? "Yang Anda bayar ke provider."
+                  : "Yang Anda bayar ke supplier. Dipakai untuk menghitung laba."
+              }
+            >
+              <input
+                type="number"
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </Field>
+            <Field
+              label="Harga jual"
+              hint={
+                isService
+                  ? "Nominal + biaya admin yang dibayar pembeli."
+                  : "Yang dibayar pembeli di kasir."
+              }
+            >
+              <input
+                type="number"
+                value={sellingPrice}
+                onChange={(e) => setSellingPrice(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </Field>
+            {!isService && (
+              <Field
+                label="Stok awal"
+                hint="Jumlah barang yang ada sekarang. Isi 0 bila barangnya belum datang."
+              >
+                <input
+                  type="number"
+                  value={initialStock}
+                  onChange={(e) => setInitialStock(e.target.value)}
+                  className={inputClass}
+                />
+              </Field>
+            )}
+          </div>
+        </fieldset>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+          >
+            {loading ? "Menyimpan..." : "Simpan Produk"}
+          </button>
+          {needsBarcodeChoice && barcodeMode === null && (
+            <span className="text-xs text-muted-foreground">
+              Pilih dulu kondisi barcode di Langkah 1.
+            </span>
+          )}
+        </div>
+      </form>
     </div>
+  );
+}
+
+const inputClass =
+  "w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:border-ring focus:outline-none";
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-foreground">{label}</span>
+      {children}
+      {hint && (
+        <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">{hint}</span>
+      )}
+    </label>
+  );
+}
+
+function TypeChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+        active
+          ? "border-primary bg-primary-soft text-primary"
+          : "border-border text-muted-foreground hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

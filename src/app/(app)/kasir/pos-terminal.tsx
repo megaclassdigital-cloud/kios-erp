@@ -13,6 +13,7 @@ import { DeviceScannerPairing } from "../device-scanner-pairing";
 import { BarcodeInputHint } from "../barcode-input-hint";
 import { useScannerRegistry } from "./scanner-registry";
 import { ScannerPromptBanner } from "./scanner-prompt";
+import { KasirHelp } from "./kasir-help";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
@@ -326,6 +327,8 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
           </>
         }
       />
+
+      <KasirHelp />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-3">
