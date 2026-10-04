@@ -1,4 +1,6 @@
 import { NavBar } from "./nav-bar";
+import { TourProvider } from "./tour/tour-provider";
+import { TourOverlay } from "./tour/tour-overlay";
 import { auth } from "@/shared/security/auth";
 
 // Every page under this layout reads the live session/DB (RBAC-scoped
@@ -9,12 +11,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await auth();
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Role comes from the server so the nav renders correctly-filtered
-          tabs on first paint — waiting for client-side useSession() would
-          flash an empty (or briefly wrong) nav before hydration. */}
-      <NavBar role={session?.user?.role} />
-      <main className="flex-1 bg-background p-4 md:p-6">{children}</main>
-    </div>
+    // The tour wraps both the nav and the page: the "?" that starts it lives
+    // in the header, the steps it highlights live in the page.
+    <TourProvider>
+      <div className="flex min-h-screen flex-col">
+        {/* Role comes from the server so the nav renders correctly-filtered
+            tabs on first paint — waiting for client-side useSession() would
+            flash an empty (or briefly wrong) nav before hydration. */}
+        <NavBar role={session?.user?.role} />
+        <main className="flex-1 bg-background p-4 md:p-6">{children}</main>
+      </div>
+      <TourOverlay />
+    </TourProvider>
   );
 }

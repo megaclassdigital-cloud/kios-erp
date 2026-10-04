@@ -170,6 +170,7 @@ export function ProductForm({
         </fieldset>
 
         {needsBarcodeChoice && (
+          <div data-tour="barcode-step">
           <BarcodeStep
             mode={barcodeMode}
             onModeChange={setBarcodeMode}
@@ -177,13 +178,14 @@ export function ProductForm({
             onValueChange={setScannedBarcode}
             knownProducts={knownProducts}
           />
+          </div>
         )}
 
         <fieldset className="rounded-lg border border-border p-3">
           <legend className="px-1 text-xs font-semibold text-muted-foreground">
             {needsBarcodeChoice ? "LANGKAH 2 — DATA PRODUK" : "DATA LAYANAN"}
           </legend>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div data-tour="product-fields" className="grid gap-3 md:grid-cols-2">
             <Field label="Nama produk" hint="Nama yang muncul di struk, mis. Indomie Goreng.">
               <input
                 value={name}
@@ -254,7 +256,7 @@ export function ProductForm({
           <legend className="px-1 text-xs font-semibold text-muted-foreground">
             {needsBarcodeChoice ? "LANGKAH 3 — HARGA & STOK" : "HARGA"}
           </legend>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div data-tour="price-fields" className="grid gap-3 md:grid-cols-2">
             <Field
               label={isService ? "Harga modal" : "Harga beli"}
               hint={
@@ -301,6 +303,7 @@ export function ProductForm({
                   />
                 </Field>
                 <Field
+                  tour="expiry-fields"
                   label="Tanggal kedaluwarsa"
                   hint="Lihat tanggal di kemasan. Wajib diisi untuk barang fisik."
                 >
@@ -357,13 +360,16 @@ function Field({
   label,
   hint,
   children,
+  tour,
 }: {
   label: string;
   hint?: string;
   children: React.ReactNode;
+  /** Anchor for the guided tour, when this one field is worth its own step. */
+  tour?: string;
 }) {
   return (
-    <label className="block">
+    <label className="block" data-tour={tour}>
       <span className="mb-1 block text-xs font-medium text-foreground">{label}</span>
       {children}
       {hint && (

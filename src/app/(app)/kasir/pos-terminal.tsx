@@ -11,7 +11,6 @@ import { ServiceDetailModal } from "./service-detail-modal";
 import { ScanSources } from "../scan-sources";
 import { useScannerRegistry } from "./scanner-registry";
 import { ScannerPromptBanner } from "./scanner-prompt";
-import { KasirHelp } from "./kasir-help";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 import { ExpiryService } from "@/modules/inventory/domain/expiry-service";
 import { PageHeader } from "@/components/kios/page-header";
@@ -330,6 +329,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
             </span>
             <button
               onClick={closeShift}
+              data-tour="close-shift"
               className="flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive-soft px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/20"
             >
               <Power className="h-4 w-4" />
@@ -339,8 +339,6 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
         }
       />
 
-      <KasirHelp />
-
       <div className="grid gap-4 lg:grid-cols-3">
         {/* min-w-0: a grid item defaults to min-width:auto, so without this
             the column refuses to shrink below the cart table.s min-content
@@ -348,7 +346,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
             cart is not empty. */}
         <div className="min-w-0 lg:col-span-2 space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
-            <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
+            <form onSubmit={handleScan} data-tour="scan-input" className="rounded-xl border border-border bg-card p-3 shadow-sm">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 SCAN BARCODE — siap menerima input scanner
               </label>
@@ -361,6 +359,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
                 autoComplete="off"
               />
             </form>
+            <div data-tour="scan-sources">
             <ScanSources
               label="Kasir"
               onScan={processBarcode}
@@ -370,6 +369,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
               resetSignal={completedSaleCount}
               onHardwareScan={(scan) => void scannerRegistry.reportScan(scan)}
             />
+            </div>
           </div>
           {scannerRegistry.prompt && (
             <ScannerPromptBanner
@@ -385,7 +385,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+          <div data-tour="cart" className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-muted text-left text-xs text-muted-foreground">
               <tr>
@@ -462,7 +462,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
               {flash}
             </div>
           )}
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div data-tour="summary" className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-semibold text-foreground">Ringkasan Transaksi</h2>
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Subtotal</span>

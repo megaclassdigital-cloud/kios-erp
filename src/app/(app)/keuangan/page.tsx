@@ -7,7 +7,6 @@ import { hasPermission } from "@/shared/security/permissions";
 import { PageHeader } from "@/components/kios/page-header";
 import { KpiCard } from "@/components/kios/kpi-card";
 import { EmptyState } from "@/components/kios/empty-state";
-import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
 import { PeriodSelector } from "../laporan/period-selector";
 import { resolvePeriod } from "../laporan/resolve-period";
 import { ExportToolbar } from "../laporan/export-toolbar";
@@ -80,7 +79,7 @@ export default async function KeuanganPage({
         description={`Omzet, pengeluaran, dan keuntungan toko — ${period.label}.`}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div data-tour="period" className="flex flex-wrap items-center justify-between gap-2">
         <PeriodSelector basePath="/keuangan" active={period.key} />
         <ExportToolbar
           csvHref={`/api/reports/export?tab=keuangan&period=${period.key}${
@@ -89,40 +88,16 @@ export default async function KeuanganPage({
         />
       </div>
 
-      <HelpPanel id="keuangan" title="Cara membaca angka di halaman ini">
-        <HelpStep n={1}>
-          <strong className="text-foreground">Omzet</strong> adalah seluruh uang masuk dari
-          penjualan. Ini <em>bukan</em> keuntungan — di dalamnya masih ada modal barangnya.
-        </HelpStep>
-        <HelpStep n={2}>
-          <strong className="text-foreground">Modal Barang Terjual</strong> adalah harga beli dari
-          barang-barang yang laku pada periode ini. Dihitung dari harga beli saat barang itu
-          terjual, jadi perubahan harga supplier belakangan tidak mengubah laporan lama.
-        </HelpStep>
-        <HelpStep n={3}>
-          <strong className="text-foreground">Untung Kotor = Omzet − Modal Barang Terjual.</strong>{" "}
-          Ini keuntungan dari berdagangnya saja, belum dipotong biaya toko.
-        </HelpStep>
-        <HelpStep n={4}>
-          <strong className="text-foreground">Untung Bersih = Untung Kotor − Pengeluaran Toko.</strong>{" "}
-          Inilah angka yang benar-benar Anda bawa pulang. Kalau hanya mau melihat satu angka, lihat
-          yang ini.
-        </HelpStep>
-        <HelpStep n={5}>
-          <strong className="text-foreground">Jangan catat belanja stok sebagai pengeluaran.</strong>{" "}
-          Modalnya sudah terhitung otomatis. Mencatatnya dua kali membuat Untung Bersih terlihat
-          jauh lebih kecil — bahkan bisa tampak rugi padahal untung.
-        </HelpStep>
-      </HelpPanel>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div data-tour="kpi-grid" className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {cards.map((c) => (
           <KpiCard key={c.label} label={c.label} value={formatRupiah(c.value)} icon={c.icon} tone={c.tone} />
         ))}
         <KpiCard label="Jumlah Transaksi" value={String(transactionCount)} icon={ShoppingCart} />
       </div>
 
-      <ExpenseForm />
+      <div data-tour="expense-form">
+        <ExpenseForm />
+      </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">

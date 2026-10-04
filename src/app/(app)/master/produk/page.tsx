@@ -6,7 +6,6 @@ import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
 import { ScanSources } from "../../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
-import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
 import { StatusBadge } from "@/components/kios/status-badge";
 
 interface ProductRow {
@@ -100,36 +99,6 @@ export default function MasterProdukPage() {
         description="Daftarkan barang dan layanan yang dijual, beserta barcodenya."
       />
 
-      <HelpPanel id="master-produk" title="Panduan menambah produk">
-        <HelpStep n={1}>
-          <strong className="text-foreground">Lihat kemasan barangnya dulu.</strong> Kalau sudah ada
-          barcode tercetak (Indomie, minyak botol, sabun), pilih{" "}
-          <em>&ldquo;Ya, sudah ada barcode&rdquo;</em> lalu scan kodenya. Kalau barang curah atau
-          bungkus sendiri (beras literan, gula kiloan), pilih{" "}
-          <em>&ldquo;Belum ada, buatkan&rdquo;</em>.
-        </HelpStep>
-        <HelpStep n={2}>
-          <strong className="text-foreground">Jangan buat barcode baru untuk barang pabrikan.</strong>{" "}
-          Kalau kemasannya sudah ada barcode tapi Anda membuat kode sendiri, kasir akan menscan
-          kemasan dan muncul &ldquo;Barcode tidak terdaftar&rdquo; saat ada pembeli menunggu.
-        </HelpStep>
-        <HelpStep n={3}>
-          <strong className="text-foreground">Satu barcode untuk satu produk.</strong> Kalau kode
-          yang Anda masukkan sudah dipakai produk lain, sistem langsung memberi tahu nama produknya
-          sebelum disimpan.
-        </HelpStep>
-        <HelpStep n={4}>
-          <strong className="text-foreground">Setelah tersimpan, cetak stikernya</strong> untuk
-          barang bungkus sendiri, lalu tempel di kemasan. Barang pabrikan tidak perlu ditempeli apa
-          pun — barcode aslinya sudah cukup.
-        </HelpStep>
-        <HelpStep n={5}>
-          <strong className="text-foreground">Harga beli wajib diisi dengan benar.</strong> Laporan
-          laba dihitung dari selisih harga beli dan harga jual. Salah di sini membuat semua laporan
-          laba ikut salah.
-        </HelpStep>
-      </HelpPanel>
-
       <ProductForm
         categories={categories}
         knownProducts={products}
@@ -137,7 +106,7 @@ export default function MasterProdukPage() {
         onAwaitingBarcodeChange={handleAwaitingBarcodeChange}
       />
 
-      <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div data-tour="product-search" className="rounded-xl border border-border bg-card p-3 shadow-sm">
         <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="cari-produk">
           CARI PRODUK
         </label>

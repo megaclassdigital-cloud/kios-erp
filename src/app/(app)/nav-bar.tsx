@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { TourButton } from "./tour/tour-button";
 import {
   DashboardIcon,
   KasirIcon,
@@ -161,6 +162,7 @@ export function NavBar({ role }: { role?: Role }) {
         <GlobalSearch />
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <TourButton />
           <NotificationBell />
           <LiveClock />
 

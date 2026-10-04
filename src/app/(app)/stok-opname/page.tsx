@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { ScanSources } from "../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
-import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
 
 interface Line {
   productId: string;
@@ -114,40 +113,19 @@ export default function StokOpnamePage() {
         title="Stock Opname"
         description="Cocokkan stok di sistem dengan jumlah barang yang benar-benar ada di rak."
       />
-
-      <HelpPanel id="stok-opname" title="Panduan stock opname">
-        <HelpStep n={1}>
-          <strong className="text-foreground">Hitung fisik dulu, baru catat.</strong> Jangan melihat
-          angka sistem sebelum menghitung — begitu angkanya terlihat, tangan cenderung mengikutinya
-          dan selisih yang sebenarnya jadi tidak ketahuan.
-        </HelpStep>
-        <HelpStep n={2}>
-          Scan barangnya, lalu isi <strong className="text-foreground">Qty Fisik</strong> dengan
-          jumlah hasil hitungan Anda — bukan selisihnya. Selisih dihitung sistem.
-        </HelpStep>
-        <HelpStep n={3}>
-          Tekan <strong className="text-foreground">Review &amp; Submit</strong> untuk melihat
-          perbandingan Sistem vs Fisik beserta selisihnya.
-        </HelpStep>
-        <HelpStep n={4}>
-          <strong className="text-foreground">Stok belum berubah sampai disetujui.</strong>{" "}
-          Persetujuan dilakukan oleh pemilik atau admin, supaya penyesuaian stok tidak bisa
-          dilakukan sendirian tanpa sepengetahuan siapa pun.
-        </HelpStep>
-      </HelpPanel>
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
       )}
 
       {status === "IDLE" && (
-        <button onClick={start} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+        <button onClick={start} data-tour="opname-start" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
           Mulai Stock Opname
         </button>
       )}
 
       {status === "DRAFT" && (
         <>
-          <form onSubmit={handleScan} className="rounded-lg border border-gray-200 bg-white p-3">
+          <form onSubmit={handleScan} data-tour="opname-scan" className="rounded-lg border border-gray-200 bg-white p-3">
             <label className="mb-1 block text-xs font-medium text-gray-500">SCAN PRODUK</label>
             <input ref={inputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Ketik kode lalu Enter" />
@@ -173,7 +151,7 @@ export default function StokOpnamePage() {
               </tbody>
             </table>
           </div>
-          <button onClick={submit} disabled={lines.length === 0}
+          <button onClick={submit} data-tour="opname-submit" disabled={lines.length === 0}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
             Review &amp; Submit
           </button>

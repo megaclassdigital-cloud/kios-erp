@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ScanSources } from "../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
-import { HelpPanel, HelpStep } from "@/components/kios/help-panel";
 
 interface Supplier {
   id: string;
@@ -122,31 +121,7 @@ export default function BarangMasukPage() {
     <div className="space-y-4">
       <PageHeader title="Barang Masuk" description="Terima stok dari supplier dengan mudah dan cepat." />
 
-      <HelpPanel id="barang-masuk" title="Panduan menerima barang">
-        <HelpStep n={1}>
-          Pilih <strong className="text-foreground">supplier</strong> dan isi{" "}
-          <strong className="text-foreground">no. invoice</strong> dari nota yang dibawa supplier,
-          supaya nanti bisa dicocokkan saat ada selisih.
-        </HelpStep>
-        <HelpStep n={2}>
-          Scan barang satu per satu sambil membongkar kiriman, lalu isi jumlah yang benar-benar
-          diterima — bukan jumlah yang dipesan.
-        </HelpStep>
-        <HelpStep n={3}>
-          <strong className="text-foreground">Isi harga beli sesuai nota kali ini.</strong> Harga
-          dari supplier sering berubah, dan laporan laba memakai harga saat barang itu masuk.
-        </HelpStep>
-        <HelpStep n={4}>
-          Setelah disimpan, <strong className="text-foreground">stok bertambah otomatis</strong>.
-          Jangan mengubah stok lewat jalan lain — semua perubahan stok harus punya jejak.
-        </HelpStep>
-        <HelpStep n={5}>
-          Barang yang belum pernah didaftarkan tidak bisa discan di sini. Daftarkan dulu di{" "}
-          <strong className="text-foreground">Master Produk</strong>.
-        </HelpStep>
-      </HelpPanel>
-
-      <div className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-2">
+      <div data-tour="supplier-invoice" className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-foreground">Supplier</label>
           <select
@@ -177,7 +152,7 @@ export default function BarangMasukPage() {
             items table holds this column open otherwise. */}
         <div className="min-w-0 space-y-3 lg:col-span-2">
           <div className="grid gap-3 md:grid-cols-2">
-            <form onSubmit={handleScan} className="rounded-xl border border-border bg-card p-3 shadow-sm">
+            <form onSubmit={handleScan} data-tour="receiving-scan" className="rounded-xl border border-border bg-card p-3 shadow-sm">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">SCAN BARCODE PRODUK</label>
               <input
                 ref={inputRef}
@@ -200,7 +175,7 @@ export default function BarangMasukPage() {
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+          <div data-tour="receiving-lines" className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
             <table className="w-full text-sm">
               <thead className="bg-muted text-left text-xs text-muted-foreground">
                 <tr>
