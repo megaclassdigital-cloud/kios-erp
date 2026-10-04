@@ -10,7 +10,15 @@ export interface ReceiveStockRequest {
   supplierId: string;
   invoiceNumber?: string;
   receivedById: string;
-  items: { productId: string; quantity: string; purchasePrice: string }[];
+  items: {
+    productId: string;
+    quantity: string;
+    purchasePrice: string;
+    /** Expiry printed on the batch that just arrived. Optional: not every
+     * delivery has one, and omitting it leaves the product unchanged rather
+     * than clearing a date someone set deliberately. */
+    expiryDate?: Date | null;
+  }[];
 }
 
 /**
@@ -37,7 +45,15 @@ export class ReceiveStockUseCase {
       const lineItems = req.items.map((item) => {
         const subtotal = new Decimal(item.purchasePrice).times(item.quantity);
         totalAmount = totalAmount.plus(subtotal);
-        return { ...item, subtotal: subtotal.toFixed(2) };
+        // Fields are picked explicitly rather than spread: expiryDate belongs
+        // to the Product, not to a PurchaseItem, and a spread silently carried
+        // it into the insert the moment it was added to the request type.
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          purchasePrice: item.purchasePrice,
+          subtotal: subtotal.toFixed(2),
+        };
       });
 
       const purchaseNumber = await counters.next("PO");
@@ -61,6 +77,15 @@ export class ReceiveStockUseCase {
           actorId: req.receivedById,
         });
         await products.incrementStock(item.productId, item.quantity);
+
+        // The delivery is the moment the expiry actually changes, so it is
+        // recorded here rather than left for someone to remember to edit in
+        // Master Produk later -- a date nobody updates is worse than none,
+        // because the till will trust it. Same transaction as the stock
+        // increase: a batch cannot land with the previous batch's date.
+        if (item.expiryDate !== undefined && item.expiryDate !== null) {
+          await products.update(item.productId, { expiryDate: item.expiryDate });
+        }
       }
 
       await audit.record({

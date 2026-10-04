@@ -9,7 +9,14 @@ const schema = z.object({
   supplierId: z.string(),
   invoiceNumber: z.string().optional(),
   items: z
-    .array(z.object({ productId: z.string(), quantity: z.string(), purchasePrice: z.string() }))
+    .array(
+      z.object({
+        productId: z.string(),
+        quantity: z.string(),
+        purchasePrice: z.string(),
+        expiryDate: z.string().optional(),
+      })
+    )
     .min(1),
 });
 
@@ -29,7 +36,14 @@ export async function POST(req: NextRequest) {
     const session = await requireSession("receiving.manage");
     const body = schema.parse(await req.json());
     const useCase = new ReceiveStockUseCase();
-    const purchase = await useCase.execute({ ...body, receivedById: session.user.id });
+    const purchase = await useCase.execute({
+      ...body,
+      items: body.items.map((i) => ({
+        ...i,
+        expiryDate: i.expiryDate ? new Date(i.expiryDate) : undefined,
+      })),
+      receivedById: session.user.id,
+    });
     return NextResponse.json({ purchase }, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);

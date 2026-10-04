@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ScanSources } from "../scan-sources";
+import { ExpiryCountdown } from "./expiry-countdown";
 import { PageHeader } from "@/components/kios/page-header";
 
 interface Supplier {
@@ -14,6 +15,9 @@ interface ReceivingLine {
   name: string;
   quantity: string;
   purchasePrice: string;
+  /** Expiry printed on this batch, as YYYY-MM-DD. Prefilled from whatever
+   * the product already has, so an unchanged delivery needs no typing. */
+  expiryDate: string;
 }
 
 function formatRupiah(value: number) {
@@ -78,12 +82,17 @@ export default function BarangMasukPage() {
           name: product.name,
           quantity: "1",
           purchasePrice: product.purchasePrice,
+          expiryDate: product.expiryDate ? String(product.expiryDate).slice(0, 10) : "",
         },
       ];
     });
   }
 
-  function updateLine(productId: string, field: "quantity" | "purchasePrice", value: string) {
+  function updateLine(
+    productId: string,
+    field: "quantity" | "purchasePrice" | "expiryDate",
+    value: string
+  ) {
     setLines((prev) => prev.map((l) => (l.productId === productId ? { ...l, [field]: value } : l)));
   }
 
@@ -104,6 +113,7 @@ export default function BarangMasukPage() {
           productId: l.productId,
           quantity: l.quantity,
           purchasePrice: l.purchasePrice,
+          expiryDate: l.expiryDate || undefined,
         })),
       }),
     });
@@ -182,13 +192,14 @@ export default function BarangMasukPage() {
                   <th className="px-3 py-2">Produk</th>
                   <th className="px-3 py-2">Qty</th>
                   <th className="px-3 py-2">Harga Beli</th>
+                  <th className="px-3 py-2">Kedaluwarsa</th>
                   <th className="px-3 py-2">Subtotal</th>
                 </tr>
               </thead>
               <tbody>
                 {lines.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
                       Belum ada item di-scan.
                     </td>
                   </tr>
@@ -211,6 +222,15 @@ export default function BarangMasukPage() {
                         onChange={(e) => updateLine(l.productId, "purchasePrice", e.target.value)}
                         className="w-28 rounded border border-input px-2 py-1"
                       />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="date"
+                        value={l.expiryDate}
+                        onChange={(e) => updateLine(l.productId, "expiryDate", e.target.value)}
+                        className="w-36 rounded border border-input px-2 py-1"
+                      />
+                      <ExpiryCountdown value={l.expiryDate} />
                     </td>
                     <td className="px-3 py-2 font-medium text-foreground tabular-nums">
                       {formatRupiah(Number(l.quantity || 0) * Number(l.purchasePrice || 0))}
