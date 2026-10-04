@@ -45,7 +45,7 @@ function ProductTable({
 export async function ProdukTab({ start, end }: { start: Date; end: Date }) {
   const where = { sale: { status: "PAID" as const, paidAt: { gte: start, lte: end } } };
 
-  const [best, worst] = await Promise.all([
+  const [best, sold, activeProducts] = await Promise.all([
     prisma.saleItem.groupBy({
       by: ["productId", "productNameSnapshot"],
       where,
@@ -53,27 +53,73 @@ export async function ProdukTab({ start, end }: { start: Date; end: Date }) {
       orderBy: { _sum: { subtotal: "desc" } },
       take: 10,
     }),
-    prisma.saleItem.groupBy({
-      by: ["productId", "productNameSnapshot"],
+    // Which products moved at all in the period. "Kurang laku" used to be
+    // this same list sorted ascending, which could only ever show products
+    // that *did* sell — the ones that sold nothing, the whole point of the
+    // report, were invisible. A product with one sale looked like the worst
+    // performer while dead stock sat unlisted.
+    prisma.saleItem.findMany({
       where,
-      _sum: { quantity: true, subtotal: true },
-      orderBy: { _sum: { subtotal: "asc" } },
-      take: 10,
+      select: { productId: true },
+      distinct: ["productId"],
+    }),
+    prisma.product.findMany({
+      where: { active: true, productType: "PHYSICAL" },
+      select: { id: true, name: true, currentStock: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
-  const mapRows = (rows: typeof best) =>
-    rows.map((r) => ({
-      productId: r.productId,
-      productNameSnapshot: r.productNameSnapshot,
-      qty: Number(r._sum.quantity ?? 0),
-      total: Number(r._sum.subtotal ?? 0),
-    }));
+  const soldIds = new Set(sold.map((s) => s.productId));
+  const neverSold = activeProducts.filter((p) => !soldIds.has(p.id));
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <ProductTable title="Produk Terlaris" rows={mapRows(best)} />
-      <ProductTable title="Produk Kurang Laku" rows={mapRows(worst)} />
+      <ProductTable
+        title="Produk Terlaris"
+        rows={best.map((r) => ({
+          productId: r.productId,
+          productNameSnapshot: r.productNameSnapshot,
+          qty: Number(r._sum.quantity ?? 0),
+          total: Number(r._sum.subtotal ?? 0),
+        }))}
+      />
+
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">Tidak Laku Sama Sekali</h2>
+        <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
+          Produk aktif yang tidak terjual satu pun pada periode ini — modal yang mengendap di rak.
+        </p>
+        {neverSold.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Semua produk aktif terjual minimal satu kali pada periode ini.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="py-1">Produk</th>
+                  <th className="py-1">Sisa Stok</th>
+                </tr>
+              </thead>
+              <tbody>
+                {neverSold.slice(0, 15).map((p) => (
+                  <tr key={p.id} className="border-t border-border">
+                    <td className="whitespace-nowrap py-1.5 text-foreground">{p.name}</td>
+                    <td className="py-1.5 text-muted-foreground tabular-nums">{Number(p.currentStock)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {neverSold.length > 15 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                dan {neverSold.length - 15} produk lainnya.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

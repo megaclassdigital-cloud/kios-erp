@@ -1,5 +1,4 @@
 import { prisma } from "@/shared/infrastructure/prisma";
-import { InventoryService } from "@/modules/inventory/domain/inventory-service";
 
 const MOVEMENT_LABEL: Record<string, string> = {
   PURCHASE: "Barang Masuk",
@@ -14,13 +13,7 @@ const MOVEMENT_LABEL: Record<string, string> = {
 };
 
 export async function InventarisTab({ start, end }: { start: Date; end: Date }) {
-  const inventoryService = new InventoryService();
-
-  const [products, movements, opnameItems] = await Promise.all([
-    prisma.product.findMany({
-      where: { trackInventory: true, active: true },
-      select: { id: true, name: true, currentStock: true, minimumStock: true },
-    }),
+  const [movements, opnameItems] = await Promise.all([
     prisma.stockMovement.findMany({
       where: { createdAt: { gte: start, lte: end } },
       orderBy: { createdAt: "desc" },
@@ -37,33 +30,12 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
     }),
   ]);
 
-  let aman = 0,
-    menipis = 0,
-    habis = 0;
-  for (const p of products) {
-    const status = inventoryService.classifyStock(Number(p.currentStock), p.minimumStock);
-    if (status === "AMAN") aman++;
-    else if (status === "MENIPIS") menipis++;
-    else habis++;
-  }
-
+  // The Aman/Menipis/Habis counts that used to sit here are already on the
+  // dashboard and on the Stok page, where they are live rather than tied to a
+  // report period — a stock level is a fact about right now, so showing it
+  // under a date range only invited the question of which number was true.
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground">Stok Aman</p>
-          <p className="mt-1 text-lg font-semibold text-success">{aman}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground">Stok Menipis</p>
-          <p className="mt-1 text-lg font-semibold text-warning-foreground">{menipis}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground">Stok Habis</p>
-          <p className="mt-1 text-lg font-semibold text-destructive">{habis}</p>
-        </div>
-      </div>
-
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-foreground">Mutasi Stok (Periode Ini)</h2>
         {movements.length === 0 ? (

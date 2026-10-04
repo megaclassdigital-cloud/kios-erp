@@ -1,7 +1,6 @@
-import { LineChart, Package, Boxes, Users } from "lucide-react";
+import { Package, Boxes, Users } from "lucide-react";
 
 const TABS = [
-  { key: "penjualan", label: "Penjualan", icon: LineChart },
   { key: "produk", label: "Produk", icon: Package },
   { key: "inventaris", label: "Inventaris", icon: Boxes },
   { key: "kasir", label: "Kasir", icon: Users },

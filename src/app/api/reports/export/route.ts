@@ -62,33 +62,36 @@ async function buildCsv(tab: string, start: Date, end: Date): Promise<{ filename
     });
     const nameById = new Map(cashiers.map((c) => [c.id, c.name]));
     const csv = toCsv([
-      ["Kasir", "Jumlah Transaksi", "Revenue"],
+      ["Kasir", "Jumlah Transaksi", "Omzet"],
       ...perCashier.map((c) => [nameById.get(c.cashierId) ?? "-", c._count.id, Number(c._sum.grandTotal ?? 0)]),
     ]);
     return { filename: "laporan-kasir.csv", csv };
   }
 
+  // The money summary, which now belongs to the Keuangan screen rather than a
+  // Laporan tab. Column names match what is on that screen so a downloaded
+  // file and the page never disagree about what a figure is called.
   const summary = await new GetFinancialSummaryUseCase().execute(start, end);
   const transactionCount = await prisma.sale.count({ where: { status: "PAID", paidAt: { gte: start, lte: end } } });
   const csv = toCsv([
-    ["Metrik", "Nilai"],
-    ["Revenue", summary.revenue.toFixed(2)],
+    ["Keterangan", "Nilai"],
+    ["Omzet (Uang Masuk)", summary.revenue.toFixed(2)],
+    ["Modal Barang Terjual", summary.cogs.toFixed(2)],
+    ["Untung Kotor", summary.grossProfit.toFixed(2)],
+    ["Pengeluaran Toko", summary.expense.toFixed(2)],
+    ["Untung Bersih", summary.operationalProfit.toFixed(2)],
+    ["Diterima Tunai", summary.cash.toFixed(2)],
+    ["Diterima Non-Tunai", summary.cashless.toFixed(2)],
     ["Jumlah Transaksi", transactionCount],
-    ["Cash", summary.cash.toFixed(2)],
-    ["Cashless", summary.cashless.toFixed(2)],
-    ["HPP", summary.cogs.toFixed(2)],
-    ["Laba Kotor", summary.grossProfit.toFixed(2)],
-    ["Pengeluaran", summary.expense.toFixed(2)],
-    ["Laba Operasional", summary.operationalProfit.toFixed(2)],
   ]);
-  return { filename: "laporan-penjualan.csv", csv };
+  return { filename: "laporan-keuangan.csv", csv };
 }
 
 export async function GET(req: NextRequest) {
   try {
     await requireSession("reports.view");
     const { searchParams } = new URL(req.url);
-    const tab = searchParams.get("tab") ?? "penjualan";
+    const tab = searchParams.get("tab") ?? "keuangan";
     const period = resolvePeriod({
       period: searchParams.get("period") ?? undefined,
       from: searchParams.get("from") ?? undefined,

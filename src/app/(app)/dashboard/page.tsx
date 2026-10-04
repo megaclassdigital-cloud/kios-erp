@@ -125,12 +125,12 @@ export default async function DashboardPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Penjualan Hari Ini" value={formatRupiah(summary.revenue.toFixed(2))} icon={Wallet} />
+        <KpiCard label="Omzet Hari Ini" value={formatRupiah(summary.revenue.toFixed(2))} icon={Wallet} />
         <KpiCard label="Transaksi Hari Ini" value={String(transactionCount)} icon={Receipt} />
-        <KpiCard label="Cash Hari Ini" value={formatRupiah(summary.cash.toFixed(2))} icon={Banknote} tone="success" />
-        <KpiCard label="Cashless Hari Ini" value={formatRupiah(summary.cashless.toFixed(2))} icon={CreditCard} tone="info" />
-        <KpiCard label="Pengeluaran Hari Ini" value={formatRupiah(summary.expense.toFixed(2))} icon={TrendingDown} tone="warning" />
-        <KpiCard label="Laba Kotor" value={formatRupiah(summary.grossProfit.toFixed(2))} icon={PiggyBank} tone="success" />
+        <KpiCard label="Tunai Hari Ini" value={formatRupiah(summary.cash.toFixed(2))} icon={Banknote} tone="success" />
+        <KpiCard label="Non-Tunai Hari Ini" value={formatRupiah(summary.cashless.toFixed(2))} icon={CreditCard} tone="info" />
+        <KpiCard label="Pengeluaran Toko" value={formatRupiah(summary.expense.toFixed(2))} icon={TrendingDown} tone="warning" />
+        <KpiCard label="Untung Kotor" value={formatRupiah(summary.grossProfit.toFixed(2))} icon={PiggyBank} tone="success" />
         <KpiCard label="Stok Menipis" value={String(lowStock.length)} icon={PackageMinus} tone="warning" />
         <KpiCard label="Stok Habis" value={String(outOfStock.length)} icon={PackageX} tone="destructive" />
       </div>

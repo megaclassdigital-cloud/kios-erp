@@ -5,7 +5,11 @@ import { CreateExpenseUseCase } from "@/modules/finance/application/create-expen
 import { prisma } from "@/shared/infrastructure/prisma";
 
 const schema = z.object({
-  category: z.enum(["SUPPLIER", "ELECTRICITY", "TRANSPORT", "SALARY", "OPERATIONAL", "OTHER"]),
+  // SUPPLIER is intentionally not accepted: stock bought from a supplier is
+  // already counted as HPP when it sells, so logging it here too subtracted
+  // the same money twice and could report a profit as a loss. Enforced here
+  // and not only in the form, because hiding an option is not preventing it.
+  category: z.enum(["ELECTRICITY", "TRANSPORT", "SALARY", "OPERATIONAL", "OTHER"]),
   amount: z.string(),
   description: z.string().optional(),
   expenseDate: z.string(),

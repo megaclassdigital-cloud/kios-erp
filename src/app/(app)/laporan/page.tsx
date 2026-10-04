@@ -5,12 +5,14 @@ import { resolvePeriod } from "./resolve-period";
 import { PeriodSelector } from "./period-selector";
 import { TabNav, type ReportTab } from "./tab-nav";
 import { ExportToolbar } from "./export-toolbar";
-import { PenjualanTab } from "./penjualan-tab";
 import { ProdukTab } from "./produk-tab";
 import { InventarisTab } from "./inventaris-tab";
 import { KasirTab } from "./kasir-tab";
 
-const VALID_TABS: ReportTab[] = ["penjualan", "produk", "inventaris", "kasir"];
+// "Penjualan" used to live here too, repeating the seven figures the Keuangan
+// screen already shows. Keuangan now carries the period selector instead, so
+// the money picture exists in one place rather than three.
+const VALID_TABS: ReportTab[] = ["produk", "inventaris", "kasir"];
 
 export default async function LaporanPage({
   searchParams,
@@ -25,7 +27,7 @@ export default async function LaporanPage({
   const params = await searchParams;
   const tab: ReportTab = VALID_TABS.includes(params.tab as ReportTab)
     ? (params.tab as ReportTab)
-    : "penjualan";
+    : "produk";
   const period = resolvePeriod(params);
 
   const periodQuery = new URLSearchParams({
@@ -54,7 +56,6 @@ export default async function LaporanPage({
       <PeriodSelector basePath="/laporan" active={period.key} extraParams={{ tab }} />
       <TabNav active={tab} periodQuery={periodQuery} />
 
-      {tab === "penjualan" && <PenjualanTab start={period.start} end={period.end} />}
       {tab === "produk" && <ProdukTab start={period.start} end={period.end} />}
       {tab === "inventaris" && <InventarisTab start={period.start} end={period.end} />}
       {tab === "kasir" && <KasirTab start={period.start} end={period.end} />}
