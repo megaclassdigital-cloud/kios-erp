@@ -8,11 +8,11 @@ const base: ProductExport = {
     {
       name: "Beras", sku: "BRS-1", category: "Sembako", barcode: "899111", unit: "PCS", stock: "20", minimumStock: 5,
       stockStatus: "AMAN", purchasePrice: "60000.00", sellingPrice: "65000.00", stockValue: "1200000.00",
-      expiryDate: new Date("2027-03-15T00:00:00Z"), expiryText: "Masih 157 hari lagi", active: true,
+      expiryDate: new Date("2027-03-15T00:00:00Z"), expiryText: "Masih 157 hari lagi", active: true, updatedAt: new Date("2026-10-08T03:15:00Z"),
     },
   ],
   services: [
-    { name: "Pulsa 10rb", sku: "PLS-10", kind: "Pulsa", provider: "Telkomsel", purchasePrice: "9500.00", sellingPrice: "11000.00", margin: "1500.00", active: true },
+    { name: "Pulsa 10rb", sku: "PLS-10", kind: "Pulsa", provider: "Telkomsel", purchasePrice: "9500.00", sellingPrice: "11000.00", margin: "1500.00", active: true, updatedAt: new Date("2026-10-08T03:15:00Z") },
   ],
   summary: { productCount: 2, physicalCount: 1, serviceCount: 1, totalStock: "20", totalStockValue: "1200000.00", lowCount: 0, outCount: 0 },
 };
@@ -37,6 +37,12 @@ describe("buildProductExportXlsx", () => {
     expect(row.getCell(5).value).toBe(9500);
     expect(row.getCell(6).value).toBe(11000);
     expect(row.getCell(7).value).toBe(1500);
+  });
+
+  it("shows when each row was last changed, in WIB", async () => {
+    const wb = await load(base);
+    expect(wb.getWorksheet("Master Produk")!.getRow(7).getCell(15).value).toBe("08/10/2026 10:15");
+    expect(wb.getWorksheet("Daftar Harga Layanan")!.getRow(7).getCell(8).value).toBe("08/10/2026 10:15");
   });
 
   it("omits the price list when there are no services", async () => {

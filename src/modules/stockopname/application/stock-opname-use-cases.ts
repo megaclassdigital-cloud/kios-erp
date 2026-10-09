@@ -15,7 +15,15 @@ export class StartStockOpnameUseCase {
       const counters = new DailyCounterRepository(tx);
       const opnames = new PrismaStockOpnameRepository(tx);
       const opnameNumber = await counters.next("SO");
-      return opnames.create(startedById, opnameNumber);
+      const opname = await opnames.create(startedById, opnameNumber);
+      await new AuditLogger(tx).record({
+        actorId: startedById,
+        action: "STOCK_OPNAME_STARTED",
+        entityType: "StockOpname",
+        entityId: opname.id,
+        afterValue: { opnameNumber },
+      });
+      return opname;
     });
   }
 }
@@ -25,7 +33,7 @@ export class StartStockOpnameUseCase {
 export class SubmitStockOpnameUseCase {
   constructor(private readonly txManager = new TransactionManager()) {}
 
-  async execute(opnameId: string, lines: { productId: string; physicalQty: string }[]) {
+  async execute(opnameId: string, lines: { productId: string; physicalQty: string }[], submittedById: string) {
     return this.txManager.run(async (tx) => {
       const products = new PrismaProductRepository(tx);
       const opnames = new PrismaStockOpnameRepository(tx);
@@ -45,7 +53,18 @@ export class SubmitStockOpnameUseCase {
         })
       );
 
-      return opnames.submit(opnameId, resolvedLines);
+      const submitted = await opnames.submit(opnameId, resolvedLines);
+      await new AuditLogger(tx).record({
+        actorId: submittedById,
+        action: "STOCK_OPNAME_SUBMITTED",
+        entityType: "StockOpname",
+        entityId: opnameId,
+        afterValue: {
+          lineCount: resolvedLines.length,
+          linesWithDifference: resolvedLines.filter((l) => !new Decimal(l.difference).isZero()).length,
+        },
+      });
+      return submitted;
     });
   }
 }

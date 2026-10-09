@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatWibDate } from "@/shared/format/wib";
 
 interface Supplier {
   id: string;
   name: string;
   phone: string | null;
   address: string | null;
+  updatedAt: string;
 }
 
 interface EditState {
@@ -117,6 +119,7 @@ export default function SupplierPage() {
               <th className="px-3 py-2">Nama</th>
               <th className="px-3 py-2">Telepon</th>
               <th className="px-3 py-2">Alamat</th>
+              <th className="px-3 py-2">Terakhir Diubah</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -145,6 +148,7 @@ export default function SupplierPage() {
                       className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
                     />
                   </td>
+                  <td className="px-3 py-2 text-gray-400">—</td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-2">
                       <button onClick={handleSaveEdit} className="text-xs text-blue-600 hover:underline">
@@ -161,6 +165,7 @@ export default function SupplierPage() {
                   <td className="px-3 py-2 text-gray-900">{s.name}</td>
                   <td className="px-3 py-2 text-gray-500">{s.phone ?? "-"}</td>
                   <td className="px-3 py-2 text-gray-500">{s.address ?? "-"}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatWibDate(new Date(s.updatedAt))}</td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-3">
                       <button
@@ -181,7 +186,7 @@ export default function SupplierPage() {
             )}
             {suppliers.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-3 py-8 text-center text-gray-400">
+                <td colSpan={5} className="px-3 py-8 text-center text-gray-400">
                   Belum ada supplier.
                 </td>
               </tr>

@@ -10,10 +10,10 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    await requireSession("stockopname.manage");
+    const session = await requireSession("stockopname.manage");
     const { opnameId, lines } = schema.parse(await req.json());
     const useCase = new SubmitStockOpnameUseCase();
-    const opname = await useCase.execute(opnameId, lines);
+    const opname = await useCase.execute(opnameId, lines, session.user.id);
     return NextResponse.json({ opname });
   } catch (error) {
     return toErrorResponse(error);

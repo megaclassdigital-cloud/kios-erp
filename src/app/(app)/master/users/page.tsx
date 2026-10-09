@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatWibDate } from "@/shared/format/wib";
 
 interface UserRow {
   id: string;
@@ -8,6 +9,7 @@ interface UserRow {
   name: string;
   role: string;
   active: boolean;
+  updatedAt: string;
 }
 
 const ROLES = ["OWNER", "ADMIN", "KASIR", "STAFF_STOK"];
@@ -101,6 +103,7 @@ export default function UsersPage() {
               <th className="px-3 py-2">Username</th>
               <th className="px-3 py-2">Role</th>
               <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Terakhir Diubah</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -125,6 +128,7 @@ export default function UsersPage() {
                     {u.active ? "Aktif" : "Nonaktif"}
                   </span>
                 </td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatWibDate(new Date(u.updatedAt))}</td>
                 <td className="px-3 py-2 text-right">
                   <button onClick={() => toggleActive(u)} className="text-xs text-blue-600 hover:underline">
                     {u.active ? "Nonaktifkan" : "Aktifkan"}

@@ -22,6 +22,8 @@ export interface ProductExportRow {
   expiryDate: Date | null;
   expiryText: string;
   active: boolean;
+  /** Last change of any kind (stock or data), same value as the screen shows. */
+  updatedAt: Date;
 }
 
 /** A service (pulsa, token listrik): no stock, so it is listed as a price
@@ -35,6 +37,7 @@ export interface ServicePriceRow {
   sellingPrice: string;
   margin: string;
   active: boolean;
+  updatedAt: Date;
 }
 
 export interface ProductExport {
@@ -84,6 +87,7 @@ export class GetProductExportUseCase {
           sellingPrice: p.sellingPrice.toString(),
           margin: new Decimal(p.sellingPrice.toString()).minus(p.purchasePrice.toString()).toFixed(2),
           active: p.active,
+          updatedAt: p.updatedAt,
         })
       );
 
@@ -117,6 +121,7 @@ export class GetProductExportUseCase {
         expiryDate: p.expiryDate,
         expiryText,
         active: p.active,
+        updatedAt: p.updatedAt,
       };
     });
 

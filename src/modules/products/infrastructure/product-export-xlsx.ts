@@ -30,6 +30,7 @@ export function buildProductExportXlsx(data: ProductExport, search: string, prin
       { key: "value", header: "Nilai Stok (Modal)", width: 16, type: "money" as const },
       { key: "expiry", header: "Kedaluwarsa", width: 14, type: "center" as const },
       { key: "expiryText", header: "Status Kedaluwarsa", width: 22 },
+      { key: "updated", header: "Terakhir Diubah", width: 16, type: "center" as const },
     ],
     rows: rows.map((r, i) => ({
       no: i + 1,
@@ -46,6 +47,7 @@ export function buildProductExportXlsx(data: ProductExport, search: string, prin
       value: Number(r.stockValue),
       expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
       expiryText: r.expiryText,
+      updated: formatWibDateTime(r.updatedAt),
     })),
     totals: {
       name: "TOTAL",
@@ -75,6 +77,7 @@ export function buildProductExportXlsx(data: ProductExport, search: string, prin
       { key: "buy", header: "Harga Beli", width: 14, type: "money" as const },
       { key: "sell", header: "Harga Jual", width: 14, type: "money" as const },
       { key: "margin", header: "Margin", width: 12, type: "money" as const },
+      { key: "updated", header: "Terakhir Diubah", width: 16, type: "center" as const },
     ],
     rows: services.map((r, i) => ({
       no: i + 1,
@@ -84,6 +87,7 @@ export function buildProductExportXlsx(data: ProductExport, search: string, prin
       buy: Number(r.purchasePrice),
       sell: Number(r.sellingPrice),
       margin: Number(r.margin),
+      updated: formatWibDateTime(r.updatedAt),
     })),
   };
   return buildA4Workbook([stockSheet, priceSheet]);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSession, toErrorResponse } from "@/shared/security/require-session";
 import { CreateProductUseCase } from "@/modules/products/application/create-product-use-case";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
+import { GetProductActivityUseCase } from "@/modules/products/application/get-product-activity-use-case";
 import { prisma } from "@/shared/infrastructure/prisma";
 
 const createProductSchema = z.object({
@@ -42,7 +43,13 @@ export async function GET(req: NextRequest) {
       search: searchParams.get("search") ?? undefined,
     });
     void session;
-    return NextResponse.json({ products });
+    // Opt-in (`?activity=1`): the small "who changed what, when" log costs two
+    // extra queries, which only the Master Produk list wants.
+    if (searchParams.get("activity") !== "1") return NextResponse.json({ products });
+    const activity = await new GetProductActivityUseCase().execute(products.map((p) => p.id));
+    return NextResponse.json({
+      products: products.map((p) => ({ ...p, activity: activity.get(p.id) ?? { lastStockChange: null, lastEdit: null } })),
+    });
   } catch (error) {
     return toErrorResponse(error);
   }

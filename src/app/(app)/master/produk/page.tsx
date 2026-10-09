@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Download } from "lucide-react";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
+import { LastChanged } from "./last-changed";
 import { ProductReceivingHistoryModal } from "./product-receiving-history-modal";
 import { ProductEditModal, type EditableProduct } from "./product-edit-modal";
 import { filterProducts } from "@/modules/products/domain/product-filter";
@@ -26,6 +27,11 @@ interface ProductRow {
   expiryDate: string | null;
   expiryWarnDays: number;
   barcodes: { barcodeValue: string; barcodeType: "CODE128" | "EAN13"; status: string }[];
+  updatedAt: string;
+  activity: {
+    lastStockChange: { at: string; type: string } | null;
+    lastEdit: { at: string; by: string; created: boolean; changed: string[] } | null;
+  };
 }
 
 interface Category {
@@ -62,7 +68,7 @@ export default function MasterProdukPage() {
   const filteredProducts = useMemo(() => filterProducts(products, search), [products, search]);
 
   async function load() {
-    const [pRes, cRes] = await Promise.all([fetch("/api/products"), fetch("/api/categories")]);
+    const [pRes, cRes] = await Promise.all([fetch("/api/products?activity=1"), fetch("/api/categories")]);
     const pData = await pRes.json();
     const cData = await cRes.json();
     setProducts(pData.products ?? []);
@@ -162,13 +168,14 @@ export default function MasterProdukPage() {
               <th className="px-3 py-2">Stok</th>
               <th className="px-3 py-2">Harga Jual</th>
               <th className="px-3 py-2">Kedaluwarsa</th>
+              <th className="px-3 py-2">Terakhir Diubah</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                   {products.length === 0 ? "Belum ada produk." : "Tidak ada produk yang cocok."}
                 </td>
               </tr>
@@ -213,6 +220,9 @@ export default function MasterProdukPage() {
                         </span>
                       );
                     })()}
+                  </td>
+                  <td className="px-3 py-2">
+                    <LastChanged updatedAt={p.updatedAt} activity={p.activity} isService={p.productType === "SERVICE"} />
                   </td>
                   <td className="px-3 py-2 text-right">
                     <button

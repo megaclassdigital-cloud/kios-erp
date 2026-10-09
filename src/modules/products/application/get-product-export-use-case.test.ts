@@ -79,6 +79,12 @@ describe("GetProductExportUseCase", () => {
     expect(byName.summary.productCount).toBe(1);
   });
 
+  it("carries the last-changed time through to the export", async () => {
+    const changed = new Date("2026-10-08T03:15:00Z");
+    const { rows } = await new GetProductExportUseCase(repoOf([product({ updatedAt: changed })])).execute("", NOW);
+    expect(rows[0].updatedAt).toEqual(changed);
+  });
+
   it("describes expiry with the shared wording", async () => {
     const dated = product({ name: "Susu", expiryDate: new Date("2026-10-12T00:00:00Z") });
     const { rows } = await new GetProductExportUseCase(repoOf([dated])).execute("", NOW);
