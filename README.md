@@ -87,3 +87,12 @@ PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true npx prisma migrate deploy
 - **Database**: Supabase Postgres (`DATABASE_URL` in Vercel env vars)
 - **Hosting**: Vercel (connected to the `kios-erp` GitHub repo)
 - **Repo**: GitHub — `kios-erp` (private)
+
+## Migrations on deploy
+
+A **production** Vercel build runs `prisma migrate deploy` first
+(`scripts/migrate-on-deploy.mjs`), so a schema change ships together with the
+code that needs it. Previews and local builds skip it. It needs `DIRECT_URL`
+(the 5432 session-pooler URL) in Vercel's environment variables; if the
+migration fails, the build fails and the previous deployment stays live.
+
