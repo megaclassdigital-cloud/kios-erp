@@ -63,6 +63,7 @@ export function DevicePrompt({
 
           <p className="mt-2 text-sm text-gray-600">
             Pilih <b>Ya</b> hanya bila HP, tablet, atau komputer ini milik Anda atau toko dan tidak dipakai orang lain.
+            Pertanyaan ini wajib dijawab sebelum Anda bisa masuk.
           </p>
 
           {showHelp && (
@@ -77,8 +78,9 @@ export function DevicePrompt({
               <div className="flex gap-2">
                 <Users className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                 <p>
-                  <b>Tidak, perangkat bersama atau pinjaman:</b> Anda otomatis keluar begitu tab atau browser ditutup, sehingga
-                  orang berikutnya tidak bisa membuka akun Anda.
+                  <b>Tidak, perangkat bersama atau pinjaman:</b> Anda otomatis keluar bila browser ditutup, atau bila
+                  tidak dipakai selama 1 jam. Tab yang tidak sengaja tertutup tidak langsung mengeluarkan Anda, tetapi
+                  setelah 1 jam orang berikutnya tidak bisa membuka akun Anda.
                 </p>
               </div>
               <p>

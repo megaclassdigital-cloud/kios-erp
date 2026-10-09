@@ -1,10 +1,16 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { TAB_MARKER_KEY } from "@/shared/security/device-session";
 import { DevicePrompt } from "./device-prompt";
+
+/** Only ever follow a same-site relative path — a leading "//" would be
+ * protocol-relative and could redirect off-site. */
+function safeDestination(callbackUrl: string | null): string {
+  return callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/dashboard";
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -18,6 +24,16 @@ function LoginForm() {
   const [destination, setDestination] = useState<string | null>(null);
   const [deviceBusy, setDeviceBusy] = useState(false);
   const [deviceError, setDeviceError] = useState<string | null>(null);
+  const { status } = useSession();
+
+  // The middleware sends a signed-in user here with ?confirm=1 when the device
+  // question is still unanswered. They must answer it before going on; they
+  // are not asked for the password again because they only just typed it.
+  useEffect(() => {
+    if (searchParams.get("confirm") === "1" && status === "authenticated") {
+      setDestination(safeDestination(searchParams.get("callbackUrl")));
+    }
+  }, [searchParams, status]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,12 +62,7 @@ function LoginForm() {
       setError("Username atau password salah.");
       return;
     }
-    // Only ever follow a same-site relative path — a leading "//" would be
-    // protocol-relative and could redirect off-site.
-    const callbackUrl = searchParams.get("callbackUrl");
-    setDestination(
-      callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/dashboard"
-    );
+    setDestination(safeDestination(searchParams.get("callbackUrl")));
   }
 
   async function chooseDevice(permanent: boolean) {
@@ -64,18 +75,14 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ permanent }),
       });
-      if (!res.ok) throw new Error();
-      // Marks this tab as alive; DeviceSessionGuard signs a temporary device
-      // out when a tab without this marker shows up.
-      try {
-        sessionStorage.setItem(TAB_MARKER_KEY, "1");
-      } catch {
-        // Storage blocked: a temporary device will simply be signed out again.
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "");
       }
       router.push(destination);
       router.refresh();
-    } catch {
-      setDeviceError("Gagal menyimpan pilihan. Coba lagi.");
+    } catch (e) {
+      setDeviceError((e as Error).message || "Gagal menyimpan pilihan. Coba lagi.");
       setDeviceBusy(false);
     }
   }

@@ -12,6 +12,9 @@ declare module "next-auth" {
       username: string;
       role: Role;
     };
+    /** When the password was last typed (ms). Lets the device question be
+     * answered right after login without asking for the password again. */
+    loginAt?: number;
   }
   interface User {
     id: string;
@@ -21,6 +24,7 @@ declare module "next-auth" {
 }
 
 interface AppToken {
+  loginAt?: number;
   id: string;
   username: string;
   role: Role;
@@ -69,6 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         appToken.id = appUser.id;
         appToken.username = appUser.username;
         appToken.role = appUser.role;
+        appToken.loginAt = Date.now();
       }
       return appToken;
     },
@@ -77,6 +82,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = appToken.id;
       session.user.username = appToken.username;
       session.user.role = appToken.role;
+      session.loginAt = appToken.loginAt;
       return session;
     },
   },
