@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Download } from "lucide-react";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
+import { ProductReceivingHistoryModal } from "./product-receiving-history-modal";
 import { ProductEditModal, type EditableProduct } from "./product-edit-modal";
 import { filterProducts } from "@/modules/products/domain/product-filter";
 import { ExpiryService } from "@/modules/inventory/domain/expiry-service";
@@ -46,6 +47,7 @@ export default function MasterProdukPage() {
   // Exactly one of the two captures on this page is live at a time.
   const [formAwaitingBarcode, setFormAwaitingBarcode] = useState(false);
   const [editing, setEditing] = useState<EditableProduct | null>(null);
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
 
   const handleAwaitingBarcodeChange = useCallback((awaiting: boolean) => {
@@ -224,6 +226,14 @@ export default function MasterProdukPage() {
                     >
                       Ubah
                     </button>
+                    {p.productType === "PHYSICAL" && (
+                      <button
+                        onClick={() => setHistoryFor({ id: p.id, name: p.name })}
+                        className="mr-3 text-xs text-primary hover:underline"
+                      >
+                        Riwayat
+                      </button>
+                    )}
                     {activeBarcode ? (
                       <button
                         onClick={() =>
@@ -260,6 +270,14 @@ export default function MasterProdukPage() {
           product={editing}
           onClose={() => setEditing(null)}
           onSaved={load}
+        />
+      )}
+
+      {historyFor && (
+        <ProductReceivingHistoryModal
+          productId={historyFor.id}
+          productName={historyFor.name}
+          onClose={() => setHistoryFor(null)}
         />
       )}
 

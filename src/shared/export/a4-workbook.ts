@@ -60,11 +60,18 @@ function applyCell(cell: ExcelJS.Cell, type: A4ColumnType, value: A4Cell) {
   else if (type === "qty") cell.numFmt = qtyFormat(value);
 }
 
-export async function buildA4Workbook(spec: A4Spec): Promise<Buffer> {
+/** One or more sheets, each laid out and paginated for A4 on its own. */
+export async function buildA4Workbook(specs: A4Spec | A4Spec[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Kios ERP";
   wb.created = new Date();
+  for (const spec of Array.isArray(specs) ? specs : [specs]) addSheet(wb, spec);
 
+  const out = await wb.xlsx.writeBuffer();
+  return Buffer.from(out as ArrayBuffer);
+}
+
+function addSheet(wb: ExcelJS.Workbook, spec: A4Spec) {
   const ws = wb.addWorksheet(spec.sheetName);
   ws.columns = spec.columns.map((c) => ({ key: c.key, width: c.width }));
   const lastCol = spec.columns.length;
@@ -140,9 +147,6 @@ export async function buildA4Workbook(spec: A4Spec): Promise<Buffer> {
     margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 },
   };
   ws.headerFooter.oddFooter = "&LKios ERP&CHalaman &P dari &N&R&D";
-
-  const out = await wb.xlsx.writeBuffer();
-  return Buffer.from(out as ArrayBuffer);
 }
 
 export const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

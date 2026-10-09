@@ -77,9 +77,11 @@ function LiveClock() {
   if (!now) return null;
 
   return (
-    <div className="hidden items-center gap-2 lg:flex">
+    // Tablet and up. The long date only fits from lg; below that the time and
+    // the sun/moon still show, which is what a tablet at the till needs.
+    <div className="hidden items-center gap-2 md:flex">
       <div className="text-right leading-tight">
-        <p className="text-xs text-muted-foreground">
+        <p className="hidden text-xs text-muted-foreground lg:block">
           {now.toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "short", year: "numeric" })}
         </p>
         <p className="text-sm font-semibold text-foreground tabular-nums">
@@ -197,7 +199,12 @@ export function NavBar({ role }: { role?: Role }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={() =>
+                  // Forget the device answer first, so nothing outlives the session.
+                  fetch("/api/auth/device", { method: "DELETE" })
+                    .catch(() => undefined)
+                    .finally(() => signOut({ callbackUrl: "/login" }))
+                }
               >
                 <LogOut />
                 Keluar

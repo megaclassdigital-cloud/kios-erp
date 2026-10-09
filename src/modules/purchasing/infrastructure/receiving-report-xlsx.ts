@@ -9,12 +9,14 @@ const num = (v: string) => Number(v);
 export function buildReceivingReportXlsx(
   report: ReceivingReport,
   period: { label: string; start: Date; end: Date },
-  printedBy: string
+  printedBy: string,
+  /** Set when the report is for a single product (its history). */
+  productName?: string
 ): Promise<Buffer> {
   const { rows, summary } = report;
   return buildA4Workbook({
     sheetName: "Barang Masuk",
-    title: "Laporan Barang Masuk",
+    title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
       `Periode: ${period.label} (${formatWibDate(period.start)} - ${formatWibDate(period.end)})`,
       `${summary.receiptCount} penerimaan · ${summary.lineCount} baris barang`,
@@ -25,13 +27,15 @@ export function buildReceivingReportXlsx(
       { key: "no", header: "No", width: 5, type: "center" },
       { key: "date", header: "Tanggal", width: 16, type: "center" },
       { key: "purchaseNumber", header: "No. Penerimaan", width: 18, type: "center" },
-      { key: "invoice", header: "No. Invoice", width: 16 },
-      { key: "supplier", header: "Supplier", width: 24 },
-      { key: "product", header: "Nama Produk", width: 36 },
-      { key: "sku", header: "SKU", width: 14 },
-      { key: "qty", header: "Qty", width: 9, type: "qty" },
+      { key: "invoice", header: "No. Invoice", width: 15 },
+      { key: "supplier", header: "Supplier", width: 22 },
+      { key: "product", header: "Produk", width: 34 },
+      { key: "before", header: "Stok Sebelum", width: 11, type: "qty" },
+      { key: "qty", header: "Qty Masuk", width: 10, type: "qty" },
+      { key: "after", header: "Stok Sesudah", width: 11, type: "qty" },
       { key: "unit", header: "Satuan", width: 8, type: "center" },
       { key: "price", header: "Harga Beli", width: 14, type: "money" },
+      { key: "expiry", header: "Kedaluwarsa", width: 13, type: "center" },
       { key: "subtotal", header: "Subtotal", width: 16, type: "money" },
     ],
     rows: rows.map((r, i) => ({
@@ -41,10 +45,12 @@ export function buildReceivingReportXlsx(
       invoice: r.invoiceNumber ?? "-",
       supplier: r.supplierName,
       product: r.productName,
-      sku: r.sku,
+      before: num(r.stockBefore),
       qty: num(r.quantity),
+      after: num(r.stockAfter),
       unit: r.unit,
       price: num(r.purchasePrice),
+      expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
       subtotal: num(r.subtotal),
     })),
     totals: {

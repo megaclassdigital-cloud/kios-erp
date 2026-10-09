@@ -45,14 +45,16 @@ export class ReceiveStockUseCase {
       const lineItems = req.items.map((item) => {
         const subtotal = new Decimal(item.purchasePrice).times(item.quantity);
         totalAmount = totalAmount.plus(subtotal);
-        // Fields are picked explicitly rather than spread: expiryDate belongs
-        // to the Product, not to a PurchaseItem, and a spread silently carried
-        // it into the insert the moment it was added to the request type.
+        // Fields are picked explicitly rather than spread, so nothing new on
+        // the request type can leak into the insert unnoticed.
         return {
           productId: item.productId,
           quantity: item.quantity,
           purchasePrice: item.purchasePrice,
           subtotal: subtotal.toFixed(2),
+          // Frozen on the line as well as set on the product below: the
+          // product keeps only the latest date, the line keeps this delivery's.
+          expiryDate: item.expiryDate ?? null,
         };
       });
 

@@ -234,6 +234,11 @@ model PurchaseItem {
   quantity       Decimal  @db.Decimal(14, 3)
   purchasePrice  Decimal  @db.Decimal(14, 2)
   subtotal       Decimal  @db.Decimal(14, 2)
+  /// Expiry printed on this delivery, frozen on the line. Product.expiryDate
+  /// only holds the latest one, so without this the receiving history could
+  /// not say what a past delivery's date was. Null for receipts made before
+  /// this column existed, or when none was entered.
+  expiryDate     DateTime?
 
   // Backs receiving-detail lookups of a purchase's line items.
   @@index([purchaseId])

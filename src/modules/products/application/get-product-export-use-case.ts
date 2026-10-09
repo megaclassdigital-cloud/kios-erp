@@ -10,27 +10,42 @@ export interface ProductExportRow {
   name: string;
   sku: string;
   category: string;
-  productType: "PHYSICAL" | "SERVICE";
   barcode: string;
   unit: string;
-  /** Null for a service, which carries no stock. */
-  stock: string | null;
-  minimumStock: number | null;
-  stockStatus: StockStatus | null;
+  stock: string;
+  minimumStock: number;
+  stockStatus: StockStatus;
   purchasePrice: string;
   sellingPrice: string;
-  /** Stock x purchase price; null when there is no stock to value. */
-  stockValue: string | null;
+  /** Stock x purchase price. */
+  stockValue: string;
   expiryDate: Date | null;
   expiryText: string;
   active: boolean;
 }
 
+/** A service (pulsa, token listrik): no stock, so it is listed as a price
+ * list rather than as a stock row. */
+export interface ServicePriceRow {
+  name: string;
+  sku: string;
+  kind: string;
+  provider: string;
+  purchasePrice: string;
+  sellingPrice: string;
+  margin: string;
+  active: boolean;
+}
+
 export interface ProductExport {
+  /** Physical goods, with stock. */
   rows: ProductExportRow[];
+  /** Services, as a price list. */
+  services: ServicePriceRow[];
   summary: {
     productCount: number;
     physicalCount: number;
+    serviceCount: number;
     totalStock: string;
     totalStockValue: string;
     lowCount: number;
@@ -55,25 +70,35 @@ export class GetProductExportUseCase {
     let totalStockValue = new Decimal(0);
     let lowCount = 0;
     let outCount = 0;
-    let physicalCount = 0;
 
-    const rows = list.map((p): ProductExportRow => {
-      const isService = p.productType === "SERVICE";
-      const stockStatus = isService ? null : inventory.classifyStock(Number(p.currentStock), p.minimumStock);
-      const stockValue = isService ? null : new Decimal(p.currentStock.toString()).times(p.purchasePrice.toString());
+    const physical = list.filter((p) => p.productType !== "SERVICE");
+    const services = list
+      .filter((p) => p.productType === "SERVICE")
+      .map(
+        (p): ServicePriceRow => ({
+          name: p.name,
+          sku: p.sku,
+          kind: p.serviceType === "TOKEN_LISTRIK" ? "Token Listrik" : p.serviceType === "PULSA" ? "Pulsa" : "Layanan",
+          provider: p.serviceProvider ?? "-",
+          purchasePrice: p.purchasePrice.toString(),
+          sellingPrice: p.sellingPrice.toString(),
+          margin: new Decimal(p.sellingPrice.toString()).minus(p.purchasePrice.toString()).toFixed(2),
+          active: p.active,
+        })
+      );
 
-      if (!isService) {
-        physicalCount += 1;
-        totalStock = totalStock.plus(p.currentStock.toString());
-        totalStockValue = totalStockValue.plus(stockValue as Decimal);
-        if (stockStatus === "MENIPIS") lowCount += 1;
-        if (stockStatus === "HABIS") outCount += 1;
-      }
+    const rows = physical.map((p): ProductExportRow => {
+      const stockStatus = inventory.classifyStock(Number(p.currentStock), p.minimumStock);
+      const stockValue = new Decimal(p.currentStock.toString()).times(p.purchasePrice.toString());
 
-      const status = isService ? "TIDAK_DIPANTAU" : expiry.classify(p.expiryDate, p.expiryWarnDays, now);
-      const expiryText = isService
-        ? "-"
-        : status === "TIDAK_DIPANTAU"
+      totalStock = totalStock.plus(p.currentStock.toString());
+      totalStockValue = totalStockValue.plus(stockValue);
+      if (stockStatus === "MENIPIS") lowCount += 1;
+      if (stockStatus === "HABIS") outCount += 1;
+
+      const status = expiry.classify(p.expiryDate, p.expiryWarnDays, now);
+      const expiryText =
+        status === "TIDAK_DIPANTAU"
           ? "Belum diisi"
           : expiry.describe(status, expiry.daysUntil(p.expiryDate as Date, now));
 
@@ -81,16 +106,15 @@ export class GetProductExportUseCase {
         name: p.name,
         sku: p.sku,
         category: p.category?.name ?? "-",
-        productType: p.productType,
         barcode: p.barcodes.find((b) => b.status === "ACTIVE")?.barcodeValue ?? "-",
         unit: p.baseUnit,
-        stock: isService ? null : p.currentStock.toString(),
-        minimumStock: isService ? null : p.minimumStock,
+        stock: p.currentStock.toString(),
+        minimumStock: p.minimumStock,
         stockStatus,
         purchasePrice: p.purchasePrice.toString(),
         sellingPrice: p.sellingPrice.toString(),
-        stockValue: stockValue ? stockValue.toFixed(2) : null,
-        expiryDate: isService ? null : p.expiryDate,
+        stockValue: stockValue.toFixed(2),
+        expiryDate: p.expiryDate,
         expiryText,
         active: p.active,
       };
@@ -98,9 +122,11 @@ export class GetProductExportUseCase {
 
     return {
       rows,
+      services,
       summary: {
-        productCount: rows.length,
-        physicalCount,
+        productCount: list.length,
+        physicalCount: rows.length,
+        serviceCount: services.length,
         totalStock: totalStock.toString(),
         totalStockValue: totalStockValue.toFixed(2),
         lowCount,

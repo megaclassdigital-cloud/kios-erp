@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { prisma } from "@/shared/infrastructure/prisma";
 import { PrismaPurchaseRepository } from "../infrastructure/prisma-purchase-repository";
-import type { PurchaseRepository, ReceivedItemRow } from "../repository/purchase-repository";
+import type { PurchaseRepository, ReceivedItemFilter, ReceivedItemRow } from "../repository/purchase-repository";
 
 export interface ReceivingReport {
   rows: ReceivedItemRow[];
@@ -22,8 +22,8 @@ export interface ReceivingReport {
 export class GetReceivingReportUseCase {
   constructor(private readonly purchases: PurchaseRepository = new PrismaPurchaseRepository(prisma)) {}
 
-  async execute(start: Date, end: Date): Promise<ReceivingReport> {
-    const rows = await this.purchases.listReceivedItems(start, end);
+  async execute(filter: ReceivedItemFilter): Promise<ReceivingReport> {
+    const rows = await this.purchases.listReceivedItems(filter);
 
     let totalQuantity = new Decimal(0);
     let totalValue = new Decimal(0);

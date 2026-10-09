@@ -59,4 +59,14 @@ describe("buildA4Workbook", () => {
     const ws = await read(await buildA4Workbook({ ...spec, rows: [], totals: undefined }));
     expect(String(ws.getRow(5).getCell(1).value)).toContain("Tidak ada data");
   });
+
+  it("writes several sheets, each with its own A4 setup", async () => {
+    const wb = new ExcelJS.Workbook();
+    const buf = await buildA4Workbook([spec, { ...spec, sheetName: "Kedua", orientation: "portrait" }]);
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(["Uji", "Kedua"]);
+    expect(wb.worksheets[0].pageSetup.orientation).toBe("landscape");
+    expect(wb.worksheets[1].pageSetup.orientation).toBe("portrait");
+    expect(wb.worksheets[1].pageSetup.paperSize).toBe(9);
+  });
 });

@@ -16,10 +16,11 @@ export async function GET(req: NextRequest) {
       from: searchParams.get("from") ?? undefined,
       to: searchParams.get("to") ?? undefined,
     });
-    const report = await new GetReceivingReportUseCase().execute(period.start, period.end);
+    const productId = searchParams.get("productId") ?? undefined;
+    const report = await new GetReceivingReportUseCase().execute({ start: period.start, end: period.end, productId });
 
     if (searchParams.get("format") === "xlsx") {
-      const file = await buildReceivingReportXlsx(report, period, session.user.name ?? "-");
+      const file = await buildReceivingReportXlsx(report, period, session.user.name ?? "-", productId ? report.rows[0]?.productName : undefined);
       const stamp = new Date().toISOString().slice(0, 10);
       return new NextResponse(new Uint8Array(file), {
         headers: {

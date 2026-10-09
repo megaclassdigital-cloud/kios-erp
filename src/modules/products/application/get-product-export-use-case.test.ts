@@ -41,12 +41,12 @@ describe("GetProductExportUseCase", () => {
       barcodes: [{ barcodeValue: "899111", status: "ACTIVE" }, { barcodeValue: "OLD1", status: "RETIRED" }] }),
     product({ id: "2", name: "Gula", sku: "GLA-1", currentStock: "3.000", minimumStock: 5, purchasePrice: "14000.00" }),
     product({ id: "3", name: "Kecap", sku: "KCP-1", currentStock: "0.000", purchasePrice: "9000.00" }),
-    product({ id: "4", name: "Pulsa 10rb", sku: "PLS-10", productType: "SERVICE", currentStock: "0.000", purchasePrice: "9500.00" }),
+    product({ id: "4", name: "Pulsa 10rb", sku: "PLS-10", productType: "SERVICE", serviceType: "PULSA", serviceProvider: "Telkomsel", currentStock: "0.000", purchasePrice: "9500.00", sellingPrice: "11000.00" }),
   ];
 
   it("values stock at purchase price and classifies it like the stock screen", async () => {
     const { rows, summary } = await new GetProductExportUseCase(repoOf(list)).execute("", NOW);
-    expect(rows.map((r) => r.stockStatus)).toEqual(["AMAN", "MENIPIS", "HABIS", null]);
+    expect(rows.map((r) => r.stockStatus)).toEqual(["AMAN", "MENIPIS", "HABIS"]);
     expect(rows[0].stockValue).toBe("1200000.00");
     expect(rows[1].stockValue).toBe("42000.00");
     expect(summary.totalStockValue).toBe("1242000.00");
@@ -55,12 +55,14 @@ describe("GetProductExportUseCase", () => {
     expect(summary.outCount).toBe(1);
   });
 
-  it("leaves services out of stock figures", async () => {
-    const { rows, summary } = await new GetProductExportUseCase(repoOf(list)).execute("", NOW);
-    const pulsa = rows[3];
-    expect(pulsa.stock).toBeNull();
-    expect(pulsa.stockValue).toBeNull();
+  it("moves services out of the stock table into a price list", async () => {
+    const { rows, services, summary } = await new GetProductExportUseCase(repoOf(list)).execute("", NOW);
+    expect(rows.map((r) => r.sku)).not.toContain("PLS-10");
+    expect(services).toHaveLength(1);
+    expect(services[0]).toMatchObject({ sku: "PLS-10", kind: "Pulsa", provider: "Telkomsel", purchasePrice: "9500.00", sellingPrice: "11000.00", margin: "1500.00" });
     expect(summary.physicalCount).toBe(3);
+    expect(summary.serviceCount).toBe(1);
+    expect(summary.productCount).toBe(4);
   });
 
   it("picks the active barcode and the category name", async () => {

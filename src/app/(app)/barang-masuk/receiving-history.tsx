@@ -6,12 +6,17 @@ import { formatWibDateTime } from "@/shared/format/wib";
 
 const PERIODS = [
   { key: "today", label: "Hari Ini" },
+  { key: "yesterday", label: "Kemarin" },
+  { key: "week", label: "Minggu Ini" },
   { key: "7d", label: "7 Hari Terakhir" },
-  { key: "30d", label: "30 Hari Terakhir" },
   { key: "month", label: "Bulan Ini" },
+  { key: "lastmonth", label: "Bulan Lalu" },
+  { key: "30d", label: "30 Hari Terakhir" },
   { key: "year", label: "Tahun Ini" },
-  { key: "custom", label: "Pilih Tanggal" },
+  { key: "custom", label: "Pilih Rentang Tanggal" },
 ] as const;
+
+type PeriodKey = (typeof PERIODS)[number]["key"];
 
 interface Row {
   receivedAt: string;
@@ -24,6 +29,9 @@ interface Row {
   quantity: string;
   purchasePrice: string;
   subtotal: string;
+  expiryDate: string | null;
+  stockBefore: string;
+  stockAfter: string;
 }
 
 interface Report {
@@ -32,6 +40,8 @@ interface Report {
 }
 
 const rupiah = (v: string) => `Rp${Number(v).toLocaleString("id-ID")}`;
+const qty = (v: string) => Number(v).toLocaleString("id-ID");
+const dateOnly = (iso: string) => formatWibDateTime(new Date(iso)).slice(0, 10);
 
 /**
  * What has actually been received, per period. Reads the same endpoint the
@@ -39,8 +49,17 @@ const rupiah = (v: string) => `Rp${Number(v).toLocaleString("id-ID")}`;
  * `refreshKey` bumps after a receiving is confirmed so a new receipt shows up
  * here without a reload.
  */
-export function ReceivingHistory({ refreshKey }: { refreshKey: number }) {
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]["key"]>("7d");
+export function ReceivingHistory({
+  refreshKey = 0,
+  productId,
+  defaultPeriod = "7d",
+}: {
+  refreshKey?: number;
+  /** Limits the history to one product (used from Master Produk). */
+  productId?: string;
+  defaultPeriod?: PeriodKey;
+}) {
+  const [period, setPeriod] = useState<PeriodKey>(defaultPeriod);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [report, setReport] = useState<Report | null>(null);
@@ -49,6 +68,7 @@ export function ReceivingHistory({ refreshKey }: { refreshKey: number }) {
 
   const customReady = period !== "custom" || (from !== "" && to !== "" && from <= to);
   const query = new URLSearchParams({ period });
+  if (productId) query.set("productId", productId);
   if (period === "custom") {
     query.set("from", from);
     query.set("to", to);
@@ -85,14 +105,14 @@ export function ReceivingHistory({ refreshKey }: { refreshKey: number }) {
     <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Riwayat Barang Masuk</h2>
+          <h2 className="text-sm font-semibold text-foreground">{productId ? "Riwayat Barang Masuk Produk Ini" : "Riwayat Barang Masuk"}</h2>
           <p className="text-xs text-muted-foreground">Pilih periode, lalu unduh sebagai Excel ukuran A4.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
             aria-label="Periode laporan"
             value={period}
-            onChange={(e) => setPeriod(e.target.value as typeof period)}
+            onChange={(e) => setPeriod(e.target.value as PeriodKey)}
             className="rounded-md border border-input px-2 py-1.5 text-sm"
           >
             {PERIODS.map((p) => (
@@ -131,7 +151,7 @@ export function ReceivingHistory({ refreshKey }: { refreshKey: number }) {
       {report && (
         <p className="text-xs text-muted-foreground">
           {report.summary.receiptCount} penerimaan · {report.summary.lineCount} baris · total qty{" "}
-          {Number(report.summary.totalQuantity).toLocaleString("id-ID")} · nilai {rupiah(report.summary.totalValue)}
+          {qty(report.summary.totalQuantity)} · nilai {rupiah(report.summary.totalValue)}
         </p>
       )}
 
@@ -143,15 +163,18 @@ export function ReceivingHistory({ refreshKey }: { refreshKey: number }) {
               <th className="px-3 py-2">No. Penerimaan</th>
               <th className="px-3 py-2">Supplier</th>
               <th className="px-3 py-2">Produk</th>
-              <th className="px-3 py-2 text-right">Qty</th>
+              <th className="px-3 py-2 text-right">Stok Sebelum</th>
+              <th className="px-3 py-2 text-right">Qty Masuk</th>
+              <th className="px-3 py-2 text-right">Stok Sesudah</th>
               <th className="px-3 py-2 text-right">Harga Beli</th>
+              <th className="px-3 py-2">Kedaluwarsa</th>
               <th className="px-3 py-2 text-right">Subtotal</th>
             </tr>
           </thead>
           <tbody>
             {report && report.rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">
                   Belum ada barang masuk pada periode ini.
                 </td>
               </tr>
@@ -165,10 +188,13 @@ export function ReceivingHistory({ refreshKey }: { refreshKey: number }) {
                 </td>
                 <td className="px-3 py-2 text-foreground">{r.supplierName}</td>
                 <td className="px-3 py-2 text-foreground">{r.productName}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                  {Number(r.quantity).toLocaleString("id-ID")} {r.unit}
+                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(r.stockBefore)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">
+                  +{qty(r.quantity)} {r.unit}
                 </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground">{qty(r.stockAfter)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(r.purchasePrice)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{r.expiryDate ? dateOnly(r.expiryDate) : "-"}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">{rupiah(r.subtotal)}</td>
               </tr>
             ))}

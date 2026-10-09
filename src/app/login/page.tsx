@@ -3,6 +3,8 @@
 import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { TAB_MARKER_KEY } from "@/shared/security/device-session";
+import { DevicePrompt } from "./device-prompt";
 
 function LoginForm() {
   const router = useRouter();
@@ -11,6 +13,11 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Set once the password is accepted; the device question is asked before
+  // the user is let into the app.
+  const [destination, setDestination] = useState<string | null>(null);
+  const [deviceBusy, setDeviceBusy] = useState(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,10 +49,35 @@ function LoginForm() {
     // Only ever follow a same-site relative path — a leading "//" would be
     // protocol-relative and could redirect off-site.
     const callbackUrl = searchParams.get("callbackUrl");
-    const destination =
-      callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/dashboard";
-    router.push(destination);
-    router.refresh();
+    setDestination(
+      callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/dashboard"
+    );
+  }
+
+  async function chooseDevice(permanent: boolean) {
+    if (!destination) return;
+    setDeviceBusy(true);
+    setDeviceError(null);
+    try {
+      const res = await fetch("/api/auth/device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permanent }),
+      });
+      if (!res.ok) throw new Error();
+      // Marks this tab as alive; DeviceSessionGuard signs a temporary device
+      // out when a tab without this marker shows up.
+      try {
+        sessionStorage.setItem(TAB_MARKER_KEY, "1");
+      } catch {
+        // Storage blocked: a temporary device will simply be signed out again.
+      }
+      router.push(destination);
+      router.refresh();
+    } catch {
+      setDeviceError("Gagal menyimpan pilihan. Coba lagi.");
+      setDeviceBusy(false);
+    }
   }
 
   return (
@@ -84,6 +116,7 @@ function LoginForm() {
           </button>
         </form>
       </div>
+      {destination && <DevicePrompt busy={deviceBusy} error={deviceError} onChoose={chooseDevice} />}
     </div>
   );
 }

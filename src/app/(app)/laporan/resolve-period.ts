@@ -1,4 +1,13 @@
-export type PeriodKey = "today" | "7d" | "30d" | "month" | "year" | "custom";
+export type PeriodKey =
+  | "today"
+  | "yesterday"
+  | "week"
+  | "7d"
+  | "30d"
+  | "month"
+  | "lastmonth"
+  | "year"
+  | "custom";
 
 export interface ResolvedPeriod {
   key: PeriodKey;
@@ -34,6 +43,25 @@ export function resolvePeriod(searchParams: {
 
   if (searchParams.period === "today") {
     return { key: "today", start: startOfDay(now), end: endOfDay(now), label: "Hari Ini" };
+  }
+
+  if (searchParams.period === "yesterday") {
+    const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    return { key: "yesterday", start: startOfDay(y), end: endOfDay(y), label: "Kemarin" };
+  }
+
+  if (searchParams.period === "week") {
+    // Calendar week, Monday first, as a shop week is counted here.
+    const sinceMonday = (now.getDay() + 6) % 7;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - sinceMonday);
+    return { key: "week", start: monday, end: endOfDay(now), label: "Minggu Ini" };
+  }
+
+  if (searchParams.period === "lastmonth") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    // Day 0 of this month is the last day of the previous one.
+    const end = endOfDay(new Date(now.getFullYear(), now.getMonth(), 0));
+    return { key: "lastmonth", start, end, label: "Bulan Lalu" };
   }
 
   if (searchParams.period === "30d") {
