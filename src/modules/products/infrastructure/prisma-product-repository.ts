@@ -2,6 +2,7 @@ import type { Db } from "@/shared/infrastructure/transaction-manager";
 import type {
   CreateProductInput,
   ProductRepository,
+  ProductListItem,
   ProductWithBarcodes,
   UpdateProductInput,
 } from "../repository/product-repository";
@@ -59,7 +60,7 @@ export class PrismaProductRepository implements ProductRepository {
     active?: boolean;
     lowStock?: boolean;
     search?: string;
-  }): Promise<ProductWithBarcodes[]> {
+  }): Promise<ProductListItem[]> {
     const products = await this.db.product.findMany({
       where: {
         categoryId: filter.categoryId,
@@ -68,7 +69,7 @@ export class PrismaProductRepository implements ProductRepository {
           ? { contains: filter.search, mode: "insensitive" }
           : undefined,
       },
-      include: { barcodes: true },
+      include: { barcodes: true, category: true },
       orderBy: { name: "asc" },
     });
 

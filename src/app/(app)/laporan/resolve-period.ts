@@ -1,4 +1,4 @@
-export type PeriodKey = "today" | "7d" | "30d" | "custom";
+export type PeriodKey = "today" | "7d" | "30d" | "month" | "year" | "custom";
 
 export interface ResolvedPeriod {
   key: PeriodKey;
@@ -39,6 +39,14 @@ export function resolvePeriod(searchParams: {
   if (searchParams.period === "30d") {
     const start = startOfDay(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000));
     return { key: "30d", start, end: endOfDay(now), label: "30 Hari Terakhir" };
+  }
+
+  if (searchParams.period === "month") {
+    return { key: "month", start: new Date(now.getFullYear(), now.getMonth(), 1), end: endOfDay(now), label: "Bulan Ini" };
+  }
+
+  if (searchParams.period === "year") {
+    return { key: "year", start: new Date(now.getFullYear(), 0, 1), end: endOfDay(now), label: "Tahun Ini" };
   }
 
   const start = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
 import { ProductEditModal, type EditableProduct } from "./product-edit-modal";
+import { filterProducts } from "@/modules/products/domain/product-filter";
 import { ExpiryService } from "@/modules/inventory/domain/expiry-service";
 import { ScanSources } from "../../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
@@ -55,16 +57,7 @@ export default function MasterProdukPage() {
   // this render then compares against the same instant.
   const now = new Date();
 
-  const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
-        p.barcodes.some((b) => b.barcodeValue.toLowerCase().includes(q))
-    );
-  }, [products, search]);
+  const filteredProducts = useMemo(() => filterProducts(products, search), [products, search]);
 
   async function load() {
     const [pRes, cRes] = await Promise.all([fetch("/api/products"), fetch("/api/categories")]);
@@ -139,6 +132,21 @@ export default function MasterProdukPage() {
             enabled={!formAwaitingBarcode && !labelFor}
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {filteredProducts.length} produk{search.trim() ? ` cocok dengan "${search.trim()}"` : ""}
+        </p>
+        {/* Server-side, from the same list and the same search rule as the
+            table, so the file always matches what is on screen. */}
+        <a
+          href={`/api/products/export${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""}`}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+        >
+          <Download className="h-4 w-4" />
+          Download Excel (A4)
+        </a>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">

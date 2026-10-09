@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ScanSources } from "../scan-sources";
 import { ExpiryCountdown } from "./expiry-countdown";
+import { ReceivingHistory } from "./receiving-history";
 import { PageHeader } from "@/components/kios/page-header";
 
 interface Supplier {
@@ -32,6 +33,8 @@ export default function BarangMasukPage() {
   const [lines, setLines] = useState<ReceivingLine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Bumped after a confirmed receiving so the history below refetches.
+  const [historyKey, setHistoryKey] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
 
@@ -125,6 +128,7 @@ export default function BarangMasukPage() {
     setMessage(`Barang masuk ${data.purchase.purchaseNumber} berhasil disimpan.`);
     setLines([]);
     setInvoiceNumber("");
+    setHistoryKey((k) => k + 1);
   }
 
   return (
@@ -275,6 +279,8 @@ export default function BarangMasukPage() {
           </button>
         </div>
       </div>
+
+      <ReceivingHistory refreshKey={historyKey} />
     </div>
   );
 }

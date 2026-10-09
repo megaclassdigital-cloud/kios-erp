@@ -31,6 +31,7 @@
     "cn": "^0.2.6",
     "date-fns": "^4.4.0",
     "decimal.js": "^10",
+    "exceljs": "^4.4.0",
     "jsbarcode": "^3",
     "lucide-react": "^1.43.0",
     "next": "^15",

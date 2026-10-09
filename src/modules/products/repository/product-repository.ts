@@ -1,4 +1,4 @@
-import type { Product, ProductBarcode, ProductType, ServiceType } from "@prisma/client";
+import type { Category, Product, ProductBarcode, ProductType, ServiceType } from "@prisma/client";
 
 export interface CreateProductInput {
   sku: string;
@@ -32,6 +32,9 @@ export interface UpdateProductInput {
 
 export type ProductWithBarcodes = Product & { barcodes: ProductBarcode[] };
 
+/** What a list screen or export needs: barcodes plus the category name. */
+export type ProductListItem = ProductWithBarcodes & { category: Category | null };
+
 /** Contract only — no Prisma types leak into Application/Domain callers
  * beyond these DTOs (PRD 63). */
 export interface ProductRepository {
@@ -48,7 +51,7 @@ export interface ProductRepository {
     active?: boolean;
     lowStock?: boolean;
     search?: string;
-  }): Promise<ProductWithBarcodes[]>;
+  }): Promise<ProductListItem[]>;
   incrementStock(id: string, deltaQuantity: string): Promise<void>;
   /** Atomically decrements stock only if enough is available, returning
    * false (no throw) when it isn't — used to resolve the last-unit race

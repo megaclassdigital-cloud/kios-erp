@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { Bell, LogOut, Search, ShoppingCart, Sun } from "lucide-react";
+import { Bell, LogOut, Moon, Search, ShoppingCart, Sun } from "lucide-react";
 import { hasPermission, type Permission } from "@/shared/security/permissions";
+import { isNight } from "@/shared/domain/time-of-day";
 import type { Role } from "@prisma/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -85,7 +86,11 @@ function LiveClock() {
           {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
-      <Sun className="h-5 w-5 shrink-0 text-warning" />
+      {isNight(now.getHours()) ? (
+        <Moon aria-label="Malam" className="h-5 w-5 shrink-0 text-info" />
+      ) : (
+        <Sun aria-label="Siang" className="h-5 w-5 shrink-0 text-warning" />
+      )}
     </div>
   );
 }
