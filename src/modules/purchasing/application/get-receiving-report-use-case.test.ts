@@ -110,7 +110,7 @@ describe("GetReceivingReportUseCase", () => {
     await wb.xlsx.load(buf as unknown as ArrayBuffer);
     const r = wb.worksheets[0].getRow(7);
     expect(r.getCell(3).value).toBe("Stok opname");
-    expect(r.getCell(5).value).toBe("-");
+    expect(r.getCell(5).value).toBe("null"); // no supplier -> "null"
     expect(r.getCell(11).value).toBe("-");
     expect(r.getCell(13).value).toBe("-");
     expect(r.getCell(9).value).toEqual({ formula: "G7+H7", result: 13 });

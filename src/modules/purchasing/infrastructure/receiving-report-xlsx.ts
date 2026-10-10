@@ -49,7 +49,8 @@ export function buildReceivingReportXlsx(
         // source takes its place so the row still says where the goods came from.
         purchaseNumber: r.purchaseNumber ?? stockInLabel(r.source),
         invoice: r.invoiceNumber ?? "-",
-        supplier: r.supplierName ?? "-",
+        // No supplier recorded is written as null, as asked, not left blank.
+        supplier: r.supplierName || "null",
         product: r.productName,
         before: num(r.stockBefore),
         qty: num(r.quantity),

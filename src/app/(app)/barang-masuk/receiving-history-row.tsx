@@ -100,7 +100,7 @@ export function HistoryRow({
         <td className="px-3 py-2">
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{stockInLabel(row.source)}</span>
         </td>
-        <td className="px-3 py-2 text-muted-foreground">-</td>
+        <td className="px-3 py-2 text-muted-foreground">null</td>
         <td className="px-3 py-2 text-foreground">{row.productName}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.stockBefore)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">
@@ -120,7 +120,7 @@ export function HistoryRow({
       <tr className="border-t border-border bg-primary-soft/40 align-top">
         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatWibDateTime(new Date(row.receivedAt))}</td>
         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{row.purchaseNumber}</td>
-        <td className="px-3 py-2">{row.supplierName ?? "-"}</td>
+        <td className="px-3 py-2">{row.supplierName ?? "null"}</td>
         <td className="px-3 py-2">{row.productName}</td>
         <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.stockBefore)}</td>
         <td className="px-3 py-2">
@@ -162,7 +162,7 @@ export function HistoryRow({
           {row.purchaseNumber}
           {row.invoiceNumber && <span className="block font-sans text-muted-foreground">Inv. {row.invoiceNumber}</span>}
         </td>
-        <td className="px-3 py-2 text-foreground">{row.supplierName ?? "-"}</td>
+        <td className="px-3 py-2 text-foreground">{row.supplierName ?? "null"}</td>
         <td className="px-3 py-2 text-foreground">{row.productName}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.stockBefore)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">
