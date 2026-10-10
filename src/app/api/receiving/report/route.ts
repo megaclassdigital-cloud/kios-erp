@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
       to: searchParams.get("to") ?? undefined,
     });
     const productId = searchParams.get("productId") ?? undefined;
-    const report = await new GetReceivingReportUseCase().execute({ start: period.start, end: period.end, productId });
+    const only = searchParams.get("only") === "purchase" ? ("purchase" as const) : undefined;
+    const report = await new GetReceivingReportUseCase().execute({ start: period.start, end: period.end, productId, only });
 
     if (searchParams.get("format") === "xlsx") {
       const file = await buildReceivingReportXlsx(report, period, session.user.name ?? "-", productId ? report.rows[0]?.productName : undefined);

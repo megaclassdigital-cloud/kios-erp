@@ -3,26 +3,28 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatWibDateTime } from "@/shared/format/wib";
+import { stockInLabel } from "@/modules/purchasing/domain/stock-in-source";
 
 export interface HistoryItem {
+  source: "PURCHASE" | "INITIAL_STOCK" | "STOCK_OPNAME" | "RETURN_IN" | "ADJUSTMENT";
   itemId: string;
-  purchaseId: string;
+  purchaseId: string | null;
   receivedAt: string;
-  purchaseNumber: string;
+  purchaseNumber: string | null;
   invoiceNumber: string | null;
-  supplierName: string;
+  supplierName: string | null;
   productName: string;
   sku: string;
   unit: string;
   quantity: string;
-  purchasePrice: string;
-  subtotal: string;
+  purchasePrice: string | null;
+  subtotal: string | null;
   expiryDate: string | null;
   stockBefore: string;
   stockAfter: string;
 }
 
-const rupiah = (v: string) => `Rp${Number(v).toLocaleString("id-ID")}`;
+const rupiah = (v: string | null) => (v === null ? "-" : `Rp${Number(v).toLocaleString("id-ID")}`);
 const qty = (v: string) => Number(v).toLocaleString("id-ID");
 const dateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 const dateLabel = (iso: string) => formatWibDateTime(new Date(iso)).slice(0, 10);
@@ -52,7 +54,7 @@ export function HistoryRow({
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [quantity, setQuantity] = useState(row.quantity);
-  const [price, setPrice] = useState(row.purchasePrice);
+  const [price, setPrice] = useState(row.purchasePrice ?? "");
   const [expiry, setExpiry] = useState(dateInput(row.expiryDate));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,12 +90,37 @@ export function HistoryRow({
 
   const delta = Number(quantity || 0) - Number(row.quantity);
 
+  // Stock that did not come through a supplier receipt (initial stock, opname,
+  // return, adjustment) is shown for the record; it is changed where it came
+  // from, not here.
+  if (row.source !== "PURCHASE") {
+    return (
+      <tr className="border-t border-border">
+        <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatWibDateTime(new Date(row.receivedAt))}</td>
+        <td className="px-3 py-2">
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{stockInLabel(row.source)}</span>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground">-</td>
+        <td className="px-3 py-2 text-foreground">{row.productName}</td>
+        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.stockBefore)}</td>
+        <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">
+          +{qty(row.quantity)} {row.unit}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground">{qty(row.stockAfter)}</td>
+        <td className="px-3 py-2 text-right text-muted-foreground">-</td>
+        <td className="px-3 py-2 text-muted-foreground">-</td>
+        <td className="px-3 py-2 text-right text-muted-foreground">-</td>
+        <td className="px-3 py-2"></td>
+      </tr>
+    );
+  }
+
   if (mode === "edit") {
     return (
       <tr className="border-t border-border bg-primary-soft/40 align-top">
         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatWibDateTime(new Date(row.receivedAt))}</td>
         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{row.purchaseNumber}</td>
-        <td className="px-3 py-2">{row.supplierName}</td>
+        <td className="px-3 py-2">{row.supplierName ?? "-"}</td>
         <td className="px-3 py-2">{row.productName}</td>
         <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.stockBefore)}</td>
         <td className="px-3 py-2">
@@ -135,7 +162,7 @@ export function HistoryRow({
           {row.purchaseNumber}
           {row.invoiceNumber && <span className="block font-sans text-muted-foreground">Inv. {row.invoiceNumber}</span>}
         </td>
-        <td className="px-3 py-2 text-foreground">{row.supplierName}</td>
+        <td className="px-3 py-2 text-foreground">{row.supplierName ?? "-"}</td>
         <td className="px-3 py-2 text-foreground">{row.productName}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.stockBefore)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">

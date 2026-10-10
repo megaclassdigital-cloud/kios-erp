@@ -22,6 +22,7 @@ type PeriodKey = (typeof PERIODS)[number]["key"];
 
 interface Report {
   rows: HistoryItem[];
+  warnings?: string[];
   summary: { receiptCount: number; lineCount: number; totalQuantity: string; totalValue: string };
 }
 
@@ -55,12 +56,14 @@ export function ReceivingHistory({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [localKey, setLocalKey] = useState(0);
+  const [onlySupplier, setOnlySupplier] = useState(false);
   const { data: session } = useSession();
   const canEdit = session ? hasPermission(session.user.role, "receiving.edit") : false;
 
   const customReady = period !== "custom" || (from !== "" && to !== "" && from <= to);
   const query = new URLSearchParams({ period });
   if (productId) query.set("productId", productId);
+  if (onlySupplier) query.set("only", "purchase");
   if (period === "custom") {
     query.set("from", from);
     query.set("to", to);
@@ -98,7 +101,9 @@ export function ReceivingHistory({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">{productId ? "Riwayat Barang Masuk Produk Ini" : "Riwayat Barang Masuk"}</h2>
-          <p className="text-xs text-muted-foreground">Pilih periode, lalu unduh sebagai Excel ukuran A4.</p>
+          <p className="text-xs text-muted-foreground">
+            Semua penambahan stok: penerimaan supplier, stok awal produk, stok opname, retur, dan penyesuaian. Pilih periode, lalu unduh sebagai Excel A4.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -113,6 +118,10 @@ export function ReceivingHistory({
               </option>
             ))}
           </select>
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <input type="checkbox" checked={onlySupplier} onChange={(e) => setOnlySupplier(e.target.checked)} />
+            Hanya dari supplier
+          </label>
           {period === "custom" && (
             <>
               <input type="date" aria-label="Dari tanggal" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-md border border-input px-2 py-1 text-sm" />
@@ -140,9 +149,13 @@ export function ReceivingHistory({
         <div className="rounded-md border border-destructive/30 bg-destructive-soft px-3 py-2 text-sm text-destructive">{error}</div>
       )}
 
+      {report?.warnings?.map((w) => (
+        <div key={w} className="rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-warning-foreground">{w}</div>
+      ))}
+
       {report && (
         <p className="text-xs text-muted-foreground">
-          {report.summary.receiptCount} penerimaan · {report.summary.lineCount} baris · total qty{" "}
+          {report.summary.receiptCount} penerimaan supplier · {report.summary.lineCount} baris · total qty masuk{" "}
           {qty(report.summary.totalQuantity)} · nilai {rupiah(report.summary.totalValue)}
         </p>
       )}

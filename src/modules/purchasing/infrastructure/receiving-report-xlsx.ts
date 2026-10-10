@@ -1,5 +1,6 @@
 import { buildA4Workbook } from "@/shared/export/a4-workbook";
 import { formatWibDate, formatWibDateTime } from "@/shared/format/wib";
+import { stockInLabel } from "../domain/stock-in-source";
 import type { ReceivingReport } from "../application/get-receiving-report-use-case";
 
 /** XLSX numbers are doubles; the values are 2dp money / 3dp quantities, which
@@ -19,7 +20,8 @@ export function buildReceivingReportXlsx(
     title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
       `Periode: ${period.label} (${formatWibDate(period.start)} - ${formatWibDate(period.end)})`,
-      `${summary.receiptCount} penerimaan · ${summary.lineCount} baris barang · Stok Sesudah = Stok Sebelum + Qty Masuk · Subtotal = Qty × Harga Beli`,
+      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk · Subtotal = Qty × Harga Beli`,
+      ...report.warnings.map((w) => `Perhatian: ${w}`),
       `Dicetak ${formatWibDateTime(new Date())} oleh ${printedBy}`,
     ],
     orientation: "landscape",
@@ -38,21 +40,28 @@ export function buildReceivingReportXlsx(
       { key: "expiry", header: "Kedaluwarsa", width: 13, type: "center" },
       { key: "subtotal", header: "Subtotal", width: 16, type: "money" },
     ],
-    rows: rows.map((r, i) => ({
-      no: i + 1,
-      date: formatWibDateTime(r.receivedAt),
-      purchaseNumber: r.purchaseNumber,
-      invoice: r.invoiceNumber ?? "-",
-      supplier: r.supplierName,
-      product: r.productName,
-      before: num(r.stockBefore),
-      qty: num(r.quantity),
-      after: { formula: "{before}+{qty}", result: num(r.stockAfter) },
-      unit: r.unit,
-      price: num(r.purchasePrice),
-      expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
-      subtotal: { formula: "{qty}*{price}", result: num(r.subtotal) },
-    })),
+    rows: rows.map((r, i) => {
+      const fromSupplier = r.source === "PURCHASE";
+      return {
+        no: i + 1,
+        date: formatWibDateTime(r.receivedAt),
+        // Stock that did not come from a supplier has no receipt number; the
+        // source takes its place so the row still says where the goods came from.
+        purchaseNumber: r.purchaseNumber ?? stockInLabel(r.source),
+        invoice: r.invoiceNumber ?? "-",
+        supplier: r.supplierName ?? "-",
+        product: r.productName,
+        before: num(r.stockBefore),
+        qty: num(r.quantity),
+        after: { formula: "{before}+{qty}", result: num(r.stockAfter) },
+        unit: r.unit,
+        price: r.purchasePrice === null ? "-" : num(r.purchasePrice),
+        expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
+        // Cost only exists for a supplier receipt, so only those rows have a
+        // subtotal; the others show "-" and are skipped by SUM and AVERAGE.
+        subtotal: fromSupplier && r.subtotal !== null ? { formula: "{qty}*{price}", result: num(r.subtotal) } : "-",
+      };
+    }),
     totals: [
       {
         product: "TOTAL",
@@ -61,7 +70,7 @@ export function buildReceivingReportXlsx(
       },
       {
         product: "Rata-rata harga beli",
-        price: { formula: "AVERAGE({price:range})", result: average(rows.map((r) => num(r.purchasePrice))) },
+        price: { formula: "AVERAGE({price:range})", result: average(rows.flatMap((r) => (r.purchasePrice === null ? [] : [num(r.purchasePrice)]))) },
       },
     ],
   });

@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import type { Prisma, Purchase } from "@prisma/client";
+import { Prisma, type Purchase } from "@prisma/client";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
 import type { CreatePurchaseInput, PurchaseItemDetail, PurchaseRepository, ReceivedItemFilter, ReceivedItemRow } from "../repository/purchase-repository";
 
@@ -57,6 +57,7 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
       // quantity reads as if it had been received that way.
       const stockBefore = ledger ? ledger.balance.minus(ledger.quantity) : new Decimal(0);
       return {
+        source: "PURCHASE" as const,
         itemId: i.id,
         purchaseId: i.purchaseId,
         receivedAt: i.purchase.confirmedAt ?? i.purchase.createdAt,
@@ -75,6 +76,70 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
         stockBefore: stockBefore.toString(),
         stockAfter: stockBefore.plus(i.quantity.toString()).toString(),
       };
+    });
+  }
+
+  /** Positive stock movements that are not supplier receipts. A correction
+   * made to a receipt (PURCHASE_ITEM_*) is already shown on its own line, so
+   * it is left out rather than listed twice. */
+  async listOtherStockIn(filter: ReceivedItemFilter): Promise<ReceivedItemRow[]> {
+    const productFilter = filter.productId ? Prisma.sql`WHERE "productId" = ${filter.productId}` : Prisma.empty;
+    const moves = await this.db.$queryRaw<
+      { id: string; productId: string; movementType: string; quantity: Prisma.Decimal; balance: Prisma.Decimal; createdAt: Date; actorId: string }[]
+    >`
+      SELECT id, "productId", "movementType", quantity, balance, "createdAt", "actorId" FROM (
+        SELECT id, "productId", "movementType"::text AS "movementType", "referenceType", quantity, "createdAt", "actorId",
+               SUM(quantity) OVER (PARTITION BY "productId" ORDER BY "createdAt", id) AS balance
+        FROM stock_movements
+        ${productFilter}
+      ) ledger
+      WHERE "movementType" IN ('INITIAL_STOCK', 'STOCK_OPNAME', 'RETURN_IN', 'ADJUSTMENT')
+        AND quantity > 0
+        AND "referenceType" NOT LIKE 'PURCHASE_ITEM_%'
+        AND "createdAt" >= ${filter.start} AND "createdAt" <= ${filter.end}
+      ORDER BY "createdAt" DESC, id`;
+    if (moves.length === 0) return [];
+
+    const [products, users] = await Promise.all([
+      this.db.product.findMany({
+        where: { id: { in: [...new Set(moves.map((m) => m.productId))] } },
+        select: { id: true, name: true, sku: true, baseUnit: true },
+      }),
+      this.db.user.findMany({
+        where: { id: { in: [...new Set(moves.map((m) => m.actorId))] } },
+        select: { id: true, name: true },
+      }),
+    ]);
+    const productById = new Map(products.map((p) => [p.id, p]));
+    const userById = new Map(users.map((u) => [u.id, u.name]));
+
+    return moves.flatMap((m): ReceivedItemRow[] => {
+      const product = productById.get(m.productId);
+      if (!product) return [];
+      const quantity = new Decimal(m.quantity.toString());
+      const after = new Decimal(m.balance.toString());
+      return [
+        {
+          source: m.movementType as ReceivedItemRow["source"],
+          itemId: m.id,
+          purchaseId: null,
+          receivedAt: m.createdAt,
+          purchaseNumber: null,
+          invoiceNumber: null,
+          supplierName: null,
+          receivedByName: userById.get(m.actorId) ?? "-",
+          productId: m.productId,
+          productName: product.name,
+          sku: product.sku,
+          unit: product.baseUnit,
+          quantity: quantity.toString(),
+          purchasePrice: null,
+          subtotal: null,
+          expiryDate: null,
+          stockBefore: after.minus(quantity).toString(),
+          stockAfter: after.toString(),
+        },
+      ];
     });
   }
 

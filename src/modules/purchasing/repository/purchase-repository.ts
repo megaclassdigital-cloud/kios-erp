@@ -18,23 +18,30 @@ export interface CreatePurchaseInput {
 
 /** One received line, flattened with the receipt it belongs to. Money and
  * quantities are decimal strings so nothing downstream rounds through float. */
+export type StockInSource = "PURCHASE" | "INITIAL_STOCK" | "STOCK_OPNAME" | "RETURN_IN" | "ADJUSTMENT";
+
 export interface ReceivedItemRow {
-  /** Ids so the history can address one line (and its receipt) to correct it. */
+  /** What added the stock. Only PURCHASE rows came through Barang Masuk, so
+   * only those can be corrected or deleted here. */
+  source: StockInSource;
+  /** The purchase line id for a PURCHASE row; the stock movement id otherwise. */
   itemId: string;
-  purchaseId: string;
+  purchaseId: string | null;
   receivedAt: Date;
-  purchaseNumber: string;
+  /** Receipt number; null for stock that did not come from a supplier. */
+  purchaseNumber: string | null;
   invoiceNumber: string | null;
-  supplierName: string;
+  supplierName: string | null;
   receivedByName: string;
   productName: string;
   sku: string;
   unit: string;
   productId: string;
   quantity: string;
-  /** Frozen on the line when it was received, not the product's current price. */
-  purchasePrice: string;
-  subtotal: string;
+  /** Frozen on the line when it was received, not the product's current price.
+   * Null when there was no purchase (initial stock, opname, return). */
+  purchasePrice: string | null;
+  subtotal: string | null;
   /** Expiry this delivery arrived with; null for older receipts or none entered. */
   expiryDate: Date | null;
   /** Product stock immediately before / after this line, from the stock
@@ -47,6 +54,9 @@ export interface ReceivedItemFilter {
   start: Date;
   end: Date;
   productId?: string;
+  /** "purchase" limits the list to supplier receipts; default is every
+   * addition to stock. */
+  only?: "purchase";
 }
 
 /** One received line with what is needed to correct or remove it. */
@@ -65,9 +75,12 @@ export interface PurchaseItemDetail {
 export interface PurchaseRepository {
   create(input: CreatePurchaseInput): Promise<Purchase>;
   listRecent(limit: number): Promise<Purchase[]>;
-  /** Lines of confirmed receipts whose confirmation time is in [start, end],
-   * newest receipt first, optionally for one product only. */
+  /** Lines of confirmed supplier receipts whose confirmation time is in
+   * [start, end], optionally for one product only. */
   listReceivedItems(filter: ReceivedItemFilter): Promise<ReceivedItemRow[]>;
+  /** The other additions to stock in the period (initial stock, opname
+   * increases, returns, adjustments), read from the stock ledger. */
+  listOtherStockIn(filter: ReceivedItemFilter): Promise<ReceivedItemRow[]>;
 
   findItem(itemId: string): Promise<PurchaseItemDetail | null>;
   updateItem(

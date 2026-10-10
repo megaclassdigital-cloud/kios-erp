@@ -1,11 +1,12 @@
 import ExcelJS from "exceljs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GetReceivingReportUseCase } from "./get-receiving-report-use-case";
 import { buildReceivingReportXlsx } from "../infrastructure/receiving-report-xlsx";
 import type { PurchaseRepository, ReceivedItemRow } from "../repository/purchase-repository";
 
 function row(over: Partial<ReceivedItemRow>): ReceivedItemRow {
   return {
+    source: "PURCHASE",
     itemId: "item-1",
     purchaseId: "purchase-1",
     receivedAt: new Date("2026-10-08T03:15:00Z"),
@@ -28,7 +29,11 @@ function row(over: Partial<ReceivedItemRow>): ReceivedItemRow {
 }
 
 function repoOf(rows: ReceivedItemRow[]): PurchaseRepository {
-  return { listReceivedItems: async () => rows } as unknown as PurchaseRepository;
+  const isPurchase = (r: ReceivedItemRow) => r.source === "PURCHASE";
+  return {
+    listReceivedItems: async () => rows.filter(isPurchase),
+    listOtherStockIn: async () => rows.filter((r) => !isPurchase(r)),
+  } as unknown as PurchaseRepository;
 }
 
 describe("GetReceivingReportUseCase", () => {
@@ -53,6 +58,62 @@ describe("GetReceivingReportUseCase", () => {
     ).execute({ start: new Date(0), end: new Date() });
     expect(report.summary.receiptCount).toBe(2);
     expect(report.summary.lineCount).toBe(3);
+  });
+
+  it("lists stock that did not come from a supplier without inventing a cost", async () => {
+    const report = await new GetReceivingReportUseCase(
+      repoOf([
+        row({ quantity: "5", subtotal: "5000.00" }),
+        row({ source: "INITIAL_STOCK", itemId: "m1", purchaseId: null, purchaseNumber: null, invoiceNumber: null, supplierName: null, purchasePrice: null, subtotal: null, expiryDate: null, quantity: "24", stockBefore: "0", stockAfter: "24" }),
+      ])
+    ).execute({ start: new Date(0), end: new Date() });
+    expect(report.summary.lineCount).toBe(2);
+    expect(report.summary.receiptCount).toBe(1); // only the supplier receipt is a receipt
+    expect(report.summary.totalQuantity).toBe("29"); // goods added, from any source
+    expect(report.summary.totalValue).toBe("5000.00"); // cost only where there was a purchase
+  });
+
+  it("keeps the supplier receipts and says so when the other stock additions cannot load", async () => {
+    const repo = {
+      listReceivedItems: async () => [row({})],
+      listOtherStockIn: async () => {
+        throw new Error("boom");
+      },
+    } as unknown as PurchaseRepository;
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const report = await new GetReceivingReportUseCase(repo).execute({ start: new Date(0), end: new Date() });
+    spy.mockRestore();
+    expect(report.rows).toHaveLength(1);
+    expect(report.warnings).toHaveLength(1);
+    expect(report.warnings[0]).toMatch(/belum bisa dimuat/);
+  });
+
+  it("skips the other stock additions entirely when only supplier receipts are asked for", async () => {
+    let called = false;
+    const repo = {
+      listReceivedItems: async () => [row({})],
+      listOtherStockIn: async () => {
+        called = true;
+        return [];
+      },
+    } as unknown as PurchaseRepository;
+    await new GetReceivingReportUseCase(repo).execute({ start: new Date(0), end: new Date(), only: "purchase" });
+    expect(called).toBe(false);
+  });
+
+  it("writes non-supplier rows to the xlsx with the source and no subtotal formula", async () => {
+    const report = await new GetReceivingReportUseCase(
+      repoOf([row({ source: "STOCK_OPNAME", itemId: "m2", purchaseId: null, purchaseNumber: null, invoiceNumber: null, supplierName: null, purchasePrice: null, subtotal: null, expiryDate: null, quantity: "3", stockBefore: "10", stockAfter: "13" })])
+    ).execute({ start: new Date(0), end: new Date() });
+    const buf = await buildReceivingReportXlsx(report, { label: "Uji", start: new Date(), end: new Date() }, "Owner");
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
+    const r = wb.worksheets[0].getRow(7);
+    expect(r.getCell(3).value).toBe("Stok opname");
+    expect(r.getCell(5).value).toBe("-");
+    expect(r.getCell(11).value).toBe("-");
+    expect(r.getCell(13).value).toBe("-");
+    expect(r.getCell(9).value).toEqual({ formula: "G7+H7", result: 13 });
   });
 
   it("gives the xlsx exactly the rows and totals the screen gets", async () => {
