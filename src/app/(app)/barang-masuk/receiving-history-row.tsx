@@ -30,12 +30,22 @@ const dateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 const dateLabel = (iso: string) => formatWibDateTime(new Date(iso)).slice(0, 10);
 const input = "w-full min-w-16 rounded border border-input px-2 py-1 text-sm";
 
+/** Always rejects with a sentence a shopkeeper can read: a dropped
+ * connection or a gateway timeout comes back as HTML or nothing, not as the
+ * JSON error the app normally sends. */
 async function call(url: string, init: RequestInit): Promise<void> {
-  const res = await fetch(url, { ...init, headers: { "Content-Type": "application/json" } });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "Gagal menyimpan perubahan.");
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, headers: { "Content-Type": "application/json" } });
+  } catch {
+    throw new Error("Tidak dapat menghubungi server. Periksa koneksi lalu coba lagi.");
   }
+  if (res.ok) return;
+  const data = await res.json().catch(() => null);
+  if (data?.error) throw new Error(data.error);
+  if (res.status === 401) throw new Error("Sesi berakhir. Silakan masuk ulang.");
+  if (res.status === 403) throw new Error("Anda tidak memiliki izin untuk mengubah ini.");
+  throw new Error(`Server tidak merespons dengan benar (${res.status}). Muat ulang halaman lalu coba lagi.`);
 }
 
 /**
@@ -60,6 +70,20 @@ export function HistoryRow({
   const [error, setError] = useState<string | null>(null);
 
   const url = `/api/receiving/items/${row.itemId}`;
+
+  // Start every edit from what is saved now, not from whatever was typed and
+  // cancelled last time (or from before another save changed the line).
+  function openEdit() {
+    setQuantity(row.quantity);
+    setPrice(row.purchasePrice ?? "");
+    setExpiry(dateInput(row.expiryDate));
+    setError(null);
+    setMode("edit");
+  }
+  function openDelete() {
+    setError(null);
+    setMode("delete");
+  }
 
   async function run(action: () => Promise<void>, done: string) {
     setBusy(true);
@@ -175,8 +199,8 @@ export function HistoryRow({
         <td className="whitespace-nowrap px-3 py-2 text-right">
           {canEdit && mode === "view" && (
             <>
-              <button onClick={() => setMode("edit")} className="mr-3 text-xs text-primary hover:underline">Ubah</button>
-              <button onClick={() => setMode("delete")} className="text-xs text-destructive hover:underline">Hapus</button>
+              <button onClick={openEdit} className="mr-3 text-xs text-primary hover:underline">Ubah</button>
+              <button onClick={openDelete} className="text-xs text-destructive hover:underline">Hapus</button>
             </>
           )}
         </td>
