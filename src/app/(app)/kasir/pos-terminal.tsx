@@ -154,7 +154,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
       if (status === "KEDALUWARSA") {
         toast.error(`${product.name} sudah kedaluwarsa (${expiryService.describe(status, days)}). Jangan dijual.`, { duration: 10000 });
       } else if (status === "MENDEKATI") {
-        toast.warning(`${product.name}: ${expiryService.describe(status, days).toLowerCase()}.`);
+        toast.warning(`${product.name} mendekati kedaluwarsa (${expiryService.describe(status, days).toLowerCase()}).`);
       }
     }
 

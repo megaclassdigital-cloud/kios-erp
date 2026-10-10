@@ -88,6 +88,6 @@ describe("GetProductExportUseCase", () => {
   it("describes expiry with the shared wording", async () => {
     const dated = product({ name: "Susu", expiryDate: new Date("2026-10-12T00:00:00Z") });
     const { rows } = await new GetProductExportUseCase(repoOf([dated])).execute("", NOW);
-    expect(rows[0].expiryText).toBe("Kedaluwarsa dalam 3 hari");
+    expect(rows[0].expiryText).toBe("Sisa 3 hari");
   });
 });

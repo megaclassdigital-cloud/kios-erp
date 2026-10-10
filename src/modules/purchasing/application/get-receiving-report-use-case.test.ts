@@ -6,6 +6,8 @@ import type { PurchaseRepository, ReceivedItemRow } from "../repository/purchase
 
 function row(over: Partial<ReceivedItemRow>): ReceivedItemRow {
   return {
+    itemId: "item-1",
+    purchaseId: "purchase-1",
     receivedAt: new Date("2026-10-08T03:15:00Z"),
     purchaseNumber: "PO-1",
     invoiceNumber: "INV-9",
@@ -26,13 +28,7 @@ function row(over: Partial<ReceivedItemRow>): ReceivedItemRow {
 }
 
 function repoOf(rows: ReceivedItemRow[]): PurchaseRepository {
-  return {
-    create: async () => {
-      throw new Error("unused");
-    },
-    listRecent: async () => [],
-    listReceivedItems: async () => rows,
-  };
+  return { listReceivedItems: async () => rows } as unknown as PurchaseRepository;
 }
 
 describe("GetReceivingReportUseCase", () => {
@@ -79,18 +75,20 @@ describe("GetReceivingReportUseCase", () => {
     const headerRow = 6; // title + 3 subtitles + spacer, header on the next row
     expect(ws.getRow(headerRow).getCell(6).value).toBe("Produk");
     expect(ws.getRow(headerRow + 1).getCell(6).value).toBe("Beras");
-    const first = ws.getRow(headerRow + 1);
-    expect(first.getCell(7).value).toBe(5); // stok sebelum
-    expect(first.getCell(8).value).toBe(10); // qty masuk
-    expect(first.getCell(9).value).toBe(15); // stok sesudah
-    expect(first.getCell(11).value).toBe(60000);
-    expect(first.getCell(12).value).toBe("31/01/2027");
-    expect(first.getCell(13).value).toBe(600000);
-    expect(ws.getRow(headerRow + 2).getCell(8).value).toBe(2.5);
-    expect(ws.getRow(headerRow + 2).getCell(13).value).toBe(35000);
-    const totals = ws.getRow(headerRow + 3);
-    expect(totals.getCell(8).value).toBe(12.5);
-    expect(totals.getCell(13).value).toBe(635000);
+    const cell = (r: number, c: number) => ws.getRow(r).getCell(c).value as unknown;
+    const first = headerRow + 1; // 7
+    expect(cell(first, 7)).toBe(5); // stok sebelum (data)
+    expect(cell(first, 8)).toBe(10); // qty masuk (data)
+    // Stok sesudah and subtotal are live formulas, with their cached results.
+    expect(cell(first, 9)).toEqual({ formula: "G7+H7", result: 15 });
+    expect(cell(first, 11)).toBe(60000);
+    expect(cell(first, 12)).toBe("31/01/2027");
+    expect(cell(first, 13)).toEqual({ formula: "H7*K7", result: 600000 });
+    expect(cell(first + 1, 13)).toEqual({ formula: "H8*K8", result: 35000 });
+    // Totals are SUMs over the data range; the extra row is an AVERAGE.
+    expect(cell(first + 2, 8)).toEqual({ formula: "SUM(H7:H8)", result: 12.5 });
+    expect(cell(first + 2, 13)).toEqual({ formula: "SUM(M7:M8)", result: 635000 });
+    expect(cell(first + 3, 11)).toEqual({ formula: "AVERAGE(K7:K8)", result: 37000 });
     expect(report.summary.totalValue).toBe("635000.00");
   });
 });

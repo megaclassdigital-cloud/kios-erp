@@ -11,7 +11,7 @@ export class PrismaStockListRepository implements StockListRepository {
       // the database is equivalent to the old fetch-everything-then-
       // filter-trackInventory-in-JS, minus every service product's row
       // and every field this table doesn't display.
-      where: { productType: "PHYSICAL" },
+      where: { productType: "PHYSICAL", deletedAt: null },
       select: {
         id: true,
         name: true,

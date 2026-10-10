@@ -63,6 +63,8 @@ export class PrismaProductRepository implements ProductRepository {
   }): Promise<ProductListItem[]> {
     const products = await this.db.product.findMany({
       where: {
+        // Deleted products are gone from every list; their rows stay for history.
+        deletedAt: null,
         categoryId: filter.categoryId,
         active: filter.active,
         name: filter.search

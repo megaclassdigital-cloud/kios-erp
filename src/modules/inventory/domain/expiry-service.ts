@@ -46,19 +46,32 @@ export class ExpiryService {
     return Math.round((expiry - today) / 86_400_000);
   }
 
-  /** Wording shared by every surface, so the same state never gets two names. */
+  /**
+   * Wording shared by every surface, so the same state never gets two names.
+   * Short on purpose -- it sits in a table cell: "Sisa 12 hari",
+   * "Sisa 1 bulan 5 hari", "Lewat 3 hari". A month is counted as 30 days,
+   * which is how a shopkeeper counts shelf life, and keeps this a pure
+   * function of the day count.
+   */
   describe(status: ExpiryStatus, days: number): string {
     switch (status) {
       case "KEDALUWARSA":
-        return days === -1 ? "Kedaluwarsa kemarin" : `Kedaluwarsa ${Math.abs(days)} hari lalu`;
+        return `Lewat ${this.span(Math.abs(days))}`;
       case "MENDEKATI":
-        if (days === 0) return "Kedaluwarsa hari ini";
-        if (days === 1) return "Kedaluwarsa besok";
-        return `Kedaluwarsa dalam ${days} hari`;
       case "AMAN":
-        return `Masih ${days} hari lagi`;
+        if (days === 0) return "Hari ini";
+        if (days === 1) return "Besok";
+        return `Sisa ${this.span(days)}`;
       case "TIDAK_DIPANTAU":
         return "Tanggal kedaluwarsa belum diisi";
     }
+  }
+
+  /** 5 -> "5 hari", 30 -> "1 bulan", 65 -> "2 bulan 5 hari". */
+  private span(days: number): string {
+    const months = Math.floor(days / 30);
+    const rest = days % 30;
+    if (months === 0) return `${days} hari`;
+    return rest === 0 ? `${months} bulan` : `${months} bulan ${rest} hari`;
   }
 }

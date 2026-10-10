@@ -56,12 +56,25 @@ describe("ExpiryService.daysUntil", () => {
 });
 
 describe("ExpiryService.describe", () => {
-  it("words each state the way a shopkeeper would", () => {
-    expect(service.describe("MENDEKATI", 0)).toBe("Kedaluwarsa hari ini");
-    expect(service.describe("MENDEKATI", 1)).toBe("Kedaluwarsa besok");
-    expect(service.describe("MENDEKATI", 5)).toBe("Kedaluwarsa dalam 5 hari");
-    expect(service.describe("KEDALUWARSA", -1)).toBe("Kedaluwarsa kemarin");
-    expect(service.describe("KEDALUWARSA", -4)).toBe("Kedaluwarsa 4 hari lalu");
+  it("words each state briefly", () => {
+    expect(service.describe("MENDEKATI", 0)).toBe("Hari ini");
+    expect(service.describe("MENDEKATI", 1)).toBe("Besok");
+    expect(service.describe("MENDEKATI", 5)).toBe("Sisa 5 hari");
+    expect(service.describe("KEDALUWARSA", -1)).toBe("Lewat 1 hari");
+    expect(service.describe("KEDALUWARSA", -4)).toBe("Lewat 4 hari");
     expect(service.describe("TIDAK_DIPANTAU", 0)).toBe("Tanggal kedaluwarsa belum diisi");
+  });
+
+  it("switches to months from 30 days, and drops a zero remainder", () => {
+    expect(service.describe("MENDEKATI", 29)).toBe("Sisa 29 hari");
+    expect(service.describe("AMAN", 30)).toBe("Sisa 1 bulan");
+    expect(service.describe("AMAN", 35)).toBe("Sisa 1 bulan 5 hari");
+    expect(service.describe("AMAN", 60)).toBe("Sisa 2 bulan");
+    expect(service.describe("AMAN", 157)).toBe("Sisa 5 bulan 7 hari");
+    expect(service.describe("AMAN", 400)).toBe("Sisa 13 bulan 10 hari");
+  });
+
+  it("words an expired item the same way", () => {
+    expect(service.describe("KEDALUWARSA", -45)).toBe("Lewat 1 bulan 15 hari");
   });
 });

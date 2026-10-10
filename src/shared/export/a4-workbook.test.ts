@@ -69,4 +69,43 @@ describe("buildA4Workbook", () => {
     expect(wb.worksheets[1].pageSetup.orientation).toBe("portrait");
     expect(wb.worksheets[1].pageSetup.paperSize).toBe(9);
   });
+
+  it("writes formulas with real cell addresses and cached results", async () => {
+    const ws = await read(
+      await buildA4Workbook({
+        ...spec,
+        rows: [
+          { name: "Beras", qty: 2, price: 65000, sub: { formula: "{qty}*{price}", result: 130000 } },
+          { name: "Gula", qty: 1, price: 14000, sub: { formula: "{qty}*{price}", result: 14000 } },
+        ],
+        columns: [...spec.columns, { key: "sub", header: "Subtotal", width: 12, type: "money" }],
+        totals: [
+          { name: "TOTAL", sub: { formula: "SUM({sub:range})", result: 144000 } },
+          { name: "Rata-rata", price: { formula: "AVERAGE({price:range})", result: 39500 } },
+        ],
+      })
+    );
+    expect(ws.getRow(5).getCell(4).value).toEqual({ formula: "B5*C5", result: 130000 });
+    expect(ws.getRow(6).getCell(4).value).toEqual({ formula: "B6*C6", result: 14000 });
+    expect(ws.getRow(7).getCell(4).value).toEqual({ formula: "SUM(D5:D6)", result: 144000 });
+    expect(ws.getRow(8).getCell(3).value).toEqual({ formula: "AVERAGE(C5:C6)", result: 39500 });
+    expect(ws.getRow(5).getCell(4).numFmt).toBe('"Rp" #,##0');
+  });
+
+  it("falls back to the cached result instead of a backwards range when there are no rows", async () => {
+    const ws = await read(
+      await buildA4Workbook({
+        ...spec,
+        rows: [],
+        totals: { name: "TOTAL", qty: { formula: "SUM({qty:range})", result: 0 } },
+      })
+    );
+    expect(ws.getRow(6).getCell(2).value).toBe(0);
+  });
+
+  it("rejects a formula that names a column that does not exist", async () => {
+    await expect(
+      buildA4Workbook({ ...spec, rows: [{ name: "x", qty: { formula: "{nope}*2", result: 0 } }] })
+    ).rejects.toThrow(/Unknown column "nope"/);
+  });
 });

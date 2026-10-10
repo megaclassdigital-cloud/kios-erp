@@ -19,7 +19,7 @@ export function buildReceivingReportXlsx(
     title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
       `Periode: ${period.label} (${formatWibDate(period.start)} - ${formatWibDate(period.end)})`,
-      `${summary.receiptCount} penerimaan · ${summary.lineCount} baris barang`,
+      `${summary.receiptCount} penerimaan · ${summary.lineCount} baris barang · Stok Sesudah = Stok Sebelum + Qty Masuk · Subtotal = Qty × Harga Beli`,
       `Dicetak ${formatWibDateTime(new Date())} oleh ${printedBy}`,
     ],
     orientation: "landscape",
@@ -47,17 +47,26 @@ export function buildReceivingReportXlsx(
       product: r.productName,
       before: num(r.stockBefore),
       qty: num(r.quantity),
-      after: num(r.stockAfter),
+      after: { formula: "{before}+{qty}", result: num(r.stockAfter) },
       unit: r.unit,
       price: num(r.purchasePrice),
       expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
-      subtotal: num(r.subtotal),
+      subtotal: { formula: "{qty}*{price}", result: num(r.subtotal) },
     })),
-    totals: {
-      no: null,
-      product: "TOTAL",
-      qty: num(summary.totalQuantity),
-      subtotal: num(summary.totalValue),
-    },
+    totals: [
+      {
+        product: "TOTAL",
+        qty: { formula: "SUM({qty:range})", result: num(summary.totalQuantity) },
+        subtotal: { formula: "SUM({subtotal:range})", result: num(summary.totalValue) },
+      },
+      {
+        product: "Rata-rata harga beli",
+        price: { formula: "AVERAGE({price:range})", result: average(rows.map((r) => num(r.purchasePrice))) },
+      },
+    ],
   });
+}
+
+function average(values: number[]): number {
+  return values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length;
 }

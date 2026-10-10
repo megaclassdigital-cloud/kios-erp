@@ -9,6 +9,9 @@ export type Permission =
   | "inventory.view"
   | "inventory.adjust"
   | "receiving.manage"
+  /** Correct or remove a line that was already received. It moves stock, so
+   * it is narrower than receiving.manage (which a cashier also holds). */
+  | "receiving.edit"
   | "stockopname.manage"
   | "stockopname.approve"
   | "transactions.view"
@@ -32,6 +35,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "inventory.view",
     "inventory.adjust",
     "receiving.manage",
+    "receiving.edit",
     "stockopname.manage",
     "stockopname.approve",
     "transactions.view",
@@ -52,6 +56,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "inventory.view",
     "inventory.adjust",
     "receiving.manage",
+    "receiving.edit",
     "stockopname.manage",
     "stockopname.approve",
     "transactions.view",
@@ -75,6 +80,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "dashboard.view",
     "inventory.view",
     "receiving.manage",
+    "receiving.edit",
     "stockopname.manage",
   ],
 };

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession, toErrorResponse } from "@/shared/security/require-session";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
+import { DeleteProductUseCase } from "@/modules/products/application/delete-product-use-case";
 import { UpdateProductUseCase } from "@/modules/products/application/update-product-use-case";
 import { prisma } from "@/shared/infrastructure/prisma";
 
@@ -54,6 +55,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     );
 
     return NextResponse.json({ product });
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+}
+
+/** Soft delete: the product leaves every list and can no longer be sold, but
+ * its history (sales, receipts, stock ledger) and barcodes are kept. */
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await requireSession("products.manage");
+    const { id } = await params;
+    await new DeleteProductUseCase().execute(id, session.user.id);
+    return NextResponse.json({ ok: true });
   } catch (error) {
     return toErrorResponse(error);
   }

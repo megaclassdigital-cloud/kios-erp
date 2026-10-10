@@ -95,6 +95,10 @@ model Product {
   currentStock    Decimal     @default(0) @db.Decimal(14, 3)
   trackInventory  Boolean     @default(true)
   active          Boolean     @default(true)
+  /// Set when the product is deleted from Master Produk. A soft delete: sales,
+  /// receipts and the stock ledger still point at the row, and its barcodes
+  /// are retired (never freed for reuse), so history keeps reading correctly.
+  deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

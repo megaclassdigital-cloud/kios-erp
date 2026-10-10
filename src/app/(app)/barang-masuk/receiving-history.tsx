@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
-import { formatWibDateTime } from "@/shared/format/wib";
+import { useSession } from "next-auth/react";
+import { hasPermission } from "@/shared/security/permissions";
+import { HistoryRow, type HistoryItem } from "./receiving-history-row";
 
 const PERIODS = [
   { key: "today", label: "Hari Ini" },
@@ -18,30 +20,13 @@ const PERIODS = [
 
 type PeriodKey = (typeof PERIODS)[number]["key"];
 
-interface Row {
-  receivedAt: string;
-  purchaseNumber: string;
-  invoiceNumber: string | null;
-  supplierName: string;
-  productName: string;
-  sku: string;
-  unit: string;
-  quantity: string;
-  purchasePrice: string;
-  subtotal: string;
-  expiryDate: string | null;
-  stockBefore: string;
-  stockAfter: string;
-}
-
 interface Report {
-  rows: Row[];
+  rows: HistoryItem[];
   summary: { receiptCount: number; lineCount: number; totalQuantity: string; totalValue: string };
 }
 
 const rupiah = (v: string) => `Rp${Number(v).toLocaleString("id-ID")}`;
 const qty = (v: string) => Number(v).toLocaleString("id-ID");
-const dateOnly = (iso: string) => formatWibDateTime(new Date(iso)).slice(0, 10);
 
 /**
  * What has actually been received, per period. Reads the same endpoint the
@@ -53,8 +38,12 @@ export function ReceivingHistory({
   refreshKey = 0,
   productId,
   defaultPeriod = "7d",
+  onChanged,
 }: {
   refreshKey?: number;
+  /** Called after a line was corrected or deleted, so the page around this
+   * history (e.g. the product list's stock) can refresh too. */
+  onChanged?: () => void;
   /** Limits the history to one product (used from Master Produk). */
   productId?: string;
   defaultPeriod?: PeriodKey;
@@ -65,6 +54,9 @@ export function ReceivingHistory({
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [localKey, setLocalKey] = useState(0);
+  const { data: session } = useSession();
+  const canEdit = session ? hasPermission(session.user.role, "receiving.edit") : false;
 
   const customReady = period !== "custom" || (from !== "" && to !== "" && from <= to);
   const query = new URLSearchParams({ period });
@@ -99,7 +91,7 @@ export function ReceivingHistory({
     return () => {
       cancelled = true;
     };
-  }, [qs, customReady, refreshKey]);
+  }, [qs, customReady, refreshKey, localKey]);
 
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -169,34 +161,27 @@ export function ReceivingHistory({
               <th className="px-3 py-2 text-right">Harga Beli</th>
               <th className="px-3 py-2">Kedaluwarsa</th>
               <th className="px-3 py-2 text-right">Subtotal</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {report && report.rows.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">
                   Belum ada barang masuk pada periode ini.
                 </td>
               </tr>
             )}
-            {report?.rows.map((r, i) => (
-              <tr key={`${r.purchaseNumber}-${r.sku}-${i}`} className="border-t border-border">
-                <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatWibDateTime(new Date(r.receivedAt))}</td>
-                <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-foreground">
-                  {r.purchaseNumber}
-                  {r.invoiceNumber && <span className="block font-sans text-muted-foreground">Inv. {r.invoiceNumber}</span>}
-                </td>
-                <td className="px-3 py-2 text-foreground">{r.supplierName}</td>
-                <td className="px-3 py-2 text-foreground">{r.productName}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(r.stockBefore)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">
-                  +{qty(r.quantity)} {r.unit}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground">{qty(r.stockAfter)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(r.purchasePrice)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{r.expiryDate ? dateOnly(r.expiryDate) : "-"}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">{rupiah(r.subtotal)}</td>
-              </tr>
+            {report?.rows.map((r) => (
+              <HistoryRow
+                key={r.itemId}
+                row={r}
+                canEdit={canEdit}
+                onChanged={() => {
+                  setLocalKey((k) => k + 1);
+                  onChanged?.();
+                }}
+              />
             ))}
           </tbody>
         </table>

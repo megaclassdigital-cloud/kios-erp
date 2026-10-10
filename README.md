@@ -92,7 +92,8 @@ PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true npx prisma migrate deploy
 
 A **production** Vercel build runs `prisma migrate deploy` first
 (`scripts/migrate-on-deploy.mjs`), so a schema change ships together with the
-code that needs it. Previews and local builds skip it. It needs `DIRECT_URL`
-(the 5432 session-pooler URL) in Vercel's environment variables; if the
-migration fails, the build fails and the previous deployment stays live.
+code that needs it. Previews and local builds skip it. It uses `DIRECT_URL`
+(the 5432 session-pooler URL) when set, and otherwise derives that URL from
+`DATABASE_URL`; if the migration fails, the build fails and the previous
+deployment stays live.
 

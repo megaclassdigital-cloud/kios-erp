@@ -11,6 +11,7 @@ const ALL_PERMISSIONS = [
   "inventory.view",
   "inventory.adjust",
   "receiving.manage",
+  "receiving.edit",
   "stockopname.manage",
   "stockopname.approve",
   "transactions.view",
@@ -48,5 +49,12 @@ describe("RBAC: OWNER superset invariant", () => {
       expect(hasPermission(role, "users.manage")).toBe(false);
       expect(hasPermission(role, "audit.view")).toBe(false);
     }
+  });
+
+  it("lets stock staff correct received goods but not a cashier", () => {
+    expect(hasPermission("OWNER", "receiving.edit")).toBe(true);
+    expect(hasPermission("ADMIN", "receiving.edit")).toBe(true);
+    expect(hasPermission("STAFF_STOK", "receiving.edit")).toBe(true);
+    expect(hasPermission("KASIR", "receiving.edit")).toBe(false);
   });
 });

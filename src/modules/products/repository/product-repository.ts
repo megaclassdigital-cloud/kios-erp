@@ -25,6 +25,8 @@ export interface UpdateProductInput {
   sellingPrice?: string;
   minimumStock?: number;
   active?: boolean;
+  /** Stamped by the delete flow; never set from an edit form. */
+  deletedAt?: Date | null;
   serviceProvider?: string | null;
   expiryDate?: Date | null;
   expiryWarnDays?: number;

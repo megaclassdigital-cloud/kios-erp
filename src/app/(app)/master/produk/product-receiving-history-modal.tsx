@@ -9,10 +9,12 @@ export function ProductReceivingHistoryModal({
   productId,
   productName,
   onClose,
+  onChanged,
 }: {
   productId: string;
   productName: string;
   onClose: () => void;
+  onChanged: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
@@ -23,7 +25,7 @@ export function ProductReceivingHistoryModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <ReceivingHistory productId={productId} defaultPeriod="year" />
+        <ReceivingHistory productId={productId} defaultPeriod="year" onChanged={onChanged} />
       </div>
     </div>
   );

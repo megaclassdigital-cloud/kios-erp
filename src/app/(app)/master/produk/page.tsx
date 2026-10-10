@@ -6,6 +6,7 @@ import { Download } from "lucide-react";
 import { ProductForm } from "./product-form";
 import { BarcodeLabelModal } from "./barcode-label-modal";
 import { LastChanged } from "./last-changed";
+import { ProductDeleteModal } from "./product-delete-modal";
 import { ProductReceivingHistoryModal } from "./product-receiving-history-modal";
 import { ProductEditModal, type EditableProduct } from "./product-edit-modal";
 import { filterProducts } from "@/modules/products/domain/product-filter";
@@ -53,6 +54,7 @@ export default function MasterProdukPage() {
   // Exactly one of the two captures on this page is live at a time.
   const [formAwaitingBarcode, setFormAwaitingBarcode] = useState(false);
   const [editing, setEditing] = useState<EditableProduct | null>(null);
+  const [deleting, setDeleting] = useState<{ id: string; name: string; stock: number | null } | null>(null);
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
 
@@ -166,6 +168,7 @@ export default function MasterProdukPage() {
               <th className="px-3 py-2">SKU</th>
               <th className="px-3 py-2">Barcode</th>
               <th className="px-3 py-2">Stok</th>
+              <th className="px-3 py-2">Harga Beli</th>
               <th className="px-3 py-2">Harga Jual</th>
               <th className="px-3 py-2">Kedaluwarsa</th>
               <th className="px-3 py-2">Terakhir Diubah</th>
@@ -175,7 +178,7 @@ export default function MasterProdukPage() {
           <tbody>
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
                   {products.length === 0 ? "Belum ada produk." : "Tidak ada produk yang cocok."}
                 </td>
               </tr>
@@ -196,6 +199,9 @@ export default function MasterProdukPage() {
                   </td>
                   <td className="px-3 py-2 text-foreground tabular-nums">
                     {p.productType === "SERVICE" ? "—" : Number(p.currentStock)}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground tabular-nums">
+                    Rp{Number(p.purchasePrice).toLocaleString("id-ID")}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground tabular-nums">
                     Rp{Number(p.sellingPrice).toLocaleString("id-ID")}
@@ -244,6 +250,14 @@ export default function MasterProdukPage() {
                         Riwayat
                       </button>
                     )}
+                    <button
+                      onClick={() =>
+                        setDeleting({ id: p.id, name: p.name, stock: p.productType === "SERVICE" ? null : Number(p.currentStock) })
+                      }
+                      className="mr-3 text-xs text-destructive hover:underline"
+                    >
+                      Hapus
+                    </button>
                     {activeBarcode ? (
                       <button
                         onClick={() =>
@@ -283,11 +297,14 @@ export default function MasterProdukPage() {
         />
       )}
 
+      {deleting && <ProductDeleteModal product={deleting} onClose={() => setDeleting(null)} onDeleted={load} />}
+
       {historyFor && (
         <ProductReceivingHistoryModal
           productId={historyFor.id}
           productName={historyFor.name}
           onClose={() => setHistoryFor(null)}
+          onChanged={load}
         />
       )}
 
