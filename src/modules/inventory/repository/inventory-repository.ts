@@ -16,4 +16,10 @@ export interface InventoryRepository {
    * their own movement row — one round trip instead of one per item. */
   recordMovements(inputs: RecordMovementInput[]): Promise<void>;
   listMovementsForProduct(productId: string): Promise<StockMovement[]>;
+  findMovement(id: string): Promise<StockMovement | null>;
+  /** Sum of the corrections already made to one stock-in movement (signed). */
+  sumStockInCorrections(movementId: string): Promise<string>;
 }
+
+/** Reference type of the movement that corrects an earlier stock-in. */
+export const STOCK_IN_EDIT = "STOCK_IN_EDIT";

@@ -102,7 +102,7 @@ export function ReceivingHistory({
         <div>
           <h2 className="text-sm font-semibold text-foreground">{productId ? "Riwayat Barang Masuk Produk Ini" : "Riwayat Barang Masuk"}</h2>
           <p className="text-xs text-muted-foreground">
-            Semua penambahan stok: penerimaan supplier, stok awal produk, stok opname, retur, dan penyesuaian. Pilih periode, lalu unduh sebagai Excel A4.
+            Penerimaan barang masuk dan pembaruan stok (stok awal, stok opname, penyesuaian). Semua baris bisa diubah atau dihapus. Pilih periode, lalu unduh sebagai Excel A4.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -120,7 +120,7 @@ export function ReceivingHistory({
           </select>
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <input type="checkbox" checked={onlySupplier} onChange={(e) => setOnlySupplier(e.target.checked)} />
-            Hanya dari supplier
+            Hanya penerimaan supplier
           </label>
           {period === "custom" && (
             <>

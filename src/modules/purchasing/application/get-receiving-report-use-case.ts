@@ -25,9 +25,9 @@ export class GetReceivingReportUseCase {
   constructor(private readonly purchases: PurchaseRepository = new PrismaPurchaseRepository(prisma)) {}
 
   async execute(filter: ReceivedItemFilter): Promise<ReceivingReport> {
-    // Every addition to stock, not only supplier receipts: stock is one
-    // ledger, so the history is too -- otherwise the Stok page could show goods
-    // the history never mentions (initial stock, opname increases, returns).
+    // Supplier receipts plus stock updates (initial stock, opname increases,
+    // adjustments). Stock is one ledger, so the history reads it too --
+    // otherwise the Stok page could show goods the history never mentions.
     const warnings: string[] = [];
     const [purchaseRows, otherRows] = await Promise.all([
       this.purchases.listReceivedItems(filter),
@@ -37,7 +37,7 @@ export class GetReceivingReportUseCase {
             // The supplier receipts are still valid, so show them and say what
             // is missing rather than failing the whole history.
             console.error("[receiving-report] could not load non-supplier stock additions", error);
-            warnings.push("Stok awal, stok opname, retur, dan penyesuaian belum bisa dimuat. Penerimaan supplier tetap lengkap.");
+            warnings.push("Pembaruan stok (stok awal, stok opname, penyesuaian) belum bisa dimuat. Penerimaan supplier tetap lengkap.");
             return [] as ReceivedItemRow[];
           }),
     ]);

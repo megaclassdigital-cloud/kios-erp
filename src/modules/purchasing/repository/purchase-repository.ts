@@ -18,7 +18,9 @@ export interface CreatePurchaseInput {
 
 /** One received line, flattened with the receipt it belongs to. Money and
  * quantities are decimal strings so nothing downstream rounds through float. */
-export type StockInSource = "PURCHASE" | "INITIAL_STOCK" | "STOCK_OPNAME" | "RETURN_IN" | "ADJUSTMENT";
+/** Supplier receipts and stock updates. Customer returns are not goods coming
+ * in from outside, so they are not part of this history. */
+export type StockInSource = "PURCHASE" | "INITIAL_STOCK" | "STOCK_OPNAME" | "ADJUSTMENT";
 
 export interface ReceivedItemRow {
   /** What added the stock. Only PURCHASE rows came through Barang Masuk, so
@@ -78,8 +80,8 @@ export interface PurchaseRepository {
   /** Lines of confirmed supplier receipts whose confirmation time is in
    * [start, end], optionally for one product only. */
   listReceivedItems(filter: ReceivedItemFilter): Promise<ReceivedItemRow[]>;
-  /** The other additions to stock in the period (initial stock, opname
-   * increases, returns, adjustments), read from the stock ledger. */
+  /** Stock updates in the period (initial stock, opname increases,
+   * adjustments), read from the stock ledger. */
   listOtherStockIn(filter: ReceivedItemFilter): Promise<ReceivedItemRow[]>;
 
   findItem(itemId: string): Promise<PurchaseItemDetail | null>;

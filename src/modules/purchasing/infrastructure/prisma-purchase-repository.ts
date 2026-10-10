@@ -79,23 +79,48 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
     });
   }
 
-  /** Positive stock movements that are not supplier receipts. A correction
-   * made to a receipt (PURCHASE_ITEM_*) is already shown on its own line, so
-   * it is left out rather than listed twice. */
+  /**
+   * Stock updates: positive stock movements that are not supplier receipts
+   * (initial stock, opname increases, adjustments). Two kinds of
+   * movement are left out of the list because they are not additions of their
+   * own: corrections made to a receipt (PURCHASE_ITEM_*, shown on the receipt's
+   * line) and corrections made to one of these rows (STOCK_IN_EDIT).
+   *
+   * A row shows its *effective* quantity -- the original plus its corrections --
+   * and disappears when that reaches zero (a deleted row). Stock before is the
+   * running balance just before the original movement, so history stays in the
+   * order things actually happened.
+   */
   async listOtherStockIn(filter: ReceivedItemFilter): Promise<ReceivedItemRow[]> {
-    const productFilter = filter.productId ? Prisma.sql`WHERE "productId" = ${filter.productId}` : Prisma.empty;
+    const productFilter = filter.productId ? Prisma.sql`WHERE m."productId" = ${filter.productId}` : Prisma.empty;
     const moves = await this.db.$queryRaw<
-      { id: string; productId: string; movementType: string; quantity: Prisma.Decimal; balance: Prisma.Decimal; createdAt: Date; actorId: string }[]
+      {
+        id: string;
+        productId: string;
+        movementType: string;
+        quantity: Prisma.Decimal;
+        corrected: Prisma.Decimal;
+        balance: Prisma.Decimal;
+        createdAt: Date;
+        actorId: string;
+      }[]
     >`
-      SELECT id, "productId", "movementType", quantity, balance, "createdAt", "actorId" FROM (
-        SELECT id, "productId", "movementType"::text AS "movementType", "referenceType", quantity, "createdAt", "actorId",
-               SUM(quantity) OVER (PARTITION BY "productId" ORDER BY "createdAt", id) AS balance
-        FROM stock_movements
+      SELECT id, "productId", "movementType", quantity, corrected, balance, "createdAt", "actorId" FROM (
+        SELECT m.id, m."productId", m."movementType"::text AS "movementType", m."referenceType", m.quantity,
+               m."createdAt", m."actorId",
+               SUM(m.quantity) OVER (PARTITION BY m."productId" ORDER BY m."createdAt", m.id) AS balance,
+               COALESCE((
+                 SELECT SUM(c.quantity) FROM stock_movements c
+                 WHERE c."referenceType" = 'STOCK_IN_EDIT' AND c."referenceId" = m.id
+               ), 0) AS corrected
+        FROM stock_movements m
         ${productFilter}
       ) ledger
-      WHERE "movementType" IN ('INITIAL_STOCK', 'STOCK_OPNAME', 'RETURN_IN', 'ADJUSTMENT')
+      WHERE "movementType" IN ('INITIAL_STOCK', 'STOCK_OPNAME', 'ADJUSTMENT')
         AND quantity > 0
         AND "referenceType" NOT LIKE 'PURCHASE_ITEM_%'
+        AND "referenceType" <> 'STOCK_IN_EDIT'
+        AND quantity + corrected > 0
         AND "createdAt" >= ${filter.start} AND "createdAt" <= ${filter.end}
       ORDER BY "createdAt" DESC, id`;
     if (moves.length === 0) return [];
@@ -116,8 +141,8 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
     return moves.flatMap((m): ReceivedItemRow[] => {
       const product = productById.get(m.productId);
       if (!product) return [];
-      const quantity = new Decimal(m.quantity.toString());
-      const after = new Decimal(m.balance.toString());
+      const before = new Decimal(m.balance.toString()).minus(m.quantity.toString());
+      const effective = new Decimal(m.quantity.toString()).plus(m.corrected.toString());
       return [
         {
           source: m.movementType as ReceivedItemRow["source"],
@@ -132,12 +157,12 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
           productName: product.name,
           sku: product.sku,
           unit: product.baseUnit,
-          quantity: quantity.toString(),
+          quantity: effective.toString(),
           purchasePrice: null,
           subtotal: null,
           expiryDate: null,
-          stockBefore: after.minus(quantity).toString(),
-          stockAfter: after.toString(),
+          stockBefore: before.toString(),
+          stockAfter: before.plus(effective).toString(),
         },
       ];
     });

@@ -1,12 +1,11 @@
 import { TransactionManager } from "@/shared/infrastructure/transaction-manager";
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
-import { PrismaInventoryRepository } from "@/modules/inventory/infrastructure/prisma-inventory-repository";
+import { moveStock } from "@/modules/inventory/application/move-stock";
 import { PrismaPurchaseRepository } from "../infrastructure/prisma-purchase-repository";
 import { deletionDelta, planCorrection, receiptTotal } from "../domain/receiving-correction";
 import type { PurchaseItemDetail } from "../repository/purchase-repository";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
-import Decimal from "decimal.js";
 
 export class ReceivedItemNotFoundError extends Error {}
 
@@ -15,48 +14,6 @@ export interface CorrectItemRequest {
   purchasePrice?: string;
   /** undefined = leave alone, null = clear the date on this line. */
   expiryDate?: Date | null;
-}
-
-/**
- * Moves the product's stock by `delta` the only legitimate way: a StockMovement
- * row plus the projection update, in the caller's transaction. A decrease is
- * refused when it would take stock below zero -- the goods were already sold,
- * and the shelf cannot hold negative items.
- */
-async function moveStock(
-  tx: Db,
-  item: PurchaseItemDetail,
-  delta: string,
-  referenceType: string,
-  actorId: string,
-  note: string
-) {
-  const change = new Decimal(delta);
-  if (change.isZero()) return;
-
-  const products = new PrismaProductRepository(tx);
-  if (change.isNegative()) {
-    const ok = await products.decrementStockIfAvailable(item.productId, change.abs().toString());
-    if (!ok) {
-      const product = await products.findById(item.productId);
-      throw new Error(
-        `Stok ${item.productName} sekarang ${new Decimal(product?.currentStock.toString() ?? 0).toString()}, ` +
-          `tidak cukup untuk dikurangi ${change.abs().toString()} (sebagian sudah terjual atau keluar).`
-      );
-    }
-  } else {
-    await products.incrementStock(item.productId, change.toString());
-  }
-
-  await new PrismaInventoryRepository(tx).recordMovement({
-    productId: item.productId,
-    quantity: change.toString(),
-    movementType: "ADJUSTMENT",
-    referenceType,
-    referenceId: item.id,
-    actorId,
-    note,
-  });
 }
 
 async function requireItem(tx: Db, itemId: string): Promise<PurchaseItemDetail> {
@@ -103,6 +60,7 @@ export class UpdateReceivedItemUseCase {
         item,
         plan.stockDelta,
         "PURCHASE_ITEM_EDIT",
+        item.id,
         actorId,
         `Koreksi barang masuk ${item.purchaseNumber}: ${item.quantity} → ${plan.quantity}`
       );
@@ -153,6 +111,7 @@ export class DeleteReceivedItemUseCase {
         item,
         deletionDelta(item),
         "PURCHASE_ITEM_DELETE",
+        item.id,
         actorId,
         `Hapus barang masuk ${item.purchaseNumber}: -${item.quantity}`
       );

@@ -4,7 +4,6 @@ export const STOCK_IN_LABEL = {
   PURCHASE: "Penerimaan supplier",
   INITIAL_STOCK: "Stok awal",
   STOCK_OPNAME: "Stok opname",
-  RETURN_IN: "Retur masuk",
   ADJUSTMENT: "Penyesuaian",
 } as const;
 

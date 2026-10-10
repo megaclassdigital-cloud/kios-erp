@@ -4,6 +4,7 @@ import type {
   InventoryRepository,
   RecordMovementInput,
 } from "../repository/inventory-repository";
+import { STOCK_IN_EDIT } from "../repository/inventory-repository";
 
 export class PrismaInventoryRepository implements InventoryRepository {
   constructor(private readonly db: Db) {}
@@ -22,5 +23,17 @@ export class PrismaInventoryRepository implements InventoryRepository {
       where: { productId },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  async findMovement(id: string): Promise<StockMovement | null> {
+    return this.db.stockMovement.findUnique({ where: { id } });
+  }
+
+  async sumStockInCorrections(movementId: string): Promise<string> {
+    const sum = await this.db.stockMovement.aggregate({
+      where: { referenceType: STOCK_IN_EDIT, referenceId: movementId },
+      _sum: { quantity: true },
+    });
+    return (sum._sum.quantity ?? 0).toString();
   }
 }
