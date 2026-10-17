@@ -52,6 +52,7 @@ const SECONDARY_LINKS: { href: string; label: string; permission: Permission }[]
   { href: "/stok-opname", label: "Stock Opname", permission: "stockopname.manage" },
   { href: "/master/users", label: "Master User", permission: "users.manage" },
   { href: "/master/terminals", label: "Terminal & Perangkat", permission: "terminals.view" },
+  { href: "/master/reset-data", label: "Reset Data Transaksi", permission: "data.reset" },
   { href: "/master/permissions", label: "Permissions", permission: "users.manage" },
   { href: "/audit", label: "Audit Log", permission: "audit.view" },
 ];

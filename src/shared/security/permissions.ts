@@ -23,7 +23,9 @@ export type Permission =
   | "refund.manage"
   | "audit.view"
   | "shifts.monitor"
-  | "terminals.view";
+  | "terminals.view"
+  /** Wipe cashier/transaction data. Owner only: it cannot be undone. */
+  | "data.reset";
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   OWNER: [
@@ -48,6 +50,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "audit.view",
     "shifts.monitor",
     "terminals.view",
+    "data.reset",
   ],
   ADMIN: [
     "dashboard.view",

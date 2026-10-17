@@ -23,6 +23,7 @@ const ALL_PERMISSIONS = [
   "refund.manage",
   "audit.view",
   "shifts.monitor",
+  "data.reset",
 ] as const;
 
 describe("RBAC: OWNER superset invariant", () => {
@@ -56,5 +57,12 @@ describe("RBAC: OWNER superset invariant", () => {
     expect(hasPermission("ADMIN", "receiving.edit")).toBe(true);
     expect(hasPermission("STAFF_STOK", "receiving.edit")).toBe(true);
     expect(hasPermission("KASIR", "receiving.edit")).toBe(false);
+  });
+
+  it("keeps the data reset to the owner alone", () => {
+    expect(hasPermission("OWNER", "data.reset")).toBe(true);
+    for (const role of ["ADMIN", "KASIR", "STAFF_STOK"] as Role[]) {
+      expect(hasPermission(role, "data.reset")).toBe(false);
+    }
   });
 });
