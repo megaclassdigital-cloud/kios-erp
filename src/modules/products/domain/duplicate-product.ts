@@ -1,3 +1,5 @@
+import { sharedBarcodeKey } from "./barcode-similarity";
+
 export interface KnownProductRef {
   id: string;
   name: string;
@@ -22,7 +24,8 @@ const normalizeSku = (sku: string) => sku.trim().toUpperCase();
  * already there get more stock through Barang Masuk, not a second record --
  * two records split one item's stock, history and price in two.
  *
- * Checked in order of certainty: the same barcode is the same physical item;
+ * Checked in order of certainty: a barcode that is the same or only written
+ * differently (see barcode-similarity) is the same physical item;
  * the same SKU is the same shop code; the same name (ignoring case and
  * spacing) is almost certainly a retype.
  */
@@ -32,7 +35,7 @@ export function findDuplicate(
 ): Duplicate | null {
   const barcode = candidate.barcode?.trim();
   if (barcode) {
-    const hit = existing.find((p) => p.activeBarcodes.includes(barcode));
+    const hit = existing.find((p) => sharedBarcodeKey([barcode], p.activeBarcodes) !== null);
     if (hit) return { kind: "BARCODE", product: hit };
   }
   if (candidate.sku?.trim()) {

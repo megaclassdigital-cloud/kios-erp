@@ -12,7 +12,7 @@ export class FindDuplicateProductsUseCase {
         sku: true,
         currentStock: true,
         createdAt: true,
-        barcodes: { where: { status: "ACTIVE" }, select: { barcodeValue: true } },
+        barcodes: { select: { barcodeValue: true, status: true } },
         _count: { select: { saleItems: true, purchaseItems: true } },
       },
     });
@@ -21,7 +21,8 @@ export class FindDuplicateProductsUseCase {
         id: r.id,
         name: r.name,
         sku: r.sku,
-        activeBarcodes: r.barcodes.map((b) => b.barcodeValue),
+        activeBarcodes: r.barcodes.filter((b) => b.status === "ACTIVE").map((b) => b.barcodeValue),
+        retiredBarcodes: r.barcodes.filter((b) => b.status !== "ACTIVE").map((b) => b.barcodeValue),
         stock: r.currentStock.toString(),
         createdAt: r.createdAt,
         saleLines: r._count.saleItems,

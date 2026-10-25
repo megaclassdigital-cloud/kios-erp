@@ -1,8 +1,12 @@
+import { barcodeKeys } from "./barcode-similarity";
+
 export interface AuditProduct {
   id: string;
   name: string;
   sku: string;
   activeBarcodes: string[];
+  /** Barcodes taken out of use; they still count as a similarity signal. */
+  retiredBarcodes?: string[];
   stock: string;
   createdAt: Date;
   /** How many sale lines and receiving lines point at this product. */
@@ -10,7 +14,7 @@ export interface AuditProduct {
   receivingLines: number;
 }
 
-export type DuplicateReason = "NAMA" | "SKU";
+export type DuplicateReason = "BARCODE" | "NAMA" | "SKU";
 
 export interface DuplicateGroup {
   reason: DuplicateReason;
@@ -40,6 +44,38 @@ export function findDuplicateGroups(products: AuditProduct[]): DuplicateGroup[] 
   const groups: DuplicateGroup[] = [];
   const seen = new Set<string>();
 
+  // Barcode first, and the strongest signal: products that share any barcode
+  // key are one group (chained, so A~B and B~C all land together).
+  const collectByBarcode = () => {
+    const parent = new Map<string, string>();
+    const find = (id: string): string => {
+      const up = parent.get(id) ?? id;
+      return up === id ? id : find(up);
+    };
+    const owner = new Map<string, string>();
+    for (const p of products) {
+      for (const code of [...p.activeBarcodes, ...(p.retiredBarcodes ?? [])]) {
+        for (const key of barcodeKeys(code)) {
+          const first = owner.get(key);
+          if (first === undefined) owner.set(key, p.id);
+          else parent.set(find(p.id), find(first));
+        }
+      }
+    }
+    const buckets = new Map<string, AuditProduct[]>();
+    for (const p of products) {
+      if (![...p.activeBarcodes, ...(p.retiredBarcodes ?? [])].some((c) => barcodeKeys(c).length)) continue;
+      const root = find(p.id);
+      buckets.set(root, [...(buckets.get(root) ?? []), p]);
+    }
+    for (const members of buckets.values()) {
+      if (members.length < 2) continue;
+      seen.add(members.map((m) => m.id).sort().join("|"));
+      const shared = members.flatMap((m) => [...m.activeBarcodes, ...(m.retiredBarcodes ?? [])]);
+      groups.push({ reason: "BARCODE", key: [...new Set(shared)].slice(0, 4).join(" ≈ "), products: members, keepId: pickKeeper(members) });
+    }
+  };
+
   const collect = (reason: DuplicateReason, keyOf: (p: AuditProduct) => string) => {
     const buckets = new Map<string, AuditProduct[]>();
     for (const p of products) {
@@ -57,6 +93,7 @@ export function findDuplicateGroups(products: AuditProduct[]): DuplicateGroup[] 
     }
   };
 
+  collectByBarcode();
   collect("NAMA", (p) => squash(p.name));
   collect("SKU", (p) => squash(p.sku));
   return groups;

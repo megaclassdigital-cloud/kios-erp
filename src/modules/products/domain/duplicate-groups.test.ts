@@ -51,3 +51,36 @@ describe("findDuplicateGroups", () => {
     expect(findDuplicateGroups([p({ id: "a" }), p({ id: "b" })])).toEqual([]);
   });
 });
+
+describe("barcode-first grouping", () => {
+  it("flags products whose barcodes differ only in writing, whatever their names", () => {
+    const groups = findDuplicateGroups([
+      p({ id: "a", name: "Kopi A", activeBarcodes: ["012345678905"] }),
+      p({ id: "b", name: "Totally Different", activeBarcodes: ["0012345678905"] }),
+      p({ id: "c", name: "Lain", activeBarcodes: ["8999999000012"] }),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].reason).toBe("BARCODE");
+    expect(groups[0].products.map((x) => x.id).sort()).toEqual(["a", "b"]);
+  });
+
+  it("chains A~B and B~C into one group and lists barcode groups first", () => {
+    const groups = findDuplicateGroups([
+      p({ id: "a", name: "Gula", activeBarcodes: ["8998866200301"] }),
+      p({ id: "b", name: "x", activeBarcodes: ["899886620030"], retiredBarcodes: ["1234567890128"] }),
+      p({ id: "c", name: "y", activeBarcodes: ["1234567890129"] }),
+      p({ id: "d", name: "gula" }),
+    ]);
+    expect(groups[0].reason).toBe("BARCODE");
+    expect(groups[0].products.map((x) => x.id).sort()).toEqual(["a", "b", "c"]);
+    expect(groups.some((g) => g.reason === "NAMA")).toBe(true);
+  });
+
+  it("also counts a retired barcode as a signal", () => {
+    const groups = findDuplicateGroups([
+      p({ id: "a", activeBarcodes: ["8998866200301"] }),
+      p({ id: "b", activeBarcodes: [], retiredBarcodes: ["8998866200301"] }),
+    ]);
+    expect(groups[0].reason).toBe("BARCODE");
+  });
+});

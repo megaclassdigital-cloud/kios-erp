@@ -13,7 +13,7 @@ interface AuditProduct {
   receivingLines: number;
 }
 interface Group {
-  reason: "NAMA" | "SKU";
+  reason: "BARCODE" | "NAMA" | "SKU";
   key: string;
   products: AuditProduct[];
   keepId: string;
@@ -49,7 +49,7 @@ export function DuplicateAuditModal({
           <div>
             <h2 className="text-base font-semibold text-foreground">Cek Duplikat Produk</h2>
             <p className="text-xs text-muted-foreground">
-              Barcode tidak mungkin dobel (ditolak database). Yang dicek: nama dan SKU yang sama atau hampir sama.
+              Dicek per barcode dulu: kode yang sama atau hanya beda penulisan (nol di depan, digit cek, spasi) langsung dianggap duplikat. Lalu nama dan SKU yang sama atau hampir sama.
             </p>
           </div>
           <button onClick={onClose} aria-label="Tutup" className="rounded-full p-1 text-muted-foreground hover:bg-muted">
@@ -67,7 +67,7 @@ export function DuplicateAuditModal({
         {data?.groups.map((g) => (
           <div key={`${g.reason}-${g.products.map((p) => p.id).join()}`} className="mb-3 rounded-lg border border-border">
             <p className="border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-              {g.reason} SAMA: {g.key}
+              {g.reason === "BARCODE" ? "BARCODE SAMA / MIRIP" : `${g.reason} SAMA`}: {g.key}
             </p>
             {g.products.map((p) => (
               <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-sm first:border-t-0">

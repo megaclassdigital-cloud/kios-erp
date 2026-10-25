@@ -32,3 +32,13 @@ describe("findDuplicate", () => {
     expect(duplicateMessage(d)).toContain("Gula Pasir 1kg");
   });
 });
+
+describe("findDuplicate barcode similarity", () => {
+  it("catches the same barcode written differently", () => {
+    const d = findDuplicate(
+      [{ id: "9", name: "Kopi", sku: "K", activeBarcodes: ["012345678905"] }],
+      { name: "Lain", sku: "L", barcode: "0012345678905" }
+    );
+    expect(d?.kind).toBe("BARCODE");
+  });
+});
