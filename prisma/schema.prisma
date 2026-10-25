@@ -337,7 +337,15 @@ model SaleItem {
   quantity          Decimal @db.Decimal(14, 3)
   unitPriceAtSale   Decimal @db.Decimal(14, 2)
   costPriceAtSale   Decimal @db.Decimal(14, 2)
+  // Net of any promo: quantity x unitPriceAtSale - discountAmount. The
+  // original price stays in unitPriceAtSale so the line can always show
+  // "harga awal -> promo -> harga akhir".
   subtotal          Decimal @db.Decimal(14, 2)
+  // Promo the cashier gave on this line: NOMINAL (Rp off the line) or
+  // PERCENT (% of the line), what was typed, and the Rupiah it came to.
+  promoType         String?
+  promoValue        Decimal? @db.Decimal(14, 2)
+  discountAmount    Decimal  @default(0) @db.Decimal(14, 2)
 
   serviceDetail     ServiceSaleDetail?
 

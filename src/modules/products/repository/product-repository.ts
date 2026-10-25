@@ -54,6 +54,7 @@ export interface ProductRepository {
     lowStock?: boolean;
     search?: string;
   }): Promise<ProductListItem[]>;
+  listForDuplicateCheck(): Promise<{ id: string; name: string; sku: string; activeBarcodes: string[] }[]>;
   incrementStock(id: string, deltaQuantity: string): Promise<void>;
   /** Atomically decrements stock only if enough is available, returning
    * false (no throw) when it isn't — used to resolve the last-unit race

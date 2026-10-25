@@ -21,6 +21,9 @@ interface SaleDetail {
     unitPriceAtSale: string;
     costPriceAtSale: string;
     subtotal: string;
+    promoType?: string | null;
+    promoValue?: string | null;
+    discountAmount?: string | null;
     serviceDetail?: {
       phoneNumber?: string | null;
       meterNumber?: string | null;
@@ -108,6 +111,13 @@ export function TransactionDetailButton({ saleId }: { saleId: string }) {
                       <tr key={item.id} className="border-t border-border">
                         <td className="py-1.5 text-foreground">
                           {item.productNameSnapshot}
+                          {Number(item.discountAmount) > 0 && (
+                            <p className="text-xs text-success">
+                              Harga awal {formatRupiah(String(Number(item.quantity) * Number(item.unitPriceAtSale)))} −{" "}
+                              {item.promoType === "PERCENT" ? `promo ${Number(item.promoValue)}%` : "promo"}{" "}
+                              {formatRupiah(item.discountAmount ?? "0")}
+                            </p>
+                          )}
                           {item.serviceDetail && (
                             <p className="text-xs text-muted-foreground">
                               {item.serviceDetail.phoneNumber
@@ -126,6 +136,12 @@ export function TransactionDetailButton({ saleId }: { saleId: string }) {
                 </table>
                 </div>
 
+                {Number(data.sale.discount) > 0 && (
+                  <div className="flex justify-between pt-2 text-success">
+                    <span>Promo ({formatRupiah(data.sale.subtotal)} harga awal)</span>
+                    <span className="tabular-nums">−{formatRupiah(data.sale.discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-border pt-2 font-semibold text-foreground">
                   <span>Grand Total</span>
                   <span className="tabular-nums">{formatRupiah(data.sale.grandTotal)}</span>

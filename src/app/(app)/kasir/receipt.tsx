@@ -5,6 +5,9 @@ interface ReceiptItem {
   quantity: string;
   unitPriceAtSale: string;
   subtotal: string;
+  promoType?: string | null;
+  promoValue?: string | null;
+  discountAmount?: string | null;
   serviceDetail?: {
     phoneNumber?: string | null;
     meterNumber?: string | null;
@@ -59,7 +62,16 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
                 <span>
                   {Number(item.quantity)} x {formatRupiah(item.unitPriceAtSale)}
                 </span>
+                {Number(item.discountAmount) > 0 && (
+                  <span className="tabular-nums">{formatRupiah(Number(item.quantity) * Number(item.unitPriceAtSale))}</span>
+                )}
               </div>
+              {Number(item.discountAmount) > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>{item.promoType === "PERCENT" ? `Promo ${Number(item.promoValue)}%` : "Promo"}</span>
+                  <span className="tabular-nums">-{formatRupiah(item.discountAmount ?? 0)}</span>
+                </div>
+              )}
               {item.serviceDetail && (
                 <p className="text-gray-500">
                   {item.serviceDetail.phoneNumber
@@ -72,12 +84,12 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
 
           <div className="my-2 border-t border-dashed border-gray-300" />
           <div className="flex justify-between">
-            <span>Subtotal</span>
+            <span>{Number(sale.discount) > 0 ? "Harga awal" : "Subtotal"}</span>
             <span>{formatRupiah(sale.subtotal)}</span>
           </div>
           {Number(sale.discount) > 0 && (
             <div className="flex justify-between">
-              <span>Diskon</span>
+              <span>Promo</span>
               <span>-{formatRupiah(sale.discount)}</span>
             </div>
           )}

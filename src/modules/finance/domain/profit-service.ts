@@ -14,13 +14,14 @@ export interface FinancialSummary {
  * by re-reading the current product price (PRD 51-52). */
 export class ProfitService {
   summarize(
-    saleItems: { quantity: Decimal; unitPriceAtSale: Decimal; costPriceAtSale: Decimal }[],
+    saleItems: { quantity: Decimal; unitPriceAtSale: Decimal; costPriceAtSale: Decimal; discountAmount?: Decimal }[],
     cashRevenue: Decimal,
     cashlessRevenue: Decimal,
     totalExpense: Decimal
   ): FinancialSummary {
     const revenue = saleItems.reduce(
-      (acc, i) => acc.plus(i.unitPriceAtSale.times(i.quantity)),
+      // Revenue is what was actually charged: the original price less any promo.
+      (acc, i) => acc.plus(i.unitPriceAtSale.times(i.quantity)).minus(i.discountAmount ?? 0),
       new Decimal(0)
     );
     const cogs = saleItems.reduce(

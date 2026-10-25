@@ -14,7 +14,7 @@ export class PrismaFinanceReadRepository implements FinanceReadRepository {
     const [revenueCogs, cashSplit, expenseTotal] = await Promise.all([
       this.db.$queryRaw<{ revenue: string; cogs: string }[]>(Prisma.sql`
         SELECT
-          COALESCE(SUM(si.quantity * si."unitPriceAtSale"), 0)::text AS revenue,
+          COALESCE(SUM(si.quantity * si."unitPriceAtSale" - si."discountAmount"), 0)::text AS revenue,
           COALESCE(SUM(si.quantity * si."costPriceAtSale"), 0)::text AS cogs
         FROM sale_items si
         JOIN sales s ON s.id = si."saleId"

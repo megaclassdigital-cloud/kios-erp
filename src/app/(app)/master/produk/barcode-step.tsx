@@ -8,7 +8,9 @@ import { ScanSources } from "../../scan-sources";
 export type BarcodeMode = "EXISTING" | "INTERNAL";
 
 export interface KnownProduct {
+  id: string;
   name: string;
+  sku: string;
   barcodes: { barcodeValue: string; status: string }[];
 }
 

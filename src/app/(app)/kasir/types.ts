@@ -15,6 +15,8 @@ export interface CartLine {
   serviceType?: "PULSA" | "TOKEN_LISTRIK" | null;
   serviceProvider?: string | null;
   serviceDetail?: ServiceDetailInput;
+  /** Promo the cashier gave on this line. `unitPrice` stays the original. */
+  promo?: { type: "NOMINAL" | "PERCENT"; value: string };
 }
 
 export interface OpenShift {

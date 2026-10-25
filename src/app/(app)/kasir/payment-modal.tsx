@@ -43,6 +43,7 @@ export function PaymentModal({
         items: cart.map((l) => ({
           productId: l.productId,
           quantity: String(l.quantity),
+          promo: l.promo,
           serviceDetail: l.serviceDetail,
         })),
         paymentMethod: method,

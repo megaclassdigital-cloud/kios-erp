@@ -10,6 +10,7 @@ const schema = z.object({
       z.object({
         productId: z.string(),
         quantity: z.string(),
+        promo: z.object({ type: z.enum(["NOMINAL", "PERCENT"]), value: z.string() }).optional(),
         serviceDetail: z
           .object({
             phoneNumber: z.string().optional(),

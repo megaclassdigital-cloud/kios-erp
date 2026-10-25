@@ -46,6 +46,14 @@ export default function BarangMasukPage() {
       .then((d) => setSuppliers(d.suppliers ?? []));
   }, []);
 
+  // Arriving from Master Produk's "already exists" notice: put that product
+  // straight onto the receiving list so the stock goes where it belongs.
+  useEffect(() => {
+    const barcode = new URLSearchParams(window.location.search).get("barcode");
+    if (barcode) void processBarcode(barcode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleScan(e: React.FormEvent) {
     e.preventDefault();
     const raw = barcode;

@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { BarcodeLabelPrinter } from "./barcode-label-printer";
+import { BarcodeValue } from "@/shared/barcode/barcode-value";
+import { duplicateMessage, findDuplicate } from "@/modules/products/domain/duplicate-product";
 import { BarcodeStep, type BarcodeMode, type KnownProduct } from "./barcode-step";
 
 interface Category {
@@ -53,7 +56,28 @@ export function ProductForm({
   // A service has nothing physical to carry a barcode, so the step simply
   // does not apply to it.
   const needsBarcodeChoice = !isService;
-  const canSubmit = !loading && (!needsBarcodeChoice || barcodeMode !== null);
+  // Already in Master Produk? Block it here, before anything is sent, and
+  // point to Barang Masuk -- the server enforces the same rule.
+  const duplicate = useMemo(() => {
+    let barcode: string | undefined;
+    if (barcodeMode === "EXISTING" && scannedBarcode.trim()) {
+      try {
+        barcode = BarcodeValue.normalize(scannedBarcode).toString();
+      } catch {
+        barcode = undefined;
+      }
+    }
+    return findDuplicate(
+      knownProducts.map((p) => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        activeBarcodes: p.barcodes.filter((b) => b.status === "ACTIVE").map((b) => b.barcodeValue),
+      })),
+      { name, sku, barcode }
+    );
+  }, [knownProducts, name, sku, barcodeMode, scannedBarcode]);
+  const canSubmit = !loading && !duplicate && (!needsBarcodeChoice || barcodeMode !== null);
 
   // This page has two things a scan could mean: find an existing product, or
   // fill in the barcode of the one being added. The capture itself lives in
@@ -180,6 +204,22 @@ export function ProductForm({
             onValueChange={setScannedBarcode}
             knownProducts={knownProducts}
           />
+          </div>
+        )}
+
+        {duplicate && (
+          <div role="alert" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm text-foreground">
+            <p>{duplicateMessage(duplicate)}</p>
+            <Link
+              href={
+                duplicate.product.activeBarcodes[0]
+                  ? `/barang-masuk?barcode=${encodeURIComponent(duplicate.product.activeBarcodes[0])}`
+                  : "/barang-masuk"
+              }
+              className="mt-2 inline-block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+            >
+              Buka Barang Masuk untuk {duplicate.product.name}
+            </Link>
           </div>
         )}
 

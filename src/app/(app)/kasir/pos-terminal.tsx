@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Clock, Power } from "lucide-react";
 import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
+import { PromoEditor } from "./promo-editor";
+import { cartTotals, clampPromo, lineDiscount, lineGross, lineNet, promoLabel } from "./cart-math";
 import { ServiceDetailModal } from "./service-detail-modal";
 import { ScanSources } from "../scan-sources";
 import { useScannerRegistry } from "./scanner-registry";
@@ -116,7 +118,9 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   // Page-wide scanner capture now lives in <ScanSources> below, together
   // with the camera, the phone pairing and the indicator light.
 
-  const grandTotal = cart.reduce((acc, l) => acc + l.unitPrice * l.quantity, 0);
+  const totals = cartTotals(cart);
+  const grandTotal = totals.net;
+  const [promoLineId, setPromoLineId] = useState<string | null>(null);
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault();
@@ -292,7 +296,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   function updateQty(lineId: string, delta: number) {
     setCart((prev) =>
       prev
-        .map((l) => (l.lineId === lineId ? { ...l, quantity: l.quantity + delta } : l))
+        .map((l) => (l.lineId === lineId ? clampPromo({ ...l, quantity: l.quantity + delta }) : l))
         .filter((l) => l.quantity > 0)
     );
   }
@@ -443,9 +447,35 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
                     )}
                   </td>
                   <td className="px-3 py-2 font-medium text-foreground tabular-nums">
-                    {formatRupiah(line.unitPrice * line.quantity)}
+                    {lineDiscount(line) > 0 ? (
+                      <>
+                        <span className="block text-xs font-normal text-muted-foreground line-through">{formatRupiah(lineGross(line))}</span>
+                        <span className="block text-xs font-normal text-success">
+                          {promoLabel(line)} −{formatRupiah(lineDiscount(line))}
+                        </span>
+                        {formatRupiah(lineNet(line))}
+                      </>
+                    ) : (
+                      formatRupiah(lineGross(line))
+                    )}
+                    {promoLineId === line.lineId && (
+                      <PromoEditor
+                        line={line}
+                        onClose={() => setPromoLineId(null)}
+                        onApply={(promo) => {
+                          setCart((prev) => prev.map((l) => (l.lineId === line.lineId ? { ...l, promo } : l)));
+                          setPromoLineId(null);
+                        }}
+                      />
+                    )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <button
+                      onClick={() => setPromoLineId(promoLineId === line.lineId ? null : line.lineId)}
+                      className="mr-3 text-xs text-primary hover:underline"
+                    >
+                      {line.promo ? "Ubah promo" : "Promo"}
+                    </button>
                     <button
                       onClick={() => removeLine(line.lineId)}
                       className="text-xs text-destructive hover:underline"
@@ -469,9 +499,15 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
           <div data-tour="summary" className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-semibold text-foreground">Ringkasan Transaksi</h2>
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Subtotal</span>
-              <span className="tabular-nums">{formatRupiah(grandTotal)}</span>
+              <span>{totals.discount > 0 ? "Harga awal" : "Subtotal"}</span>
+              <span className="tabular-nums">{formatRupiah(totals.gross)}</span>
             </div>
+            {totals.discount > 0 && (
+              <div className="flex justify-between text-sm text-success">
+                <span>Promo</span>
+                <span className="tabular-nums">−{formatRupiah(totals.discount)}</span>
+              </div>
+            )}
             <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold text-foreground">
               <span>Total</span>
               <span className="tabular-nums">{formatRupiah(grandTotal)}</span>

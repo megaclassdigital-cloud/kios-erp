@@ -22,6 +22,24 @@ describe("ProfitService", () => {
     expect(summary.grossProfit.toString()).toBe("1500");
   });
 
+  it("counts revenue after a line promo, with profit on what was actually charged", () => {
+    const summary = new ProfitService().summarize(
+      [
+        {
+          quantity: new Decimal(2),
+          unitPriceAtSale: new Decimal("3500"),
+          costPriceAtSale: new Decimal("2750"),
+          discountAmount: new Decimal("700"), // 10% promo
+        },
+      ],
+      new Decimal("6300"),
+      new Decimal(0),
+      new Decimal(0)
+    );
+    expect(summary.revenue.toString()).toBe("6300");
+    expect(summary.grossProfit.toString()).toBe("800");
+  });
+
   it("is unaffected by a later purchase price change (uses snapshot, not current price)", () => {
     const service = new ProfitService();
     // Snapshot at time of sale — a later change to the product's current

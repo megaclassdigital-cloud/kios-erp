@@ -27,6 +27,9 @@ export interface CreateSaleInput {
     unitPriceAtSale: string;
     costPriceAtSale: string;
     subtotal: string;
+    promoType?: string;
+    promoValue?: string;
+    discountAmount?: string;
     serviceDetail?: CreateSaleItemServiceDetail;
   }[];
 }

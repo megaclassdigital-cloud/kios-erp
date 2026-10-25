@@ -103,6 +103,20 @@ export class PrismaProductRepository implements ProductRepository {
     });
   }
 
+  /** Every live product with just what a duplicate check compares. */
+  async listForDuplicateCheck() {
+    const rows = await this.db.product.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, sku: true, barcodes: { where: { status: "ACTIVE" }, select: { barcodeValue: true } } },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      sku: r.sku,
+      activeBarcodes: r.barcodes.map((b) => b.barcodeValue),
+    }));
+  }
+
   async incrementStock(id: string, deltaQuantity: string): Promise<void> {
     await this.db.product.update({
       where: { id },

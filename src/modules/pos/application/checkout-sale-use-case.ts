@@ -10,6 +10,7 @@ import type { RecordMovementInput } from "@/modules/inventory/repository/invento
 import { PrismaSaleRepository } from "../infrastructure/prisma-sale-repository";
 import { PrismaPaymentRepository } from "../infrastructure/prisma-payment-repository";
 import { PrismaShiftRepository } from "../infrastructure/prisma-shift-repository";
+import { promoAmount, type Promo } from "../domain/promo";
 import {
   CheckoutDomainService,
   EmptyCartError,
@@ -26,6 +27,8 @@ export interface ServiceDetailRequest {
 export interface CheckoutItemRequest {
   productId: string;
   quantity: string;
+  /** Promo the cashier gave on this line; the product's price is untouched. */
+  promo?: Promo;
   serviceDetail?: ServiceDetailRequest;
 }
 
@@ -90,11 +93,18 @@ export class CheckoutSaleUseCase {
             ? buildServiceDetail(product, item.serviceDetail)
             : undefined;
 
+        const quantity = new Decimal(item.quantity);
+        const unitPrice = new Decimal(product.sellingPrice.toString());
+        // Worked out here from the stored price, never trusted from the client.
+        const discountAmount = promoAmount(unitPrice.times(quantity), item.promo);
+
         return {
           productId: product.id,
           productName: product.name,
-          quantity: new Decimal(item.quantity),
-          unitPrice: new Decimal(product.sellingPrice.toString()),
+          quantity,
+          unitPrice,
+          promo: item.promo,
+          discountAmount,
           costPrice: new Decimal(product.purchasePrice.toString()),
           trackInventory: product.trackInventory,
           serviceDetail,
@@ -136,7 +146,11 @@ export class CheckoutSaleUseCase {
           quantity: line.quantity.toString(),
           unitPriceAtSale: line.unitPrice.toFixed(2),
           costPriceAtSale: line.costPrice.toFixed(2),
-          subtotal: line.unitPrice.times(line.quantity).toFixed(2),
+          // Net of the promo; the original price stays in unitPriceAtSale.
+          subtotal: line.unitPrice.times(line.quantity).minus(line.discountAmount).toFixed(2),
+          promoType: line.promo?.type,
+          promoValue: line.promo ? new Decimal(line.promo.value).toFixed(2) : undefined,
+          discountAmount: line.discountAmount.toFixed(2),
           serviceDetail: line.serviceDetail,
         })),
       });

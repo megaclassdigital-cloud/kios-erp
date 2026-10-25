@@ -8,6 +8,8 @@ export interface CartLine {
   unitPrice: Decimal;
   costPrice: Decimal;
   trackInventory: boolean;
+  /** Rupiah of promo already taken off this line (default 0). */
+  discountAmount?: Decimal;
 }
 
 export interface CheckoutTotals {
@@ -23,7 +25,10 @@ export class CheckoutDomainService {
       (acc, line) => acc.add(Money.fromDecimal(line.unitPrice).multiply(line.quantity)),
       Money.zero()
     );
-    const discountMoney = Money.fromDecimal(discount);
+    // Line promos and any whole-sale discount are one number on the sale; the
+    // per-line split stays on the items.
+    const linePromos = lines.reduce((acc, line) => acc.plus(line.discountAmount ?? 0), new Decimal(0));
+    const discountMoney = Money.fromDecimal(discount.plus(linePromos));
     const grandTotal = subtotal.subtract(discountMoney);
     return { subtotal, discount: discountMoney, grandTotal };
   }

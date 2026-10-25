@@ -1,3 +1,5 @@
+import { DuplicateProductError } from "../domain/duplicate-product-error";
+import { duplicateMessage, findDuplicate } from "../domain/duplicate-product";
 import { parseDamaged, usableQuantity } from "@/modules/inventory/domain/receiving-damage";
 import { RECEIVE_DAMAGE } from "@/modules/inventory/repository/inventory-repository";
 import type { ProductType, ServiceType } from "@prisma/client";
@@ -53,8 +55,19 @@ export class CreateProductUseCase {
       const inventory = new PrismaInventoryRepository(tx);
       const audit = new AuditLogger(tx);
 
+      // Already in Master Produk? Then the stock belongs in Barang Masuk, not
+      // in a second record of the same item.
+      const known = await products.listForDuplicateCheck();
+      const duplicate = findDuplicate(known, {
+        name: req.name,
+        sku: req.sku,
+        barcode: req.barcode.mode === "SCAN_EXISTING" ? BarcodeValue.normalize(req.barcode.value).toString() : undefined,
+      });
+      if (duplicate) throw new DuplicateProductError(duplicateMessage(duplicate));
+
       const existingSku = await products.findBySku(req.sku);
       if (existingSku) {
+        // Only reachable for a soft-deleted product: its SKU stays reserved.
         throw new Error("SKU sudah digunakan produk lain.");
       }
 
