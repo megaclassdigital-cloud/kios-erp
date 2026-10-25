@@ -8,6 +8,7 @@ import { BarcodeLabelModal } from "./barcode-label-modal";
 import { LastChanged } from "./last-changed";
 import { ProductDeleteModal } from "./product-delete-modal";
 import { ProductReceivingHistoryModal } from "./product-receiving-history-modal";
+import { DuplicateAuditModal } from "./duplicate-audit-modal";
 import { ProductEditModal, type EditableProduct } from "./product-edit-modal";
 import { filterProducts } from "@/modules/products/domain/product-filter";
 import { ExpiryService } from "@/modules/inventory/domain/expiry-service";
@@ -23,6 +24,9 @@ interface ProductRow {
   sellingPrice: string;
   active: boolean;
   productType: "PHYSICAL" | "SERVICE";
+  serviceType: "PULSA" | "TOKEN_LISTRIK" | null;
+  serviceProvider: string | null;
+  categoryId: string | null;
   purchasePrice: string;
   minimumStock: number;
   expiryDate: string | null;
@@ -55,6 +59,7 @@ export default function MasterProdukPage() {
   const [formAwaitingBarcode, setFormAwaitingBarcode] = useState(false);
   const [editing, setEditing] = useState<EditableProduct | null>(null);
   const [deleting, setDeleting] = useState<{ id: string; name: string; stock: number | null } | null>(null);
+  const [auditing, setAuditing] = useState(false);
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
 
@@ -150,6 +155,13 @@ export default function MasterProdukPage() {
         </p>
         {/* Server-side, from the same list and the same search rule as the
             table, so the file always matches what is on screen. */}
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setAuditing(true)}
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+        >
+          Cek Duplikat
+        </button>
         <a
           href={`/api/products/export${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""}`}
           className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
@@ -157,6 +169,7 @@ export default function MasterProdukPage() {
           <Download className="h-4 w-4" />
           Download Excel (A4)
         </a>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
@@ -234,6 +247,9 @@ export default function MasterProdukPage() {
                     <button
                       onClick={() => setEditing({
                         id: p.id, name: p.name, sku: p.sku, productType: p.productType,
+                        serviceType: p.serviceType, serviceProvider: p.serviceProvider, categoryId: p.categoryId,
+                        currentStock: p.currentStock,
+                        barcodes: p.barcodes.filter((b) => b.status === "ACTIVE").map((b) => b.barcodeValue),
                         purchasePrice: p.purchasePrice, sellingPrice: p.sellingPrice,
                         minimumStock: p.minimumStock, active: p.active,
                         expiryDate: p.expiryDate, expiryWarnDays: p.expiryWarnDays,
@@ -292,8 +308,25 @@ export default function MasterProdukPage() {
       {editing && (
         <ProductEditModal
           product={editing}
+          categories={categories}
+          knownProducts={products.map((p) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            activeBarcodes: p.barcodes.filter((b) => b.status === "ACTIVE").map((b) => b.barcodeValue),
+          }))}
           onClose={() => setEditing(null)}
           onSaved={load}
+        />
+      )}
+
+      {auditing && (
+        <DuplicateAuditModal
+          onClose={() => setAuditing(false)}
+          onDelete={(p) => {
+            setAuditing(false);
+            setDeleting(p);
+          }}
         />
       )}
 

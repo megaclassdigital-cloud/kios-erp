@@ -1,5 +1,7 @@
 import { TransactionManager } from "@/shared/infrastructure/transaction-manager";
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
+import { DuplicateProductError } from "../domain/duplicate-product-error";
+import { duplicateMessage, findDuplicate } from "../domain/duplicate-product";
 import { PrismaProductRepository } from "../infrastructure/prisma-product-repository";
 
 export interface UpdateProductRequest {
@@ -36,6 +38,14 @@ export class UpdateProductUseCase {
 
       const before = await products.findById(id);
       if (!before) throw new ProductNotFoundError("Produk tidak ditemukan.");
+
+      // Renaming onto another product's name would recreate the duplicate that
+      // adding refuses.
+      if (req.name !== undefined) {
+        const others = (await products.listForDuplicateCheck()).filter((p) => p.id !== id);
+        const duplicate = findDuplicate(others, { name: req.name });
+        if (duplicate) throw new DuplicateProductError(duplicateMessage(duplicate));
+      }
 
       // A service has nothing physical to expire, so a date sent for one is
       // dropped rather than stored and later shown as a warning about pulsa
