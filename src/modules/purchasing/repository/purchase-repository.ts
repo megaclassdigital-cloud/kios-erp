@@ -43,6 +43,11 @@ export interface ReceivedItemRow {
   /** Frozen on the line when it was received, not the product's current price.
    * Null when there was no purchase (initial stock, opname, return). */
   purchasePrice: string | null;
+  /** The product's current prices from Master Produk -- shown where a row has
+   * no price of its own, and always for the selling price. Live values, so
+   * they can differ from what was paid at the time. */
+  masterPurchasePrice: string;
+  sellingPrice: string;
   subtotal: string | null;
   /** Expiry this delivery arrived with; null for older receipts or none entered. */
   expiryDate: Date | null;

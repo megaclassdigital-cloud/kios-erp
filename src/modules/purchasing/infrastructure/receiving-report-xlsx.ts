@@ -37,6 +37,7 @@ export function buildReceivingReportXlsx(
       { key: "after", header: "Stok Sesudah", width: 11, type: "qty" },
       { key: "unit", header: "Satuan", width: 8, type: "center" },
       { key: "price", header: "Harga Beli", width: 14, type: "money" },
+      { key: "sell", header: "Harga Jual (Master)", width: 14, type: "money" },
       { key: "expiry", header: "Kedaluwarsa", width: 13, type: "center" },
       { key: "subtotal", header: "Subtotal", width: 16, type: "money" },
     ],
@@ -56,7 +57,10 @@ export function buildReceivingReportXlsx(
         qty: num(r.quantity),
         after: { formula: "{before}+{qty}", result: num(r.stockAfter) },
         unit: r.unit,
-        price: r.purchasePrice === null ? "-" : num(r.purchasePrice),
+        // A receipt line shows what was paid; other additions show the
+        // product's current master price, so no row reads "-".
+        price: num(r.purchasePrice ?? r.masterPurchasePrice),
+        sell: num(r.sellingPrice),
         expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
         // Cost only exists for a supplier receipt, so only those rows have a
         // subtotal; the others show "-" and are skipped by SUM and AVERAGE.
@@ -71,7 +75,8 @@ export function buildReceivingReportXlsx(
       },
       {
         product: "Rata-rata harga beli",
-        price: { formula: "AVERAGE({price:range})", result: average(rows.flatMap((r) => (r.purchasePrice === null ? [] : [num(r.purchasePrice)]))) },
+        price: { formula: "AVERAGE({price:range})", result: average(rows.map((r) => num(r.purchasePrice ?? r.masterPurchasePrice))) },
+        sell: { formula: "AVERAGE({sell:range})", result: average(rows.map((r) => num(r.sellingPrice))) },
       },
     ],
   });

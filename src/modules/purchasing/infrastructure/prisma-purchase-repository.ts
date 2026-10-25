@@ -38,7 +38,7 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
       orderBy: [{ purchase: { confirmedAt: "desc" } }, { purchaseId: "asc" }, { product: { name: "asc" } }],
       include: {
         purchase: { include: { supplier: { select: { name: true } }, receivedBy: { select: { name: true } } } },
-        product: { select: { name: true, sku: true, baseUnit: true } },
+        product: { select: { name: true, sku: true, baseUnit: true, purchasePrice: true, sellingPrice: true } },
       },
     });
     if (items.length === 0) return [];
@@ -71,6 +71,8 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
         unit: i.product.baseUnit,
         quantity: i.quantity.toString(),
         purchasePrice: i.purchasePrice.toString(),
+        masterPurchasePrice: i.product.purchasePrice.toString(),
+        sellingPrice: i.product.sellingPrice.toString(),
         subtotal: i.subtotal.toString(),
         expiryDate: i.expiryDate,
         stockBefore: stockBefore.toString(),
@@ -128,7 +130,7 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
     const [products, users] = await Promise.all([
       this.db.product.findMany({
         where: { id: { in: [...new Set(moves.map((m) => m.productId))] } },
-        select: { id: true, name: true, sku: true, baseUnit: true },
+        select: { id: true, name: true, sku: true, baseUnit: true, purchasePrice: true, sellingPrice: true },
       }),
       this.db.user.findMany({
         where: { id: { in: [...new Set(moves.map((m) => m.actorId))] } },
@@ -159,6 +161,8 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
           unit: product.baseUnit,
           quantity: effective.toString(),
           purchasePrice: null,
+          masterPurchasePrice: product.purchasePrice.toString(),
+          sellingPrice: product.sellingPrice.toString(),
           subtotal: null,
           expiryDate: null,
           stockBefore: before.toString(),

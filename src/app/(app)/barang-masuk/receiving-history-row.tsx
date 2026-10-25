@@ -18,6 +18,8 @@ export interface HistoryItem {
   unit: string;
   quantity: string;
   purchasePrice: string | null;
+  masterPurchasePrice: string;
+  sellingPrice: string;
   subtotal: string | null;
   expiryDate: string | null;
   stockBefore: string;
@@ -152,9 +154,10 @@ export function HistoryRow({
           {fromSupplier ? (
             <input aria-label="Harga beli" type="number" step="any" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className={input} />
           ) : (
-            <span className="block text-right text-muted-foreground">-</span>
+            <span className="block text-right tabular-nums text-muted-foreground">{rupiah(row.masterPurchasePrice)}</span>
           )}
         </td>
+        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{rupiah(row.sellingPrice)}</td>
         <td className="px-3 py-2">
           {fromSupplier ? (
             <input aria-label="Kedaluwarsa" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} className={input} />
@@ -194,7 +197,11 @@ export function HistoryRow({
           +{qty(row.quantity)} {row.unit}
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground">{qty(row.stockAfter)}</td>
-        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(row.purchasePrice)}</td>
+        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+          {rupiah(row.purchasePrice ?? row.masterPurchasePrice)}
+          {row.purchasePrice === null && <span className="block text-[10px] text-muted-foreground">harga master</span>}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(row.sellingPrice)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{row.expiryDate ? dateLabel(row.expiryDate) : "-"}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">{rupiah(row.subtotal)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right">
@@ -208,7 +215,7 @@ export function HistoryRow({
       </tr>
       {mode === "delete" && (
         <tr className="bg-destructive-soft/50">
-          <td colSpan={11} className="px-3 py-3">
+          <td colSpan={12} className="px-3 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="text-foreground">
                 Hapus <b>{row.productName}</b> ({qty(row.quantity)} {row.unit}, {fromSupplier ? row.purchaseNumber : stockInLabel(row.source)})?
