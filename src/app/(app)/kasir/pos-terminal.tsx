@@ -8,6 +8,8 @@ import { Clock, Power } from "lucide-react";
 import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { PromoEditor } from "./promo-editor";
+import { ProductPicker, type PickerItem } from "../product-picker";
+import { searchProducts } from "@/modules/products/domain/product-search";
 import { cartTotals, clampPromo, lineDiscount, lineGross, lineNet, promoLabel } from "./cart-math";
 import { ServiceDetailModal } from "./service-detail-modal";
 import { ScanSources } from "../scan-sources";
@@ -118,6 +120,19 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   // Page-wide scanner capture now lives in <ScanSources> below, together
   // with the camera, the phone pairing and the indicator light.
 
+  // One entry per product (the catalog has one per barcode), for the name search.
+  const searchCatalog = (query: string): PickerItem[] => {
+    const byProduct = new Map<string, PosCatalogItem>();
+    for (const item of catalog) if (!byProduct.has(item.productId)) byProduct.set(item.productId, item);
+    const items = [...byProduct.values()].map((c) => ({ ...c, barcodes: [c.barcode] }));
+    return searchProducts(items, query, 8).map((c) => ({
+      id: c.productId,
+      name: c.name,
+      barcode: c.barcode,
+      sellingPrice: c.sellingPrice,
+      currentStock: c.trackInventory ? c.currentStock : undefined,
+    }));
+  };
   const totals = cartTotals(cart);
   const grandTotal = totals.net;
   const [promoLineId, setPromoLineId] = useState<string | null>(null);
@@ -366,6 +381,18 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
                 placeholder="Ketik kode lalu Enter"
                 autoComplete="off"
               />
+              {/* When a barcode will not scan: find the item by name instead.
+                  Searched in the browser over the catalog already loaded, so
+                  it is as quick as a scan. Nothing is added until one is chosen. */}
+              <div className="mt-3 border-t border-border pt-3">
+                <ProductPicker
+                  label="CARI BERDASARKAN NAMA — kalau barcode error"
+                  hint="Pilih dari daftar untuk memasukkan ke keranjang."
+                  placeholder="Ketik nama barang"
+                  search={searchCatalog}
+                  onPick={(item) => void processBarcode(item.barcode)}
+                />
+              </div>
             </form>
             <div data-tour="scan-sources">
             <ScanSources

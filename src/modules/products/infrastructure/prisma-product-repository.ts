@@ -81,26 +81,32 @@ export class PrismaProductRepository implements ProductRepository {
     );
   }
 
-  /** Active physical products matching a name, SKU or barcode -- what a stock
-   * picker needs. Services are left out: they have no shelf to take from. */
-  async searchPhysical(query: string, limit = 10) {
-    const q = query.trim();
-    if (!q) return [];
-    return this.db.product.findMany({
-      where: {
-        deletedAt: null,
-        active: true,
-        trackInventory: true,
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { sku: { contains: q, mode: "insensitive" } },
-          { barcodes: { some: { barcodeValue: q } } },
-        ],
+  /** Active physical products with what a picker lists. Small shop, a few
+   * hundred rows: filtering happens in memory (see product-search.ts), which
+   * is what allows word order and typo tolerance. */
+  async listForSearch() {
+    const rows = await this.db.product.findMany({
+      where: { deletedAt: null, active: true, trackInventory: true },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        baseUnit: true,
+        currentStock: true,
+        sellingPrice: true,
+        barcodes: { where: { status: "ACTIVE" }, select: { barcodeValue: true }, orderBy: { createdAt: "asc" } },
       },
-      select: { id: true, name: true, sku: true, baseUnit: true, currentStock: true },
       orderBy: { name: "asc" },
-      take: limit,
     });
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      sku: r.sku,
+      baseUnit: r.baseUnit,
+      currentStock: r.currentStock.toString(),
+      sellingPrice: r.sellingPrice.toString(),
+      barcodes: r.barcodes.map((b) => b.barcodeValue),
+    }));
   }
 
   /** Every live product with just what a duplicate check compares. */

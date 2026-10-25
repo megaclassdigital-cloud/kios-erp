@@ -60,7 +60,7 @@ export function parseName(name: string): ParsedName {
   return { core, sizes: sizes.sort() };
 }
 
-function editDistance(a: string, b: string): number {
+export function editDistance(a: string, b: string): number {
   const row = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     let prev = row[0];

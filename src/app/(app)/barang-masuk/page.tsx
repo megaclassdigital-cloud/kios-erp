@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ScanSources } from "../scan-sources";
+import { ProductPicker, serverSearch } from "../product-picker";
 import { ExpiryCountdown } from "./expiry-countdown";
 import { ReceivingHistory } from "./receiving-history";
 import { PageHeader } from "@/components/kios/page-header";
@@ -26,6 +27,8 @@ interface ReceivingLine {
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
 }
+
+const searchForReceiving = serverSearch("receiving");
 
 export default function BarangMasukPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -189,6 +192,13 @@ export default function BarangMasukPage() {
                 className="w-full rounded-md border border-input px-3 py-2 text-lg focus:border-ring focus:outline-none"
                 placeholder="Ketik kode lalu Enter"
               />
+              <div className="mt-3 border-t border-border pt-3">
+                <ProductPicker
+                  search={searchForReceiving}
+                  onPick={(item) => void processBarcode(item.barcode)}
+                  hint="Kalau barcode tidak terbaca, cari barangnya di sini lalu pilih dari daftar."
+                />
+              </div>
             </form>
             <ScanSources label="Barang Masuk" onScan={processBarcode} />
           </div>

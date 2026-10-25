@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { ProductPicker, serverSearch } from "../product-picker";
 import { ScanSources } from "../scan-sources";
 import { PageHeader } from "@/components/kios/page-header";
 
@@ -17,6 +18,8 @@ interface ReviewLine {
   physicalQty: string;
   difference: string;
 }
+
+const searchForOpname = serverSearch("opname");
 
 export default function StokOpnamePage() {
   const [opnameId, setOpnameId] = useState<string | null>(null);
@@ -129,7 +132,14 @@ export default function StokOpnamePage() {
             <label className="mb-1 block text-xs font-medium text-gray-500">SCAN PRODUK</label>
             <input ref={inputRef} data-scan-target value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Ketik kode lalu Enter" />
-          </form>
+              <div className="mt-3 border-t border-border pt-3">
+                <ProductPicker
+                  search={searchForOpname}
+                  onPick={(item) => void processBarcode(item.barcode)}
+                  hint="Kalau barcode tidak terbaca, cari barangnya di sini lalu pilih dari daftar."
+                />
+              </div>
+            </form>
           {/* Only while counting: a stray scan during review must not add
               anything to a list already submitted for approval. */}
           <ScanSources label="Stock Opname" onScan={processBarcode} enabled={status === "DRAFT"} />

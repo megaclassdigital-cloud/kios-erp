@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ProductPicker, serverSearch } from "../product-picker";
 import { ScanSources } from "../scan-sources";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
@@ -45,6 +46,8 @@ interface AuditResult {
 /** PRD's barcode-first principle applied to audit: scan any barcode
  * (active or retired) and see exactly what happened to that product's
  * stock, in order, with who did it and why (PRD 24-25, 74). */
+const searchForAudit = serverSearch("audit");
+
 export function BarcodeAudit() {
   const [barcode, setBarcode] = useState("");
   const [result, setResult] = useState<AuditResult | null>(null);
@@ -107,6 +110,13 @@ export function BarcodeAudit() {
           autoComplete="off"
           className="w-full rounded-md border border-input px-3 py-2 text-sm tracking-wide focus:border-ring focus:outline-none"
         />
+        <div className="mt-3 border-t border-border pt-3">
+          <ProductPicker
+            search={searchForAudit}
+            onPick={(item) => void processBarcode(item.barcode)}
+            hint="Kalau barcode tidak terbaca, cari barangnya di sini lalu pilih dari daftar."
+          />
+        </div>
       </form>
       <ScanSources label="Cek Stok" onScan={processBarcode} />
 

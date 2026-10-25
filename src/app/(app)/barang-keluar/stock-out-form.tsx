@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { STOCK_OUT_REASONS, type StockOutReason } from "@/modules/inventory/domain/stock-out";
+import { ProductPicker, serverSearch } from "../product-picker";
 import { StockOutHistory } from "./stock-out-history";
 
 interface PickedProduct {
@@ -13,11 +14,10 @@ interface PickedProduct {
   currentStock: string;
 }
 
+const searchForStockOut = serverSearch("stockout");
 const input = "w-full rounded-md border border-input px-3 py-2 text-sm";
 
 export function StockOutForm() {
-  const [query, setQuery] = useState("");
-  const [matches, setMatches] = useState<PickedProduct[]>([]);
   const [product, setProduct] = useState<PickedProduct | null>(null);
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState<StockOutReason>("RUSAK");
@@ -26,25 +26,8 @@ export function StockOutForm() {
   const [error, setError] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
 
-  // Search as the cashier types or a scanner types for them: name, SKU or an
-  // exact barcode.
-  useEffect(() => {
-    if (product || query.trim().length < 2) {
-      setMatches([]);
-      return;
-    }
-    const handle = setTimeout(() => {
-      fetch(`/api/stock-out/products?q=${encodeURIComponent(query.trim())}`)
-        .then((r) => r.json())
-        .then((d) => setMatches(d.products ?? []))
-        .catch(() => setMatches([]));
-    }, 250);
-    return () => clearTimeout(handle);
-  }, [query, product]);
-
   const reset = useCallback(() => {
     setProduct(null);
-    setQuery("");
     setQuantity("");
     setNote("");
     setReason("RUSAK");
@@ -82,35 +65,30 @@ export function StockOutForm() {
     <div className="space-y-4">
       <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div>
-          <label className="mb-1 block text-sm font-medium text-foreground">Barang</label>
           {product ? (
+            <>
+            <label className="mb-1 block text-sm font-medium text-foreground">Barang</label>
             <div className="flex items-center justify-between rounded-md border border-border bg-muted px-3 py-2 text-sm">
               <span>
                 <b>{product.name}</b> <span className="text-muted-foreground">({product.sku}) · stok {Number(product.currentStock).toLocaleString("id-ID")} {product.baseUnit}</span>
               </span>
               <button type="button" onClick={reset} className="text-xs text-primary hover:underline">Ganti</button>
             </div>
-          ) : (
-            <>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ketik nama / SKU, atau scan barcode"
-                className={input}
-              />
-              {matches.length > 0 && (
-                <ul className="mt-1 max-h-56 overflow-y-auto rounded-md border border-border bg-card text-sm shadow-sm">
-                  {matches.map((m) => (
-                    <li key={m.id}>
-                      <button type="button" onClick={() => setProduct(m)} className="flex w-full justify-between px-3 py-2 text-left hover:bg-muted">
-                        <span>{m.name} <span className="text-muted-foreground">({m.sku})</span></span>
-                        <span className="tabular-nums text-muted-foreground">stok {Number(m.currentStock).toLocaleString("id-ID")}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </>
+          ) : (
+            <ProductPicker
+              label="Barang"
+              search={searchForStockOut}
+              onPick={(item) =>
+                setProduct({
+                  id: item.id ?? "",
+                  name: item.name,
+                  sku: item.sku ?? "",
+                  baseUnit: item.baseUnit ?? "PCS",
+                  currentStock: item.currentStock ?? "0",
+                })
+              }
+            />
           )}
         </div>
 

@@ -62,8 +62,10 @@ Berikutnya: lencana "N varian" per keluarga produk di Master Produk dan daftar
 varian. Ukuran dibaca dari nama dulu; isian "Ukuran" terstruktur menyusul kalau
 akurasinya kurang.
 
-## 5. Pencarian barang berdasarkan nama
+## 5. Pencarian barang berdasarkan nama — SELESAI (25 Okt 2026)
 
-Pencarian sekarang hanya lewat barcode di sebagian besar layar. Rencana: kotak
-pencarian nama, SKU, atau barcode dengan daftar hasil yang bisa dipilih, di
-semua layar yang berhubungan dengan barang. Detail dibahas terpisah.
+Pemilih produk bersama: ketik nama (kata boleh acak urutan, sebagian kata, satu
+salah ketik), SKU, atau sebagian angka barcode, lalu pilih dari daftar. Dipakai
+di Kasir (kolom terpisah "cari berdasarkan nama — kalau barcode error", dicari di
+browser dari katalog yang sudah dimuat), Barang Masuk, Barang Keluar, Stok Opname
+dan Audit Barcode. Tidak ada barang yang dipilih otomatis; harus diklik atau Enter.
