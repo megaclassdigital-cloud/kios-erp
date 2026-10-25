@@ -24,7 +24,7 @@ describe("findReminders", () => {
   it("treats a different size of the same name as a variant, not a duplicate", () => {
     const r = findReminders(known, { name: "Indomie Goreng 85g" });
     expect(r.map((x) => x.kind)).toEqual(["VARIAN"]);
-    expect(needsAcknowledgement(r)).toBe(false);
+    expect(needsAcknowledgement(r)).toBe(true); // still asks once, then stays quiet
     expect(r[0].text).toContain("70g");
   });
 
@@ -45,9 +45,27 @@ describe("findReminders", () => {
     expect(findReminders(known, { barcode: "8998866200301" })).toEqual([]);
   });
 
-  it("mentions only the ones that need a yes in the server message", () => {
+  it("lists every reminder in the server message", () => {
     const r = findReminders(known, { name: "Teh Botol Sosro" });
     expect(reminderMessage(r)).toContain("Teh Botol");
     expect(reminderMessage(r)).toContain("konfirmasi");
+  });
+
+  it("shows same-brand neighbours: three Indomie varieties are each other's reminders", () => {
+    const indomie: KnownProductRef[] = [
+      { id: "a", name: "Indomie Goreng", sku: "A", activeBarcodes: [] },
+      { id: "b", name: "Indomie Soto", sku: "B", activeBarcodes: [] },
+      { id: "c", name: "Indomie Ayam Bawang", sku: "C", activeBarcodes: [] },
+      { id: "d", name: "Sabun Lifebuoy", sku: "D", activeBarcodes: [] },
+    ];
+    const r = findReminders(indomie, { name: "Indomie Rendang" });
+    expect(r.map((x) => x.product.id).sort()).toEqual(["a", "b", "c"]);
+    expect(r.every((x) => x.kind === "NAMA_MIRIP")).toBe(true);
+  });
+
+  it("does not match on generic words, numbers or short words", () => {
+    const list: KnownProductRef[] = [{ id: "a", name: "Teh Celup Sachet 25", sku: "A", activeBarcodes: [] }];
+    expect(findReminders(list, { name: "Kopi Sachet 25" })).toEqual([]);
+    expect(findReminders(list, { name: "Gula 25" })).toEqual([]);
   });
 });
