@@ -24,6 +24,7 @@ const createProductSchema = z.object({
   expiryDate: z.string().optional(),
   expiryWarnDays: z.number().int().min(0).max(3650).optional(),
   initialStock: z.string().optional(),
+  initialDamaged: z.string().optional(),
   barcode: z.union([
     z.object({ mode: z.literal("SCAN_EXISTING"), value: z.string(), unit: z.string(), conversionFactor: z.string().optional() }),
     z.object({ mode: z.literal("GENERATE_INTERNAL"), unit: z.string() }),

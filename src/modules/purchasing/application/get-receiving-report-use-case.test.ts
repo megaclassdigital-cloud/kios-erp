@@ -20,6 +20,7 @@ function row(over: Partial<ReceivedItemRow>): ReceivedItemRow {
     productId: "prod-1",
     quantity: "10",
     purchasePrice: "60000.00",
+    damagedQuantity: "0",
     masterPurchasePrice: "61000.00",
     sellingPrice: "75000.00",
     subtotal: "600000.00",
@@ -113,10 +114,10 @@ describe("GetReceivingReportUseCase", () => {
     const r = wb.worksheets[0].getRow(7);
     expect(r.getCell(3).value).toBe("Stok opname");
     expect(r.getCell(5).value).toBe("null"); // no supplier -> "null"
-    expect(r.getCell(11).value).toBe(61000); // no price of its own -> master price
-    expect(r.getCell(12).value).toBe(75000);
-    expect(r.getCell(14).value).toBe("-");
-    expect(r.getCell(9).value).toEqual({ formula: "G7+H7", result: 13 });
+    expect(r.getCell(12).value).toBe(61000); // no price of its own -> master price
+    expect(r.getCell(13).value).toBe(75000);
+    expect(r.getCell(15).value).toBe("-");
+    expect(r.getCell(10).value).toEqual({ formula: "G7+H7-I7", result: 13 });
   });
 
   it("gives the xlsx exactly the rows and totals the screen gets", async () => {
@@ -144,16 +145,16 @@ describe("GetReceivingReportUseCase", () => {
     expect(cell(first, 7)).toBe(5); // stok sebelum (data)
     expect(cell(first, 8)).toBe(10); // qty masuk (data)
     // Stok sesudah and subtotal are live formulas, with their cached results.
-    expect(cell(first, 9)).toEqual({ formula: "G7+H7", result: 15 });
-    expect(cell(first, 11)).toBe(60000);
-    expect(cell(first, 12)).toBe(75000); // harga jual master
-    expect(cell(first, 13)).toBe("31/01/2027");
-    expect(cell(first, 14)).toEqual({ formula: "H7*K7", result: 600000 });
-    expect(cell(first + 1, 14)).toEqual({ formula: "H8*K8", result: 35000 });
+    expect(cell(first, 10)).toEqual({ formula: "G7+H7-I7", result: 15 });
+    expect(cell(first, 12)).toBe(60000);
+    expect(cell(first, 13)).toBe(75000); // harga jual master
+    expect(cell(first, 14)).toBe("31/01/2027");
+    expect(cell(first, 15)).toEqual({ formula: "H7*L7", result: 600000 });
+    expect(cell(first + 1, 15)).toEqual({ formula: "H8*L8", result: 35000 });
     // Totals are SUMs over the data range; the extra row is an AVERAGE.
     expect(cell(first + 2, 8)).toEqual({ formula: "SUM(H7:H8)", result: 12.5 });
-    expect(cell(first + 2, 14)).toEqual({ formula: "SUM(N7:N8)", result: 635000 });
-    expect(cell(first + 3, 11)).toEqual({ formula: "AVERAGE(K7:K8)", result: 37000 });
+    expect(cell(first + 2, 15)).toEqual({ formula: "SUM(O7:O8)", result: 635000 });
+    expect(cell(first + 3, 12)).toEqual({ formula: "AVERAGE(L7:L8)", result: 37000 });
     expect(report.summary.totalValue).toBe("635000.00");
   });
 });

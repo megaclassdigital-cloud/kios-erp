@@ -1,10 +1,13 @@
+import Decimal from "decimal.js";
 import type { StockMovement } from "@prisma/client";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
 import type {
   InventoryRepository,
   RecordMovementInput,
+  StockOutRow,
 } from "../repository/inventory-repository";
-import { STOCK_IN_EDIT } from "../repository/inventory-repository";
+import { RECEIVE_DAMAGE, STOCK_IN_EDIT } from "../repository/inventory-repository";
+import { STOCK_OUT_REFERENCE } from "../domain/stock-out";
 
 export class PrismaInventoryRepository implements InventoryRepository {
   constructor(private readonly db: Db) {}
@@ -35,5 +38,42 @@ export class PrismaInventoryRepository implements InventoryRepository {
       _sum: { quantity: true },
     });
     return (sum._sum.quantity ?? 0).toString();
+  }
+
+  async damagedByReference(referenceIds: string[]): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    if (referenceIds.length === 0) return map;
+    const groups = await this.db.stockMovement.groupBy({
+      by: ["referenceId", "productId"],
+      where: { referenceType: RECEIVE_DAMAGE, referenceId: { in: referenceIds } },
+      _sum: { quantity: true },
+    });
+    for (const g of groups) {
+      // Stored as a negative movement; callers want the positive count.
+      map.set(`${g.referenceId}:${g.productId}`, new Decimal((g._sum.quantity ?? 0).toString()).negated().toString());
+    }
+    return map;
+  }
+
+  async listStockOut(start: Date, end: Date): Promise<StockOutRow[]> {
+    const rows = await this.db.stockMovement.findMany({
+      where: { referenceType: STOCK_OUT_REFERENCE, createdAt: { gte: start, lte: end } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        product: { select: { name: true, sku: true, baseUnit: true } },
+        actor: { select: { name: true } },
+      },
+    });
+    return rows.map((m) => ({
+      id: m.id,
+      createdAt: m.createdAt,
+      productName: m.product.name,
+      sku: m.product.sku,
+      unit: m.product.baseUnit,
+      quantity: new Decimal(m.quantity.toString()).negated().toString(),
+      movementType: m.movementType,
+      note: m.note,
+      actorName: m.actor.name,
+    }));
   }
 }

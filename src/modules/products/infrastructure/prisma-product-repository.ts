@@ -81,6 +81,28 @@ export class PrismaProductRepository implements ProductRepository {
     );
   }
 
+  /** Active physical products matching a name, SKU or barcode -- what a stock
+   * picker needs. Services are left out: they have no shelf to take from. */
+  async searchPhysical(query: string, limit = 10) {
+    const q = query.trim();
+    if (!q) return [];
+    return this.db.product.findMany({
+      where: {
+        deletedAt: null,
+        active: true,
+        trackInventory: true,
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { sku: { contains: q, mode: "insensitive" } },
+          { barcodes: { some: { barcodeValue: q } } },
+        ],
+      },
+      select: { id: true, name: true, sku: true, baseUnit: true, currentStock: true },
+      orderBy: { name: "asc" },
+      take: limit,
+    });
+  }
+
   async incrementStock(id: string, deltaQuantity: string): Promise<void> {
     await this.db.product.update({
       where: { id },

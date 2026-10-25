@@ -20,7 +20,7 @@ export function buildReceivingReportXlsx(
     title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
       `Periode: ${period.label} (${formatWibDate(period.start)} - ${formatWibDate(period.end)})`,
-      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk · Subtotal = Qty × Harga Beli`,
+      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk − Rusak · Subtotal = Qty × Harga Beli`,
       ...report.warnings.map((w) => `Perhatian: ${w}`),
       `Dicetak ${formatWibDateTime(new Date())} oleh ${printedBy}`,
     ],
@@ -34,6 +34,7 @@ export function buildReceivingReportXlsx(
       { key: "product", header: "Produk", width: 34 },
       { key: "before", header: "Stok Sebelum", width: 11, type: "qty" },
       { key: "qty", header: "Qty Masuk", width: 10, type: "qty" },
+      { key: "damaged", header: "Rusak", width: 8, type: "qty" },
       { key: "after", header: "Stok Sesudah", width: 11, type: "qty" },
       { key: "unit", header: "Satuan", width: 8, type: "center" },
       { key: "price", header: "Harga Beli", width: 14, type: "money" },
@@ -55,7 +56,8 @@ export function buildReceivingReportXlsx(
         product: r.productName,
         before: num(r.stockBefore),
         qty: num(r.quantity),
-        after: { formula: "{before}+{qty}", result: num(r.stockAfter) },
+        damaged: num(r.damagedQuantity),
+        after: { formula: "{before}+{qty}-{damaged}", result: num(r.stockAfter) },
         unit: r.unit,
         // A receipt line shows what was paid; other additions show the
         // product's current master price, so no row reads "-".
@@ -71,6 +73,7 @@ export function buildReceivingReportXlsx(
       {
         product: "TOTAL",
         qty: { formula: "SUM({qty:range})", result: num(summary.totalQuantity) },
+        damaged: { formula: "SUM({damaged:range})", result: rows.reduce((sum, r) => sum + num(r.damagedQuantity), 0) },
         subtotal: { formula: "SUM({subtotal:range})", result: num(summary.totalValue) },
       },
       {

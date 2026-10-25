@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import type { MovementType } from "@prisma/client";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
 import { PrismaInventoryRepository } from "../infrastructure/prisma-inventory-repository";
@@ -16,7 +17,8 @@ export async function moveStock(
   referenceType: string,
   referenceId: string,
   actorId: string,
-  note: string
+  note: string,
+  movementType: MovementType = "ADJUSTMENT"
 ): Promise<void> {
   const change = new Decimal(delta);
   if (change.isZero()) return;
@@ -38,7 +40,7 @@ export async function moveStock(
   await new PrismaInventoryRepository(tx).recordMovement({
     productId: product.productId,
     quantity: change.toString(),
-    movementType: "ADJUSTMENT",
+    movementType,
     referenceType,
     referenceId,
     actorId,

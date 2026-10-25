@@ -1,3 +1,5 @@
+import { parseDamaged, usableQuantity } from "@/modules/inventory/domain/receiving-damage";
+import { RECEIVE_DAMAGE } from "@/modules/inventory/repository/inventory-repository";
 import type { ProductType, ServiceType } from "@prisma/client";
 import { TransactionManager } from "@/shared/infrastructure/transaction-manager";
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
@@ -23,6 +25,8 @@ export interface CreateProductRequest {
   expiryDate?: Date | null;
   expiryWarnDays?: number;
   initialStock?: string;
+  /** Part of initialStock that is damaged: counted in, then taken straight off. */
+  initialDamaged?: string;
   barcode:
     | { mode: "SCAN_EXISTING"; value: string; unit: string; conversionFactor?: string }
     | { mode: "GENERATE_INTERNAL"; unit: string }
@@ -103,7 +107,8 @@ export class CreateProductUseCase {
       }
 
       if (req.trackInventory && req.initialStock && Number(req.initialStock) > 0) {
-        await inventory.recordMovement({
+        const damaged = parseDamaged(req.initialStock, req.initialDamaged);
+        const initial = await inventory.recordMovement({
           productId: product.id,
           quantity: req.initialStock,
           movementType: "INITIAL_STOCK",
@@ -111,7 +116,19 @@ export class CreateProductUseCase {
           referenceId: product.id,
           actorId: req.actorId,
         });
-        await products.incrementStock(product.id, req.initialStock);
+        if (damaged.gt(0)) {
+          await inventory.recordMovement({
+            productId: product.id,
+            quantity: damaged.negated().toString(),
+            movementType: "DAMAGE",
+            referenceType: RECEIVE_DAMAGE,
+            referenceId: initial.id,
+            actorId: req.actorId,
+            note: `Rusak saat stok awal: ${damaged.toString()} dari ${req.initialStock}`,
+          });
+        }
+        // The projection moves once, by what is actually sellable.
+        await products.incrementStock(product.id, usableQuantity(req.initialStock, damaged.toString()));
       }
 
       await audit.record({

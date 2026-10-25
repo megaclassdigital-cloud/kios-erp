@@ -15,6 +15,8 @@ interface ReceivingLine {
   productId: string;
   name: string;
   quantity: string;
+  /** Units of `quantity` that arrived damaged; taken off stock straight away. */
+  damagedQuantity: string;
   purchasePrice: string;
   /** Expiry printed on this batch, as YYYY-MM-DD. Prefilled from whatever
    * the product already has, so an unchanged delivery needs no typing. */
@@ -84,6 +86,7 @@ export default function BarangMasukPage() {
           productId: product.id,
           name: product.name,
           quantity: "1",
+          damagedQuantity: "",
           purchasePrice: product.purchasePrice,
           expiryDate: product.expiryDate ? String(product.expiryDate).slice(0, 10) : "",
         },
@@ -93,7 +96,7 @@ export default function BarangMasukPage() {
 
   function updateLine(
     productId: string,
-    field: "quantity" | "purchasePrice" | "expiryDate",
+    field: "quantity" | "damagedQuantity" | "purchasePrice" | "expiryDate",
     value: string
   ) {
     setLines((prev) => prev.map((l) => (l.productId === productId ? { ...l, [field]: value } : l)));
@@ -116,6 +119,7 @@ export default function BarangMasukPage() {
           productId: l.productId,
           quantity: l.quantity,
           purchasePrice: l.purchasePrice,
+          damagedQuantity: l.damagedQuantity || undefined,
           expiryDate: l.expiryDate || undefined,
         })),
       }),
@@ -170,6 +174,7 @@ export default function BarangMasukPage() {
               <label className="mb-1 block text-xs font-medium text-muted-foreground">SCAN BARCODE PRODUK</label>
               <input
                 ref={inputRef}
+                data-scan-target
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
                 autoFocus
@@ -194,7 +199,9 @@ export default function BarangMasukPage() {
               <thead className="bg-muted text-left text-xs text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">Produk</th>
-                  <th className="px-3 py-2">Qty</th>
+                  <th className="px-3 py-2">Qty Diterima</th>
+                  <th className="px-3 py-2">Rusak</th>
+                  <th className="px-3 py-2">Masuk Stok</th>
                   <th className="px-3 py-2">Harga Beli</th>
                   <th className="px-3 py-2">Kedaluwarsa</th>
                   <th className="px-3 py-2">Subtotal</th>
@@ -203,7 +210,7 @@ export default function BarangMasukPage() {
               <tbody>
                 {lines.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
                       Belum ada item di-scan.
                     </td>
                   </tr>
@@ -218,6 +225,23 @@ export default function BarangMasukPage() {
                         onChange={(e) => updateLine(l.productId, "quantity", e.target.value)}
                         className="w-20 rounded border border-input px-2 py-1"
                       />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        aria-label="Barang rusak"
+                        placeholder="0"
+                        value={l.damagedQuantity}
+                        onChange={(e) => updateLine(l.productId, "damagedQuantity", e.target.value)}
+                        className="w-16 rounded border border-input px-2 py-1"
+                      />
+                    </td>
+                    <td className="px-3 py-2 font-medium tabular-nums text-foreground">
+                      {Math.max(0, Number(l.quantity || 0) - Number(l.damagedQuantity || 0)).toLocaleString("id-ID")}
+                      {Number(l.damagedQuantity || 0) > Number(l.quantity || 0) && (
+                        <span className="block text-[11px] text-destructive">Rusak melebihi jumlah diterima</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       <input
@@ -272,7 +296,7 @@ export default function BarangMasukPage() {
           </div>
           <button
             onClick={confirmReceiving}
-            disabled={!supplierId || lines.length === 0}
+            disabled={!supplierId || lines.length === 0 || lines.some((l) => Number(l.damagedQuantity || 0) > Number(l.quantity || 0))}
             className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           >
             Konfirmasi Barang Masuk

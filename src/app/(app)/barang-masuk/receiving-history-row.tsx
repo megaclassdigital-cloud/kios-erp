@@ -17,6 +17,7 @@ export interface HistoryItem {
   sku: string;
   unit: string;
   quantity: string;
+  damagedQuantity: string;
   purchasePrice: string | null;
   masterPurchasePrice: string;
   sellingPrice: string;
@@ -122,8 +123,9 @@ export function HistoryRow({
       "Diperbarui. Stok ikut disesuaikan."
     );
   const remove = () =>
-    run(() => call(url, { method: "DELETE" }), `Dihapus. Stok ${row.productName} dikurangi ${qty(row.quantity)}.`);
+    run(() => call(url, { method: "DELETE" }), `Dihapus. Stok ${row.productName} dikurangi ${qty(String(Number(row.quantity) - damaged))}.`);
 
+  const damaged = Number(row.damagedQuantity);
   const delta = Number(quantity || 0) - Number(row.quantity);
   const when = formatWibDateTime(new Date(row.receivedAt));
   const sourceCell = fromSupplier ? (
@@ -149,7 +151,10 @@ export function HistoryRow({
             {delta === 0 ? "Stok tidak berubah" : `Stok ${delta > 0 ? "+" : ""}${qty(String(delta))}`}
           </span>
         </td>
-        <td className="px-3 py-2 text-right tabular-nums">{qty(String(Number(row.stockBefore) + Number(quantity || 0)))}</td>
+        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.damagedQuantity)}</td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          {qty(String(Number(row.stockBefore) + Number(quantity || 0) - Number(row.damagedQuantity)))}
+        </td>
         <td className="px-3 py-2">
           {fromSupplier ? (
             <input aria-label="Harga beli" type="number" step="any" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className={input} />
@@ -196,6 +201,9 @@ export function HistoryRow({
         <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">
           +{qty(row.quantity)} {row.unit}
         </td>
+        <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${damaged > 0 ? "font-medium text-destructive" : "text-muted-foreground"}`}>
+          {damaged > 0 ? `-${qty(row.damagedQuantity)}` : "-"}
+        </td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground">{qty(row.stockAfter)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
           {rupiah(row.purchasePrice ?? row.masterPurchasePrice)}
@@ -215,11 +223,11 @@ export function HistoryRow({
       </tr>
       {mode === "delete" && (
         <tr className="bg-destructive-soft/50">
-          <td colSpan={12} className="px-3 py-3">
+          <td colSpan={13} className="px-3 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="text-foreground">
                 Hapus <b>{row.productName}</b> ({qty(row.quantity)} {row.unit}, {fromSupplier ? row.purchaseNumber : stockInLabel(row.source)})?
-                Stok produk akan berkurang {qty(row.quantity)}.
+                Stok produk akan berkurang {qty(String(Number(row.quantity) - damaged))}{damaged > 0 ? ` (${qty(row.damagedQuantity)} rusak sudah tidak di stok)` : ""}.
                 {error && <span className="ml-2 text-destructive">{error}</span>}
               </span>
               <span className="flex gap-2">

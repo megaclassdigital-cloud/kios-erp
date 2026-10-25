@@ -3,6 +3,9 @@ import Decimal from "decimal.js";
 export interface ReceivedLine {
   quantity: string;
   purchasePrice: string;
+  /** Damaged units already taken off stock with this line (default 0). They
+   * stay put when the line is corrected, and are not given back on delete. */
+  damagedQuantity?: string;
 }
 
 export interface LineChange {
@@ -49,6 +52,11 @@ export function planCorrection(current: ReceivedLine, change: LineChange): Plann
   if (quantity.decimalPlaces() > 3) {
     throw new InvalidCorrectionError("Jumlah maksimal 3 angka di belakang koma.");
   }
+  if (quantity.lt(current.damagedQuantity ?? 0)) {
+    throw new InvalidCorrectionError(
+      `Jumlah tidak boleh lebih kecil dari barang rusak yang sudah dicatat (${current.damagedQuantity}).`
+    );
+  }
   if (!price.isFinite() || price.lt(0)) {
     throw new InvalidCorrectionError("Harga beli tidak boleh negatif.");
   }
@@ -64,9 +72,10 @@ export function planCorrection(current: ReceivedLine, change: LineChange): Plann
   };
 }
 
-/** Deleting a received line takes back everything it added. */
+/** Deleting a received line takes back everything it added to stock -- the
+ * usable part only, since the damaged units were never on the shelf. */
 export function deletionDelta(current: ReceivedLine): string {
-  return new Decimal(current.quantity).negated().toString();
+  return new Decimal(current.quantity).minus(current.damagedQuantity ?? 0).negated().toString();
 }
 
 /** Sum of the line subtotals left on a receipt. */

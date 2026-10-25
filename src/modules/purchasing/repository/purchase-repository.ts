@@ -40,6 +40,9 @@ export interface ReceivedItemRow {
   unit: string;
   productId: string;
   quantity: string;
+  /** Units of `quantity` that arrived damaged and were taken straight off
+   * stock (0 when none). Stock after counts only the usable remainder. */
+  damagedQuantity: string;
   /** Frozen on the line when it was received, not the product's current price.
    * Null when there was no purchase (initial stock, opname, return). */
   purchasePrice: string | null;
@@ -76,6 +79,8 @@ export interface PurchaseItemDetail {
   productName: string;
   quantity: string;
   purchasePrice: string;
+  /** Damaged units recorded with this receipt line (0 when none). */
+  damagedQuantity: string;
   expiryDate: Date | null;
 }
 

@@ -4,6 +4,8 @@ import { AuditLogger } from "@/shared/infrastructure/audit-logger";
 import { DailyCounterRepository } from "@/shared/infrastructure/daily-counter-repository";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
 import { PrismaInventoryRepository } from "@/modules/inventory/infrastructure/prisma-inventory-repository";
+import { parseDamaged, usableQuantity } from "@/modules/inventory/domain/receiving-damage";
+import { RECEIVE_DAMAGE } from "@/modules/inventory/repository/inventory-repository";
 import { PrismaPurchaseRepository } from "../infrastructure/prisma-purchase-repository";
 
 export interface ReceiveStockRequest {
@@ -14,6 +16,9 @@ export interface ReceiveStockRequest {
     productId: string;
     quantity: string;
     purchasePrice: string;
+    /** Units of `quantity` that arrived damaged: counted in, then taken
+     * straight off, so 45 with 5 damaged leaves 40 on the shelf. */
+    damagedQuantity?: string;
     /** Expiry printed on the batch that just arrived. Optional: not every
      * delivery has one, and omitting it leaves the product unchanged rather
      * than clearing a date someone set deliberately. */
@@ -33,6 +38,9 @@ export class ReceiveStockUseCase {
     if (req.items.length === 0) {
       throw new Error("Tidak ada item untuk diterima.");
     }
+
+    // Reject a bad damaged count before any write happens.
+    for (const item of req.items) parseDamaged(item.quantity, item.damagedQuantity);
 
     return this.txManager.run(async (tx) => {
       const products = new PrismaProductRepository(tx);
@@ -78,7 +86,19 @@ export class ReceiveStockUseCase {
           referenceId: purchase.id,
           actorId: req.receivedById,
         });
-        await products.incrementStock(item.productId, item.quantity);
+        const damaged = parseDamaged(item.quantity, item.damagedQuantity);
+        if (damaged.gt(0)) {
+          await inventory.recordMovement({
+            productId: item.productId,
+            quantity: damaged.negated().toString(),
+            movementType: "DAMAGE",
+            referenceType: RECEIVE_DAMAGE,
+            referenceId: purchase.id,
+            actorId: req.receivedById,
+            note: `Rusak saat diterima ${purchaseNumber}: ${damaged.toString()} dari ${item.quantity}`,
+          });
+        }
+        await products.incrementStock(item.productId, usableQuantity(item.quantity, damaged.toString()));
 
         // The delivery is the moment the expiry actually changes, so it is
         // recorded here rather than left for someone to remember to edit in

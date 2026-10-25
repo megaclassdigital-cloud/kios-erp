@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { Prisma, type Purchase } from "@prisma/client";
+import { PrismaInventoryRepository } from "@/modules/inventory/infrastructure/prisma-inventory-repository";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
 import type { CreatePurchaseInput, PurchaseItemDetail, PurchaseRepository, ReceivedItemFilter, ReceivedItemRow } from "../repository/purchase-repository";
 
@@ -48,7 +49,10 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
       [...new Set(items.map((i) => i.purchaseId))]
     );
 
+    const damaged = await new PrismaInventoryRepository(this.db).damagedByReference([...new Set(items.map((i) => i.purchaseId))]);
+
     return items.map((i) => {
+      const damagedQty = new Decimal(damaged.get(`${i.purchaseId}:${i.productId}`) ?? 0);
       // Two lines of one product in one receipt would share a key; each takes
       // the next balance in ledger order.
       const ledger = balanceAfter.get(`${i.purchaseId}:${i.productId}`)?.shift();
@@ -70,13 +74,16 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
         sku: i.product.sku,
         unit: i.product.baseUnit,
         quantity: i.quantity.toString(),
+        damagedQuantity: damagedQty.toString(),
         purchasePrice: i.purchasePrice.toString(),
         masterPurchasePrice: i.product.purchasePrice.toString(),
         sellingPrice: i.product.sellingPrice.toString(),
         subtotal: i.subtotal.toString(),
         expiryDate: i.expiryDate,
         stockBefore: stockBefore.toString(),
-        stockAfter: stockBefore.plus(i.quantity.toString()).toString(),
+        // Only the usable part reached the shelf; the damaged units were
+        // taken straight off by their own movement.
+        stockAfter: stockBefore.plus(i.quantity.toString()).minus(damagedQty).toString(),
       };
     });
   }
@@ -102,15 +109,20 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
         movementType: string;
         quantity: Prisma.Decimal;
         corrected: Prisma.Decimal;
+        damaged: Prisma.Decimal;
         balance: Prisma.Decimal;
         createdAt: Date;
         actorId: string;
       }[]
     >`
-      SELECT id, "productId", "movementType", quantity, corrected, balance, "createdAt", "actorId" FROM (
+      SELECT id, "productId", "movementType", quantity, corrected, damaged, balance, "createdAt", "actorId" FROM (
         SELECT m.id, m."productId", m."movementType"::text AS "movementType", m."referenceType", m.quantity,
                m."createdAt", m."actorId",
-               SUM(m.quantity) OVER (PARTITION BY m."productId" ORDER BY m."createdAt", m.id) AS balance,
+               SUM(m.quantity) OVER (PARTITION BY m."productId" ORDER BY m."createdAt", (m."movementType"::text = 'DAMAGE'), m.id) AS balance,
+               COALESCE((
+                 SELECT SUM(-d.quantity) FROM stock_movements d
+                 WHERE d."referenceType" = 'RECEIVE_DAMAGE' AND d."referenceId" = m.id
+               ), 0) AS damaged,
                COALESCE((
                  SELECT SUM(c.quantity) FROM stock_movements c
                  WHERE c."referenceType" = 'STOCK_IN_EDIT' AND c."referenceId" = m.id
@@ -145,6 +157,7 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
       if (!product) return [];
       const before = new Decimal(m.balance.toString()).minus(m.quantity.toString());
       const effective = new Decimal(m.quantity.toString()).plus(m.corrected.toString());
+      const damagedQty = new Decimal(m.damaged.toString());
       return [
         {
           source: m.movementType as ReceivedItemRow["source"],
@@ -160,13 +173,14 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
           sku: product.sku,
           unit: product.baseUnit,
           quantity: effective.toString(),
+          damagedQuantity: damagedQty.toString(),
           purchasePrice: null,
           masterPurchasePrice: product.purchasePrice.toString(),
           sellingPrice: product.sellingPrice.toString(),
           subtotal: null,
           expiryDate: null,
           stockBefore: before.toString(),
-          stockAfter: before.plus(effective).toString(),
+          stockAfter: before.plus(effective).minus(damagedQty).toString(),
         },
       ];
     });
@@ -178,6 +192,7 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
       include: { purchase: { select: { purchaseNumber: true, status: true } }, product: { select: { name: true } } },
     });
     if (!i) return null;
+    const damaged = await new PrismaInventoryRepository(this.db).damagedByReference([i.purchaseId]);
     return {
       id: i.id,
       purchaseId: i.purchaseId,
@@ -187,6 +202,7 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
       productName: i.product.name,
       quantity: i.quantity.toString(),
       purchasePrice: i.purchasePrice.toString(),
+      damagedQuantity: damaged.get(`${i.purchaseId}:${i.productId}`) ?? "0",
       expiryDate: i.expiryDate,
     };
   }
@@ -235,7 +251,7 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
     >`
       SELECT "referenceId", "productId", quantity, balance FROM (
         SELECT "referenceId", "productId", "movementType", quantity,
-               SUM(quantity) OVER (PARTITION BY "productId" ORDER BY "createdAt", id) AS balance,
+               SUM(quantity) OVER (PARTITION BY "productId" ORDER BY "createdAt", ("movementType"::text = 'DAMAGE'), id) AS balance,
                "createdAt", id
         FROM stock_movements
         WHERE "productId" = ANY(${productIds}::text[])

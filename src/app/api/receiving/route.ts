@@ -14,6 +14,7 @@ const schema = z.object({
         productId: z.string(),
         quantity: z.string(),
         purchasePrice: z.string(),
+        damagedQuantity: z.string().optional(),
         expiryDate: z.string().optional(),
       })
     )

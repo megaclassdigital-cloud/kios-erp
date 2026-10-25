@@ -21,6 +21,8 @@ interface StockIn {
   movementType: string;
   /** What the history shows now: the original quantity plus any corrections. */
   effective: Decimal;
+  /** Damaged units taken off when this was recorded; never on the shelf. */
+  damaged: Decimal;
 }
 
 async function loadStockIn(tx: Db, movementId: string): Promise<StockIn> {
@@ -38,6 +40,7 @@ async function loadStockIn(tx: Db, movementId: string): Promise<StockIn> {
   // A row corrected down to nothing is a deleted row.
   if (effective.lte(0)) throw new StockInNotFoundError("Catatan stok ini sudah dihapus.");
 
+  const damaged = new Decimal((await inventory.damagedByReference([movementId])).get(`${movementId}:${movement.productId}`) ?? 0);
   const product = await new PrismaProductRepository(tx).findById(movement.productId);
   return {
     movementId,
@@ -45,6 +48,7 @@ async function loadStockIn(tx: Db, movementId: string): Promise<StockIn> {
     productName: product?.name ?? "Produk",
     movementType: movement.movementType,
     effective,
+    damaged,
   };
 }
 
@@ -65,7 +69,10 @@ export class UpdateStockInUseCase {
       const row = await loadStockIn(tx, movementId);
       // Same arithmetic and validation as correcting a received line; the
       // price plays no part here.
-      const plan = planCorrection({ quantity: row.effective.toString(), purchasePrice: "0" }, { quantity });
+      const plan = planCorrection(
+        { quantity: row.effective.toString(), purchasePrice: "0", damagedQuantity: row.damaged.toString() },
+        { quantity }
+      );
 
       await moveStock(
         tx,
@@ -99,9 +106,10 @@ export class DeleteStockInUseCase {
   async execute(movementId: string, actorId: string) {
     return this.txManager.run(async (tx) => {
       const row = await loadStockIn(tx, movementId);
-      const delta = row.effective.negated().toString();
+      // The damaged units were never on the shelf, so only the rest comes back.
+      const delta = row.effective.minus(row.damaged).negated().toString();
 
-      await moveStock(tx, row, delta, STOCK_IN_EDIT, movementId, actorId, `Hapus ${row.movementType}: -${row.effective.toString()}`);
+      await moveStock(tx, row, delta, STOCK_IN_EDIT, movementId, actorId, `Hapus ${row.movementType}: ${delta}`);
 
       await new AuditLogger(tx).record({
         actorId,

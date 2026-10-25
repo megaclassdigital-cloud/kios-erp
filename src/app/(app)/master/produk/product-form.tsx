@@ -34,6 +34,7 @@ export function ProductForm({
   const [sellingPrice, setSellingPrice] = useState("");
   const [minimumStock, setMinimumStock] = useState("5");
   const [initialStock, setInitialStock] = useState("0");
+  const [initialDamaged, setInitialDamaged] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [expiryWarnDays, setExpiryWarnDays] = useState("30");
   // No default: see barcode-step.tsx for why letting this be picked
@@ -93,6 +94,7 @@ export function ProductForm({
         expiryDate: isService || !expiryDate ? undefined : expiryDate,
         expiryWarnDays: isService ? undefined : Number(expiryWarnDays || 30),
         initialStock: isService ? undefined : initialStock,
+        initialDamaged: isService || !initialDamaged ? undefined : initialDamaged,
         barcode,
       }),
     });
@@ -299,6 +301,23 @@ export function ProductForm({
                     type="number"
                     value={initialStock}
                     onChange={(e) => setInitialStock(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field
+                  label="Barang rusak"
+                  hint={
+                    Number(initialDamaged || 0) > 0
+                      ? `Stok yang masuk: ${Math.max(0, Number(initialStock || 0) - Number(initialDamaged || 0)).toLocaleString("id-ID")} (stok awal dikurangi rusak). Rusaknya tetap tercatat di riwayat.`
+                      : "Bila sebagian dari stok awal rusak, isi jumlahnya. Otomatis mengurangi stok."
+                  }
+                >
+                  <input
+                    type="number"
+                    min="0"
+                    value={initialDamaged}
+                    onChange={(e) => setInitialDamaged(e.target.value)}
+                    placeholder="0"
                     className={inputClass}
                   />
                 </Field>

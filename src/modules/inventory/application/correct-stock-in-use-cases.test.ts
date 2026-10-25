@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({
   movements: new Map<string, { id: string; productId: string; movementType: string; quantity: string; referenceType: string }>(),
   corrections: new Map<string, string[]>(), // movement id -> correction quantities
+  damaged: new Map<string, { productId: string; qty: string }>(), // movement id -> damaged units
   stock: new Map<string, string>(),
   audits: [] as { action: string }[],
   recorded: [] as { quantity: string; referenceType: string; referenceId: string; movementType: string }[],
@@ -47,6 +48,9 @@ vi.mock("../infrastructure/prisma-inventory-repository", () => ({
     async sumStockInCorrections(id: string) {
       return (db.corrections.get(id) ?? []).reduce((s, q) => new Decimal(s).plus(q).toString(), "0");
     }
+    async damagedByReference(ids: string[]) {
+      return new Map(ids.flatMap((id) => (db.damaged.has(id) ? [[`${id}:${db.damaged.get(id)!.productId}`, db.damaged.get(id)!.qty] as [string, string]] : [])));
+    }
     async recordMovement(m: (typeof db.recorded)[number]) {
       db.recorded.push(m);
       if (m.referenceType === "STOCK_IN_EDIT") db.corrections.set(m.referenceId, [...(db.corrections.get(m.referenceId) ?? []), m.quantity]);
@@ -57,7 +61,7 @@ vi.mock("../infrastructure/prisma-inventory-repository", () => ({
 import { DeleteStockInUseCase, StockInNotFoundError, UpdateStockInUseCase } from "./correct-stock-in-use-cases";
 
 beforeEach(() => {
-  db.movements.clear(); db.corrections.clear(); db.stock.clear(); db.audits.length = 0; db.recorded.length = 0;
+  db.movements.clear(); db.corrections.clear(); db.damaged.clear(); db.stock.clear(); db.audits.length = 0; db.recorded.length = 0;
   db.stock.set("p", "24");
   db.movements.set("m1", { id: "m1", productId: "p", movementType: "INITIAL_STOCK", quantity: "24", referenceType: "PRODUCT_INIT" });
 });
@@ -84,6 +88,20 @@ describe("correcting a stock update (not a supplier receipt)", () => {
     expect(db.stock.get("p")).toBe("0");
     expect(db.recorded.map((r) => r.quantity)).toEqual(["6", "-30"]);
     expect(db.audits.map((a) => a.action)).toEqual(["STOCK_IN_UPDATED", "STOCK_IN_DELETED"]);
+  });
+
+  it("deleting a row that had damaged units only takes back the usable part", async () => {
+    // 24 received, 4 damaged -> only 20 ever reached the shelf.
+    db.stock.set("p", "20");
+    db.damaged.set("m1", { productId: "p", qty: "4" });
+    await new DeleteStockInUseCase().execute("m1", "a");
+    expect(db.stock.get("p")).toBe("0");
+    expect(db.recorded.map((r) => r.quantity)).toEqual(["-20"]);
+  });
+
+  it("refuses to correct below the damaged units already recorded", async () => {
+    db.damaged.set("m1", { productId: "p", qty: "4" });
+    await expect(new UpdateStockInUseCase().execute("m1", "3", "a")).rejects.toThrow(/barang rusak/);
   });
 
   it("treats an already-deleted row as gone", async () => {

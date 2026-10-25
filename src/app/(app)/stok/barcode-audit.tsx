@@ -100,6 +100,7 @@ export function BarcodeAudit() {
       <form onSubmit={handleScan} className="mb-3">
         <input
           ref={inputRef}
+          data-scan-target
           value={barcode}
           onChange={(e) => setBarcode(e.target.value)}
           placeholder="Ketik kode lalu Enter"

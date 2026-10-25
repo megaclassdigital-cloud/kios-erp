@@ -40,6 +40,7 @@ const PRIMARY_TABS: {
   { href: "/kasir", label: "Kasir", permission: "pos.operate", Icon: KasirIcon },
   { href: "/stok", label: "Stok Barang", permission: "inventory.view", Icon: StokIcon },
   { href: "/barang-masuk", label: "Barang Masuk", permission: "receiving.manage", Icon: BarangMasukIcon },
+  { href: "/barang-keluar", label: "Barang Keluar", permission: "stockout.manage", Icon: BarangMasukIcon },
   { href: "/transaksi", label: "Transaksi", permission: "transactions.view", Icon: TransaksiIcon },
   { href: "/keuangan", label: "Keuangan", permission: "finance.manage", Icon: KeuanganIcon },
   { href: "/laporan", label: "Laporan", permission: "reports.view", Icon: LaporanIcon },

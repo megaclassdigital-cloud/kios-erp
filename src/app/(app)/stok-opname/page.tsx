@@ -127,7 +127,7 @@ export default function StokOpnamePage() {
         <>
           <form onSubmit={handleScan} data-tour="opname-scan" className="rounded-lg border border-gray-200 bg-white p-3">
             <label className="mb-1 block text-xs font-medium text-gray-500">SCAN PRODUK</label>
-            <input ref={inputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
+            <input ref={inputRef} data-scan-target value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-lg" placeholder="Ketik kode lalu Enter" />
           </form>
           {/* Only while counting: a stray scan during review must not add

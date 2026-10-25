@@ -170,6 +170,7 @@ export function ReceivingHistory({
               <th className="px-3 py-2">Produk</th>
               <th className="px-3 py-2 text-right">Stok Sebelum</th>
               <th className="px-3 py-2 text-right">Qty Masuk</th>
+              <th className="px-3 py-2 text-right">Rusak</th>
               <th className="px-3 py-2 text-right">Stok Sesudah</th>
               <th className="px-3 py-2 text-right">Harga Beli</th>
               <th className="px-3 py-2 text-right">Harga Jual</th>
