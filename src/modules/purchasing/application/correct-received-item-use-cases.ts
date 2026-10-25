@@ -2,6 +2,7 @@ import { TransactionManager } from "@/shared/infrastructure/transaction-manager"
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
 import { PrismaProductRepository } from "@/modules/products/infrastructure/prisma-product-repository";
 import { moveStock } from "@/modules/inventory/application/move-stock";
+import { adjustReceivingDamage, damagedGivesBackStock } from "@/modules/inventory/application/adjust-receiving-damage";
 import { PrismaPurchaseRepository } from "../infrastructure/prisma-purchase-repository";
 import { deletionDelta, planCorrection, receiptTotal } from "../domain/receiving-correction";
 import type { PurchaseItemDetail } from "../repository/purchase-repository";
@@ -12,6 +13,8 @@ export class ReceivedItemNotFoundError extends Error {}
 export interface CorrectItemRequest {
   quantity?: string;
   purchasePrice?: string;
+  /** New damaged count; "" = none, undefined = leave alone. */
+  damagedQuantity?: string;
   /** undefined = leave alone, null = clear the date on this line. */
   expiryDate?: Date | null;
 }
@@ -55,15 +58,26 @@ export class UpdateReceivedItemUseCase {
         ...(req.expiryDate !== undefined ? { expiryDate: req.expiryDate } : {}),
       });
 
-      await moveStock(
-        tx,
-        item,
-        plan.stockDelta,
-        "PURCHASE_ITEM_EDIT",
-        item.id,
-        actorId,
-        `Koreksi barang masuk ${item.purchaseNumber}: ${item.quantity} → ${plan.quantity}`
-      );
+      const moveQuantity = () =>
+        moveStock(
+          tx,
+          item,
+          plan.stockDelta,
+          "PURCHASE_ITEM_EDIT",
+          item.id,
+          actorId,
+          `Koreksi barang masuk ${item.purchaseNumber}: ${item.quantity} → ${plan.quantity}`
+        );
+      const moveDamage = () =>
+        adjustReceivingDamage(tx, item, plan.damagedDelta, item.purchaseId, actorId, item.purchaseNumber);
+      // Give stock back before taking any off, so the net effect is what is judged.
+      if (damagedGivesBackStock(plan.damagedDelta)) {
+        await moveDamage();
+        await moveQuantity();
+      } else {
+        await moveQuantity();
+        await moveDamage();
+      }
 
       // The product carries the date of the latest delivery, so correcting
       // that delivery's date corrects the product's too.
@@ -81,8 +95,8 @@ export class UpdateReceivedItemUseCase {
         action: "PURCHASE_ITEM_UPDATED",
         entityType: "Product",
         entityId: item.productId,
-        beforeValue: { quantity: item.quantity, purchasePrice: item.purchasePrice, expiryDate: item.expiryDate?.toISOString() ?? null },
-        afterValue: { quantity: plan.quantity, purchasePrice: plan.purchasePrice, expiryDate: (req.expiryDate === undefined ? item.expiryDate : req.expiryDate)?.toISOString() ?? null },
+        beforeValue: { quantity: item.quantity, damagedQuantity: item.damagedQuantity, purchasePrice: item.purchasePrice, expiryDate: item.expiryDate?.toISOString() ?? null },
+        afterValue: { quantity: plan.quantity, damagedQuantity: plan.damagedQuantity, purchasePrice: plan.purchasePrice, expiryDate: (req.expiryDate === undefined ? item.expiryDate : req.expiryDate)?.toISOString() ?? null },
         metadata: { purchaseNumber: item.purchaseNumber, purchaseItemId: itemId },
       });
 

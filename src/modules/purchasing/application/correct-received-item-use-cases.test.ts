@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // An in-memory stand-in for the database, so the orchestration (stock moves,
 // ledger rows, receipt totals, audit) is tested end to end without Postgres.
 const db = vi.hoisted(() => ({
-  items: new Map<string, { id: string; purchaseId: string; productId: string; quantity: string; purchasePrice: string; subtotal: string; expiryDate: Date | null; order: number }>(),
+  items: new Map<string, { id: string; purchaseId: string; productId: string; quantity: string; damagedQuantity?: string; purchasePrice: string; subtotal: string; expiryDate: Date | null; order: number }>(),
   purchases: new Map<string, { number: string; total: string }>(),
   stock: new Map<string, string>(),
   productExpiry: new Map<string, Date | null>(),
@@ -63,7 +63,7 @@ vi.mock("../infrastructure/prisma-purchase-repository", () => ({
       if (!i) return null;
       return { ...i, purchaseNumber: db.purchases.get(i.purchaseId)!.number, purchaseStatus: "CONFIRMED", productName: "Beras" };
     }
-    async updateItem(id: string, data: Partial<{ quantity: string; purchasePrice: string; subtotal: string; expiryDate: Date | null }>) {
+    async updateItem(id: string, data: Partial<{ quantity: string; damagedQuantity: string; purchasePrice: string; subtotal: string; expiryDate: Date | null }>) {
       Object.assign(db.items.get(id)!, data);
     }
     async deleteItem(id: string) {
@@ -95,6 +95,45 @@ function seed() {
   db.stock.set("prod", "105");
   db.items.set("it1", { id: "it1", purchaseId: "po1", productId: "prod", quantity: "5", purchasePrice: "1000.00", subtotal: "5000.00", expiryDate: new Date("2027-01-31"), order: 1 });
 }
+
+describe("correcting a received line that had damaged units", () => {
+  beforeEach(() => {
+    seed();
+    // 5 received, 1 damaged -> 4 reached the shelf: 100 + 4.
+    db.stock.set("prod", "104");
+    db.items.get("it1")!.damagedQuantity = "1";
+  });
+
+  it("damaged 1 -> 3 takes 2 more off and records it as damage", async () => {
+    await new UpdateReceivedItemUseCase().execute("it1", { damagedQuantity: "3" }, "actor");
+    expect(db.stock.get("prod")).toBe("102");
+    expect(db.movements).toEqual([
+      expect.objectContaining({ quantity: "-2", movementType: "DAMAGE", referenceType: "RECEIVE_DAMAGE", referenceId: "po1" }),
+    ]);
+  });
+
+  it("clearing damaged gives the unit back", async () => {
+    await new UpdateReceivedItemUseCase().execute("it1", { damagedQuantity: "" }, "actor");
+    expect(db.stock.get("prod")).toBe("105");
+  });
+
+  it("quantity 5 -> 8 with damaged 1 -> 2 nets +2", async () => {
+    await new UpdateReceivedItemUseCase().execute("it1", { quantity: "8", damagedQuantity: "2" }, "actor");
+    expect(db.stock.get("prod")).toBe("106"); // 100 + (8 - 2)
+  });
+
+  it("deleting takes back only the 4 that were on the shelf", async () => {
+    await new DeleteReceivedItemUseCase().execute("it1", "actor");
+    expect(db.stock.get("prod")).toBe("100");
+    expect(db.movements.map((m) => m.quantity)).toEqual(["-4"]);
+  });
+
+  it("refuses damaged above the quantity, changing nothing", async () => {
+    await expect(new UpdateReceivedItemUseCase().execute("it1", { damagedQuantity: "6" }, "actor")).rejects.toThrow(/Barang rusak/);
+    expect(db.stock.get("prod")).toBe("104");
+    expect(db.movements).toHaveLength(0);
+  });
+});
 
 describe("correcting a received line", () => {
   beforeEach(seed);

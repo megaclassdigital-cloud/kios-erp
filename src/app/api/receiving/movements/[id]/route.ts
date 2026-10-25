@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSession, toErrorResponse } from "@/shared/security/require-session";
 import { DeleteStockInUseCase, UpdateStockInUseCase } from "@/modules/inventory/application/correct-stock-in-use-cases";
 
-const schema = z.object({ quantity: z.string() });
+const schema = z.object({ quantity: z.string(), damagedQuantity: z.string().optional() });
 
 /** Correct a stock addition that is not a supplier receipt (initial stock,
  * opname, return, adjustment). Stock follows. */
@@ -11,8 +11,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const session = await requireSession("receiving.edit");
     const { id } = await params;
-    const { quantity } = schema.parse(await req.json());
-    return NextResponse.json(await new UpdateStockInUseCase().execute(id, quantity, session.user.id));
+    const { quantity, damagedQuantity } = schema.parse(await req.json());
+    return NextResponse.json(await new UpdateStockInUseCase().execute(id, quantity, session.user.id, damagedQuantity));
   } catch (error) {
     return toErrorResponse(error);
   }

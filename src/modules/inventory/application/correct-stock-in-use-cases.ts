@@ -7,6 +7,7 @@ import { planCorrection } from "@/modules/purchasing/domain/receiving-correction
 import { PrismaInventoryRepository } from "../infrastructure/prisma-inventory-repository";
 import { STOCK_IN_EDIT } from "../repository/inventory-repository";
 import { moveStock } from "./move-stock";
+import { adjustReceivingDamage, damagedGivesBackStock } from "./adjust-receiving-damage";
 
 export class StockInNotFoundError extends Error {}
 
@@ -64,33 +65,43 @@ async function loadStockIn(tx: Db, movementId: string): Promise<StockIn> {
 export class UpdateStockInUseCase {
   constructor(private readonly txManager = new TransactionManager()) {}
 
-  async execute(movementId: string, quantity: string, actorId: string) {
+  async execute(movementId: string, quantity: string, actorId: string, damagedQuantity?: string) {
     return this.txManager.run(async (tx) => {
       const row = await loadStockIn(tx, movementId);
       // Same arithmetic and validation as correcting a received line; the
       // price plays no part here.
       const plan = planCorrection(
         { quantity: row.effective.toString(), purchasePrice: "0", damagedQuantity: row.damaged.toString() },
-        { quantity }
+        { quantity, damagedQuantity }
       );
 
-      await moveStock(
-        tx,
-        row,
-        plan.stockDelta,
-        STOCK_IN_EDIT,
-        movementId,
-        actorId,
-        `Koreksi ${row.movementType}: ${row.effective.toString()} → ${plan.quantity}`
-      );
+      const moveQuantity = () =>
+        moveStock(
+          tx,
+          row,
+          plan.stockDelta,
+          STOCK_IN_EDIT,
+          movementId,
+          actorId,
+          `Koreksi ${row.movementType}: ${row.effective.toString()} → ${plan.quantity}`
+        );
+      const moveDamage = () => adjustReceivingDamage(tx, row, plan.damagedDelta, movementId, actorId, row.movementType);
+      // Give stock back before taking any off, so the net effect is what is judged.
+      if (damagedGivesBackStock(plan.damagedDelta)) {
+        await moveDamage();
+        await moveQuantity();
+      } else {
+        await moveQuantity();
+        await moveDamage();
+      }
 
       await new AuditLogger(tx).record({
         actorId,
         action: "STOCK_IN_UPDATED",
         entityType: "Product",
         entityId: row.productId,
-        beforeValue: { quantity: row.effective.toString() },
-        afterValue: { quantity: plan.quantity },
+        beforeValue: { quantity: row.effective.toString(), damagedQuantity: row.damaged.toString() },
+        afterValue: { quantity: plan.quantity, damagedQuantity: plan.damagedQuantity },
         metadata: { movementId, source: row.movementType },
       });
       return { movementId, stockDelta: plan.stockDelta };

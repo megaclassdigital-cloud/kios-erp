@@ -53,6 +53,10 @@ vi.mock("../infrastructure/prisma-inventory-repository", () => ({
     }
     async recordMovement(m: (typeof db.recorded)[number]) {
       db.recorded.push(m);
+      if (m.referenceType === "RECEIVE_DAMAGE") {
+        const now = db.damaged.get(m.referenceId)?.qty ?? "0";
+        db.damaged.set(m.referenceId, { productId: "p", qty: new Decimal(now).minus(m.quantity).toString() });
+      }
       if (m.referenceType === "STOCK_IN_EDIT") db.corrections.set(m.referenceId, [...(db.corrections.get(m.referenceId) ?? []), m.quantity]);
     }
   },
@@ -101,7 +105,37 @@ describe("correcting a stock update (not a supplier receipt)", () => {
 
   it("refuses to correct below the damaged units already recorded", async () => {
     db.damaged.set("m1", { productId: "p", qty: "4" });
-    await expect(new UpdateStockInUseCase().execute("m1", "3", "a")).rejects.toThrow(/barang rusak/);
+    await expect(new UpdateStockInUseCase().execute("m1", "3", "a")).rejects.toThrow(/Barang rusak/);
+  });
+
+  it("editing damaged 0 -> 5 takes 5 more off the shelf and records it", async () => {
+    await new UpdateStockInUseCase().execute("m1", "24", "a", "5");
+    expect(db.stock.get("p")).toBe("19");
+    expect(db.recorded).toEqual([expect.objectContaining({ quantity: "-5", movementType: "DAMAGE", referenceType: "RECEIVE_DAMAGE", referenceId: "m1" })]);
+    expect(db.damaged.get("m1")?.qty).toBe("5");
+  });
+
+  it("editing damaged 4 -> 1 gives 3 units back; clearing it gives the rest back", async () => {
+    db.stock.set("p", "20");
+    db.damaged.set("m1", { productId: "p", qty: "4" });
+    await new UpdateStockInUseCase().execute("m1", "24", "a", "1");
+    expect(db.stock.get("p")).toBe("23");
+    await new UpdateStockInUseCase().execute("m1", "24", "a", "");
+    expect(db.stock.get("p")).toBe("24");
+    expect(db.damaged.get("m1")?.qty).toBe("0");
+  });
+
+  it("changing quantity and damaged together balances: 24/4 -> 30/2 is +6 and +2", async () => {
+    db.stock.set("p", "20");
+    db.damaged.set("m1", { productId: "p", qty: "4" });
+    await new UpdateStockInUseCase().execute("m1", "30", "a", "2");
+    expect(db.stock.get("p")).toBe("28"); // 30 received - 2 damaged
+  });
+
+  it("refuses damaged above the quantity and changes nothing", async () => {
+    await expect(new UpdateStockInUseCase().execute("m1", "24", "a", "25")).rejects.toThrow(/Barang rusak/);
+    expect(db.stock.get("p")).toBe("24");
+    expect(db.recorded).toHaveLength(0);
   });
 
   it("treats an already-deleted row as gone", async () => {

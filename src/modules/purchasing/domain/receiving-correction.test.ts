@@ -54,3 +54,33 @@ describe("receiptTotal", () => {
     expect(receiptTotal([])).toBe("0.00");
   });
 });
+
+describe("damaged units in a correction", () => {
+  const line = { quantity: "45", purchasePrice: "1000", damagedQuantity: "5" };
+
+  it("leaves the damaged count alone when it is not mentioned", () => {
+    const plan = planCorrection(line, { quantity: "50" });
+    expect(plan.damagedQuantity).toBe("5");
+    expect(plan.damagedDelta).toBe("0");
+    expect(plan.stockDelta).toBe("5");
+  });
+
+  it("changes it: 5 -> 8 is a damaged delta of +3", () => {
+    const plan = planCorrection(line, { damagedQuantity: "8" });
+    expect(plan.damagedDelta).toBe("3");
+    expect(plan.stockDelta).toBe("0");
+  });
+
+  it("empty means none", () => {
+    expect(planCorrection(line, { damagedQuantity: "" }).damagedDelta).toBe("-5");
+  });
+
+  it("refuses more damaged than the quantity", () => {
+    expect(() => planCorrection(line, { quantity: "4" })).toThrow(/Barang rusak/);
+    expect(() => planCorrection(line, { damagedQuantity: "46" })).toThrow(/Barang rusak/);
+  });
+
+  it("deleting takes back only the usable part", () => {
+    expect(deletionDelta(line)).toBe("-40");
+  });
+});

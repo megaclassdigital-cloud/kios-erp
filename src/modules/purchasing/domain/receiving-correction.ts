@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { parseDamaged } from "@/modules/inventory/domain/receiving-damage";
 
 export interface ReceivedLine {
   quantity: string;
@@ -11,6 +12,8 @@ export interface ReceivedLine {
 export interface LineChange {
   quantity?: string;
   purchasePrice?: string;
+  /** New damaged count. "" means none; undefined leaves it as it is. */
+  damagedQuantity?: string;
 }
 
 export interface PlannedCorrection {
@@ -20,6 +23,12 @@ export interface PlannedCorrection {
   /** Change to the product's stock: new quantity minus the quantity that was
    * received. Positive adds stock, negative takes it back. */
   stockDelta: string;
+  /** Damaged units after the correction. */
+  damagedQuantity: string;
+  /** Change to the damaged count (new minus old). Positive takes more stock
+   * off, negative gives it back. The shelf moves by stockDelta - damagedDelta
+   * overall; the two are recorded as separate movements. */
+  damagedDelta: string;
 }
 
 export class InvalidCorrectionError extends Error {}
@@ -52,10 +61,11 @@ export function planCorrection(current: ReceivedLine, change: LineChange): Plann
   if (quantity.decimalPlaces() > 3) {
     throw new InvalidCorrectionError("Jumlah maksimal 3 angka di belakang koma.");
   }
-  if (quantity.lt(current.damagedQuantity ?? 0)) {
-    throw new InvalidCorrectionError(
-      `Jumlah tidak boleh lebih kecil dari barang rusak yang sudah dicatat (${current.damagedQuantity}).`
-    );
+  let damaged: Decimal;
+  try {
+    damaged = parseDamaged(quantity.toString(), change.damagedQuantity ?? current.damagedQuantity);
+  } catch (error) {
+    throw new InvalidCorrectionError(error instanceof Error ? error.message : "Barang rusak tidak valid.");
   }
   if (!price.isFinite() || price.lt(0)) {
     throw new InvalidCorrectionError("Harga beli tidak boleh negatif.");
@@ -69,6 +79,8 @@ export function planCorrection(current: ReceivedLine, change: LineChange): Plann
     purchasePrice: price.toFixed(2),
     subtotal: quantity.times(price).toFixed(2),
     stockDelta: quantity.minus(current.quantity).toString(),
+    damagedQuantity: damaged.toString(),
+    damagedDelta: damaged.minus(current.damagedQuantity ?? 0).toString(),
   };
 }
 

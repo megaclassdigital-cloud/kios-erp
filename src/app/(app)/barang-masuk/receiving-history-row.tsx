@@ -31,6 +31,8 @@ const rupiah = (v: string | null) => (v === null ? "-" : `Rp${Number(v).toLocale
 const qty = (v: string) => Number(v).toLocaleString("id-ID");
 const dateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 const dateLabel = (iso: string) => formatWibDateTime(new Date(iso)).slice(0, 10);
+/** "" for none, so an untouched field stays empty. */
+const damagedText = (v: string) => (Number(v) > 0 ? v : "");
 const input = "w-full min-w-16 rounded border border-input px-2 py-1 text-sm";
 
 /** Always rejects with a sentence a shopkeeper can read: a dropped
@@ -71,6 +73,8 @@ export function HistoryRow({
   const fromSupplier = row.source === "PURCHASE";
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [quantity, setQuantity] = useState(row.quantity);
+  // Empty when nothing was damaged: a field full of zeros reads as data.
+  const [damagedInput, setDamagedInput] = useState(damagedText(row.damagedQuantity));
   const [price, setPrice] = useState(row.purchasePrice ?? "");
   const [expiry, setExpiry] = useState(dateInput(row.expiryDate));
   const [busy, setBusy] = useState(false);
@@ -82,6 +86,7 @@ export function HistoryRow({
   // cancelled last time (or from before another save changed the line).
   function openEdit() {
     setQuantity(row.quantity);
+    setDamagedInput(damagedText(row.damagedQuantity));
     setPrice(row.purchasePrice ?? "");
     setExpiry(dateInput(row.expiryDate));
     setError(null);
@@ -117,7 +122,9 @@ export function HistoryRow({
         call(url, {
           method: "PATCH",
           body: JSON.stringify(
-            fromSupplier ? { quantity, purchasePrice: price, expiryDate: expiry || null } : { quantity }
+            fromSupplier
+              ? { quantity, damagedQuantity: damagedInput, purchasePrice: price, expiryDate: expiry || null }
+              : { quantity, damagedQuantity: damagedInput }
           ),
         }),
       "Diperbarui. Stok ikut disesuaikan."
@@ -126,7 +133,7 @@ export function HistoryRow({
     run(() => call(url, { method: "DELETE" }), `Dihapus. Stok ${row.productName} dikurangi ${qty(String(Number(row.quantity) - damaged))}.`);
 
   const damaged = Number(row.damagedQuantity);
-  const delta = Number(quantity || 0) - Number(row.quantity);
+  const delta = Number(quantity || 0) - Number(row.quantity) - (Number(damagedInput || 0) - damaged);
   const when = formatWibDateTime(new Date(row.receivedAt));
   const sourceCell = fromSupplier ? (
     <>
@@ -151,9 +158,14 @@ export function HistoryRow({
             {delta === 0 ? "Stok tidak berubah" : `Stok ${delta > 0 ? "+" : ""}${qty(String(delta))}`}
           </span>
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{qty(row.damagedQuantity)}</td>
+        <td className="px-3 py-2">
+          <input aria-label="Barang rusak" type="number" step="any" min="0" placeholder="" value={damagedInput} onChange={(e) => setDamagedInput(e.target.value)} className={input} />
+          {Number(damagedInput || 0) > Number(quantity || 0) && (
+            <span className="mt-1 block text-[11px] text-destructive">Melebihi jumlah</span>
+          )}
+        </td>
         <td className="px-3 py-2 text-right tabular-nums">
-          {qty(String(Number(row.stockBefore) + Number(quantity || 0) - Number(row.damagedQuantity)))}
+          {qty(String(Number(row.stockBefore) + Number(quantity || 0) - Number(damagedInput || 0)))}
         </td>
         <td className="px-3 py-2">
           {fromSupplier ? (
@@ -176,7 +188,7 @@ export function HistoryRow({
         <td className="px-3 py-2">
           <div className="flex flex-col items-end gap-1">
             <div className="flex gap-2">
-              <button disabled={busy} onClick={save} className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50">
+              <button disabled={busy || Number(damagedInput || 0) > Number(quantity || 0)} onClick={save} className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50">
                 {busy ? "Menyimpan..." : "Simpan"}
               </button>
               <button disabled={busy} onClick={cancel} className="text-xs text-muted-foreground hover:underline">
@@ -201,8 +213,8 @@ export function HistoryRow({
         <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-success">
           +{qty(row.quantity)} {row.unit}
         </td>
-        <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${damaged > 0 ? "font-medium text-destructive" : "text-muted-foreground"}`}>
-          {damaged > 0 ? `-${qty(row.damagedQuantity)}` : "-"}
+        <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-destructive">
+          {damaged > 0 ? `-${qty(row.damagedQuantity)}` : ""}
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground">{qty(row.stockAfter)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">

@@ -9,6 +9,8 @@ import {
 const schema = z.object({
   quantity: z.string().optional(),
   purchasePrice: z.string().optional(),
+  // "" = no damaged units; absent leaves the count alone.
+  damagedQuantity: z.string().optional(),
   // "" or null clears the date on this line; absent leaves it alone.
   expiryDate: z.string().nullable().optional(),
 });
@@ -24,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (expiryDate && Number.isNaN(expiryDate.getTime())) throw new Error("Tanggal kedaluwarsa tidak valid.");
     const result = await new UpdateReceivedItemUseCase().execute(
       id,
-      { quantity: body.quantity, purchasePrice: body.purchasePrice, expiryDate },
+      { quantity: body.quantity, purchasePrice: body.purchasePrice, damagedQuantity: body.damagedQuantity, expiryDate },
       session.user.id
     );
     return NextResponse.json(result);

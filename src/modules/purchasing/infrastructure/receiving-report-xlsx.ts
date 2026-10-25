@@ -56,7 +56,8 @@ export function buildReceivingReportXlsx(
         product: r.productName,
         before: num(r.stockBefore),
         qty: num(r.quantity),
-        damaged: num(r.damagedQuantity),
+        // Left empty when nothing was damaged; the formulas read it as 0.
+        damaged: num(r.damagedQuantity) > 0 ? num(r.damagedQuantity) : null,
         after: { formula: "{before}+{qty}-{damaged}", result: num(r.stockAfter) },
         unit: r.unit,
         // A receipt line shows what was paid; other additions show the
