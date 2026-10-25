@@ -8,6 +8,7 @@ import { BarcodeLabelModal } from "./barcode-label-modal";
 import { LastChanged } from "./last-changed";
 import { ProductDeleteModal } from "./product-delete-modal";
 import { ProductReceivingHistoryModal } from "./product-receiving-history-modal";
+import { ExportPreviewButton } from "../../export-preview";
 import { DuplicateAuditModal } from "./duplicate-audit-modal";
 import { ProductEditModal, type EditableProduct } from "./product-edit-modal";
 import { filterProducts } from "@/modules/products/domain/product-filter";
@@ -162,6 +163,10 @@ export default function MasterProdukPage() {
         >
           Cek Duplikat
         </button>
+        <ExportPreviewButton
+          previewUrl={`/api/products/export?format=preview${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ""}`}
+          downloadUrl={`/api/products/export${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""}`}
+        />
         <a
           href={`/api/products/export${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""}`}
           className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"

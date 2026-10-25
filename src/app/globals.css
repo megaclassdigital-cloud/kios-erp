@@ -86,6 +86,25 @@
   }
 }
 
+/* Full-document previews (export preview) are rendered straight into <body> and
+   flow across as many pages as they need: everything else is removed from the
+   printout, not merely hidden, so the page behind adds no blank pages. */
+@media print {
+  body:has([data-print-flow]) > :not([data-print-flow]) {
+    display: none !important;
+  }
+  [data-print-flow],
+  [data-print-flow] * {
+    visibility: visible;
+  }
+  [data-print-flow] {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+    padding: 0 !important;
+  }
+}
+
 :root {
   /* Kios-ERP design tokens — clean white/light-blue ERP palette (see
      project UI/UX directive): strong blue operational accent, dark navy

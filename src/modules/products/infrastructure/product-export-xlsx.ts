@@ -25,7 +25,8 @@ function priceAverages(rows: { buy: number; sell: number }[]): A4Row {
 
 const PROFIT_FORMULA = "IF({buy}=0,0,({sell}-{buy})/{buy})";
 
-export function buildProductExportXlsx(data: ProductExport, search: string, printedBy: string): Promise<Buffer> {
+/** The sheets both the XLSX and the on-screen preview are made from. */
+export function buildProductExportSpecs(data: ProductExport, search: string, printedBy: string): A4Spec[] {
   const { rows, services, summary } = data;
   const filterLine = search.trim() ? `Filter pencarian: "${search.trim()}"` : "Semua barang";
 
@@ -96,7 +97,7 @@ export function buildProductExportXlsx(data: ProductExport, search: string, prin
     ],
   };
 
-  if (services.length === 0) return buildA4Workbook(stockSheet);
+  if (services.length === 0) return [stockSheet];
 
   // Services (pulsa, token listrik) have no stock, so they get their own
   // table: a price list rather than a stock list.
@@ -138,5 +139,9 @@ export function buildProductExportXlsx(data: ProductExport, search: string, prin
     }),
     totals: [{ name: "Rata-rata", ...priceAverages(servicePrices) }],
   };
-  return buildA4Workbook([stockSheet, priceSheet]);
+  return [stockSheet, priceSheet];
+}
+
+export function buildProductExportXlsx(data: ProductExport, search: string, printedBy: string): Promise<Buffer> {
+  return buildA4Workbook(buildProductExportSpecs(data, search, printedBy));
 }

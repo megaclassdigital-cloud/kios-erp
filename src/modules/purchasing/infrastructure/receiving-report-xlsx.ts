@@ -1,4 +1,4 @@
-import { buildA4Workbook } from "@/shared/export/a4-workbook";
+import { buildA4Workbook, type A4Spec } from "@/shared/export/a4-workbook";
 import { formatWibDate, formatWibDateTime } from "@/shared/format/wib";
 import { stockInLabel } from "../domain/stock-in-source";
 import type { ReceivingReport } from "../application/get-receiving-report-use-case";
@@ -7,15 +7,16 @@ import type { ReceivingReport } from "../application/get-receiving-report-use-ca
  * a double holds exactly, so converting at this last step loses nothing. */
 const num = (v: string) => Number(v);
 
-export function buildReceivingReportXlsx(
+/** The sheet both the XLSX and the on-screen preview are made from. */
+export function buildReceivingReportSpec(
   report: ReceivingReport,
   period: { label: string; start: Date; end: Date },
   printedBy: string,
   /** Set when the report is for a single product (its history). */
   productName?: string
-): Promise<Buffer> {
+): A4Spec {
   const { rows, summary } = report;
-  return buildA4Workbook({
+  return {
     sheetName: "Barang Masuk",
     title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
@@ -83,7 +84,16 @@ export function buildReceivingReportXlsx(
         sell: { formula: "AVERAGE({sell:range})", result: average(rows.map((r) => num(r.sellingPrice))) },
       },
     ],
-  });
+  };
+}
+
+export function buildReceivingReportXlsx(
+  report: ReceivingReport,
+  period: { label: string; start: Date; end: Date },
+  printedBy: string,
+  productName?: string
+): Promise<Buffer> {
+  return buildA4Workbook(buildReceivingReportSpec(report, period, printedBy, productName));
 }
 
 function average(values: number[]): number {

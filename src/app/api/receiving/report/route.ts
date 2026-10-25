@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, toErrorResponse } from "@/shared/security/require-session";
 import { GetReceivingReportUseCase } from "@/modules/purchasing/application/get-receiving-report-use-case";
-import { buildReceivingReportXlsx } from "@/modules/purchasing/infrastructure/receiving-report-xlsx";
+import { buildReceivingReportSpec, buildReceivingReportXlsx } from "@/modules/purchasing/infrastructure/receiving-report-xlsx";
+import { buildA4Preview } from "@/shared/export/a4-preview";
 import { XLSX_CONTENT_TYPE } from "@/shared/export/a4-workbook";
 import { resolvePeriod } from "@/app/(app)/laporan/resolve-period";
 
@@ -19,6 +20,11 @@ export async function GET(req: NextRequest) {
     const productId = searchParams.get("productId") ?? undefined;
     const only = searchParams.get("only") === "purchase" ? ("purchase" as const) : undefined;
     const report = await new GetReceivingReportUseCase().execute({ start: period.start, end: period.end, productId, only });
+
+    if (searchParams.get("format") === "preview") {
+      const spec = buildReceivingReportSpec(report, period, session.user.name ?? "-", productId ? report.rows[0]?.productName : undefined);
+      return NextResponse.json({ sheets: buildA4Preview(spec) });
+    }
 
     if (searchParams.get("format") === "xlsx") {
       const file = await buildReceivingReportXlsx(report, period, session.user.name ?? "-", productId ? report.rows[0]?.productName : undefined);

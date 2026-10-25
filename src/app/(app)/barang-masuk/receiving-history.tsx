@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/shared/security/permissions";
+import { ExportPreviewButton } from "../export-preview";
 import { HistoryRow, type HistoryItem } from "./receiving-history-row";
 
 const PERIODS = [
@@ -130,6 +131,8 @@ export function ReceivingHistory({
             </>
           )}
           {customReady ? (
+            <>
+            <ExportPreviewButton previewUrl={`/api/receiving/report?${qs}&format=preview`} downloadUrl={`/api/receiving/report?${qs}&format=xlsx`} />
             <a
               href={`/api/receiving/report?${qs}&format=xlsx`}
               className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
@@ -137,6 +140,7 @@ export function ReceivingHistory({
               <Download className="h-4 w-4" />
               Download Excel (A4)
             </a>
+            </>
           ) : (
             <span className="rounded-md bg-muted px-3 py-1.5 text-sm text-muted-foreground">
               Isi tanggal dengan benar dulu
