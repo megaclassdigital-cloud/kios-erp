@@ -61,10 +61,39 @@ export interface WedgeSettings {
 
 export const DEFAULT_WEDGE_SETTINGS: WedgeSettings = {
   minLength: 4,
-  maxIntervalMs: 35,
-  idleFlushMs: 60,
+  // Tablets deliver USB-OTG scanner keys less evenly than a desktop does
+  // (Android batches key events), so the gap limit leaves headroom while
+  // still sitting well under human typing speed.
+  maxIntervalMs: 50,
+  idleFlushMs: 90,
   maxLength: 64,
 };
+
+/** Marks the page's own barcode box. A scan arriving while it has focus is
+ * still captured as a scan (and the box cleared), so the result is the same
+ * on a tablet as on a desktop whether or not the box happens to be focused. */
+export const SCAN_TARGET_ATTR = "data-scan-target";
+
+export function isScanTarget(element: Element | null | undefined): boolean {
+  return !!element && typeof element.hasAttribute === "function" && element.hasAttribute(SCAN_TARGET_ATTR);
+}
+
+const CODE_TO_CHAR: Record<string, string> = { Minus: "-", Period: ".", Slash: "/", Space: " " };
+
+/**
+ * The printable character of a key event. Android reports "Unidentified" for
+ * keys typed through an input method, even from a hardware scanner; the
+ * physical `code` still says which key it was.
+ */
+export function wedgeKeyChar(event: { key: string; code?: string }): string | null {
+  if (event.key.length === 1) return event.key;
+  if (event.key !== "Unidentified" || !event.code) return null;
+  const digit = /^(?:Digit|Numpad)(\d)$/.exec(event.code);
+  if (digit) return digit[1];
+  const letter = /^Key([A-Z])$/.exec(event.code);
+  if (letter) return letter[1];
+  return CODE_TO_CHAR[event.code] ?? null;
+}
 
 export class KeyboardWedgeBuffer {
   private chars: string[] = [];
@@ -75,6 +104,10 @@ export class KeyboardWedgeBuffer {
 
   get isEmpty(): boolean {
     return this.chars.length === 0;
+  }
+
+  get size(): number {
+    return this.chars.length;
   }
 
   reset(): void {

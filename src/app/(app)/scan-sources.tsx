@@ -137,8 +137,10 @@ function ScannerStatus({
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
-      <span className="text-xs font-medium text-muted-foreground">Scanner belum terdeteksi</span>
-      <span className="text-[11px] text-muted-foreground">Colok scanner lalu scan sekali.</span>
+      <span className="text-xs font-medium text-muted-foreground">Scanner belum terdeteksi di perangkat ini</span>
+      <span className="text-[11px] text-muted-foreground">
+        Colok scanner ke perangkat ini lalu scan sekali. Hasil scan hanya tampil di perangkat tempat scanner dicolok.
+      </span>
       {hidSupported && (
         <button
           type="button"

@@ -106,6 +106,9 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // On a tablet, focusing the box raises the on-screen keyboard over the
+    // cart; the scanner is captured page-wide anyway, so leave it unfocused.
+    if (window.matchMedia?.("(pointer: coarse)").matches) return;
     inputRef.current?.focus();
   }, []);
 
@@ -352,6 +355,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
               </label>
               <input
                 ref={inputRef}
+                data-scan-target
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
                 className="w-full rounded-md border border-input px-3 py-2 text-lg tracking-wide focus:border-ring focus:outline-none"

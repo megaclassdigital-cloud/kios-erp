@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WEDGE_SETTINGS,
   KeyboardWedgeBuffer,
+  isScanTarget,
   isTextEntryElement,
+  wedgeKeyChar,
 } from "./keyboard-wedge";
 
 /** Types a string at a fixed inter-key interval, starting at `from`. */
@@ -73,6 +75,48 @@ describe("KeyboardWedgeBuffer", () => {
     buffer.flush("enter");
 
     expect(buffer.isEmpty).toBe(true);
+  });
+});
+
+describe("wedgeKeyChar", () => {
+  it("passes ordinary keys through", () => {
+    expect(wedgeKeyChar({ key: "7" })).toBe("7");
+  });
+
+  it("recovers the character Android hides behind Unidentified", () => {
+    expect(wedgeKeyChar({ key: "Unidentified", code: "Digit8" })).toBe("8");
+    expect(wedgeKeyChar({ key: "Unidentified", code: "Numpad3" })).toBe("3");
+    expect(wedgeKeyChar({ key: "Unidentified", code: "KeyA" })).toBe("A");
+    expect(wedgeKeyChar({ key: "Unidentified", code: "Minus" })).toBe("-");
+  });
+
+  it("ignores non-printable keys", () => {
+    expect(wedgeKeyChar({ key: "Shift", code: "ShiftLeft" })).toBeNull();
+    expect(wedgeKeyChar({ key: "Unidentified" })).toBeNull();
+  });
+});
+
+describe("isScanTarget", () => {
+  it("is true only for the marked barcode box", () => {
+    const marked = { hasAttribute: (n: string) => n === "data-scan-target" } as unknown as Element;
+    const plain = { hasAttribute: () => false } as unknown as Element;
+    expect(isScanTarget(marked)).toBe(true);
+    expect(isScanTarget(plain)).toBe(false);
+    expect(isScanTarget(null)).toBe(false);
+  });
+});
+
+describe("tablet-speed bursts", () => {
+  it("still reads a scanner whose keys arrive ~45ms apart", () => {
+    const buffer = new KeyboardWedgeBuffer();
+    type(buffer, "8991002103115", 45);
+    expect(buffer.flush("idle")?.value).toBe("8991002103115");
+  });
+
+  it("does not mistake human typing for a scan", () => {
+    const buffer = new KeyboardWedgeBuffer();
+    type(buffer, "8991002103115", 120);
+    expect(buffer.flush("enter")).toBeNull();
   });
 });
 
