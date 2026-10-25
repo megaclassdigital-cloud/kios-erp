@@ -1,5 +1,3 @@
-import { sharedBarcodeKey } from "./barcode-similarity";
-
 export interface KnownProductRef {
   id: string;
   name: string;
@@ -9,33 +7,30 @@ export interface KnownProductRef {
   activeBarcodes: string[];
 }
 
-export type DuplicateKind = "BARCODE" | "SKU" | "NAME";
+export type DuplicateKind = "BARCODE" | "SKU";
 
 export interface Duplicate {
   kind: DuplicateKind;
   product: KnownProductRef;
 }
 
-const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
 const normalizeSku = (sku: string) => sku.trim().toUpperCase();
 
 /**
- * Whether a product being added is already in Master Produk. Goods that are
- * already there get more stock through Barang Masuk, not a second record --
- * two records split one item's stock, history and price in two.
+ * The cases that can never be a deliberate second record: the very same
+ * barcode (the database refuses it anyway) or the very same SKU. Goods that
+ * are already there get more stock through Barang Masuk.
  *
- * Checked in order of certainty: a barcode that is the same or only written
- * differently (see barcode-similarity) is the same physical item;
- * the same SKU is the same shop code; the same name (ignoring case and
- * spacing) is almost certainly a retype.
+ * Look-alike barcodes and similar names are *not* decided here: they are
+ * reminders the user may wave off (see similar-products.ts).
  */
 export function findDuplicate(
   existing: KnownProductRef[],
-  candidate: { name?: string; sku?: string; barcode?: string }
+  candidate: { sku?: string; barcode?: string }
 ): Duplicate | null {
   const barcode = candidate.barcode?.trim();
   if (barcode) {
-    const hit = existing.find((p) => sharedBarcodeKey([barcode], p.activeBarcodes) !== null);
+    const hit = existing.find((p) => p.activeBarcodes.some((b) => b.trim() === barcode));
     if (hit) return { kind: "BARCODE", product: hit };
   }
   if (candidate.sku?.trim()) {
@@ -43,15 +38,10 @@ export function findDuplicate(
     const hit = existing.find((p) => normalizeSku(p.sku) === sku);
     if (hit) return { kind: "SKU", product: hit };
   }
-  if (candidate.name?.trim()) {
-    const name = normalizeName(candidate.name);
-    const hit = existing.find((p) => normalizeName(p.name) === name);
-    if (hit) return { kind: "NAME", product: hit };
-  }
   return null;
 }
 
-const FIELD: Record<DuplicateKind, string> = { BARCODE: "Barcode ini", SKU: "SKU ini", NAME: "Nama ini" };
+const FIELD: Record<DuplicateKind, string> = { BARCODE: "Barcode ini", SKU: "SKU ini" };
 
 /** The sentence shown to whoever tried to add it again. */
 export function duplicateMessage(d: Duplicate): string {

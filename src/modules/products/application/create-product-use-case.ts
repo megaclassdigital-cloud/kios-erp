@@ -1,5 +1,6 @@
 import { DuplicateProductError } from "../domain/duplicate-product-error";
 import { duplicateMessage, findDuplicate } from "../domain/duplicate-product";
+import { findReminders, needsAcknowledgement, reminderMessage } from "../domain/similar-products";
 import { parseDamaged, usableQuantity } from "@/modules/inventory/domain/receiving-damage";
 import { RECEIVE_DAMAGE } from "@/modules/inventory/repository/inventory-repository";
 import type { ProductType, ServiceType } from "@prisma/client";
@@ -27,6 +28,8 @@ export interface CreateProductRequest {
   expiryDate?: Date | null;
   expiryWarnDays?: number;
   initialStock?: string;
+  /** The user saw the similar-product reminder and confirmed this one is different. */
+  acknowledgeSimilar?: boolean;
   /** Part of initialStock that is damaged: counted in, then taken straight off. */
   initialDamaged?: string;
   barcode:
@@ -58,12 +61,16 @@ export class CreateProductUseCase {
       // Already in Master Produk? Then the stock belongs in Barang Masuk, not
       // in a second record of the same item.
       const known = await products.listForDuplicateCheck();
-      const duplicate = findDuplicate(known, {
-        name: req.name,
-        sku: req.sku,
-        barcode: req.barcode.mode === "SCAN_EXISTING" ? BarcodeValue.normalize(req.barcode.value).toString() : undefined,
-      });
+      const barcode = req.barcode.mode === "SCAN_EXISTING" ? BarcodeValue.normalize(req.barcode.value).toString() : undefined;
+      // The very same barcode or SKU is never a deliberate second record.
+      const duplicate = findDuplicate(known, { sku: req.sku, barcode });
       if (duplicate) throw new DuplicateProductError(duplicateMessage(duplicate));
+      // A look-alike barcode or a similar name is a reminder: the user may
+      // confirm it is a different product (the screen asks before sending).
+      const reminders = findReminders(known, { name: req.name, barcode });
+      if (needsAcknowledgement(reminders) && !req.acknowledgeSimilar) {
+        throw new DuplicateProductError(reminderMessage(reminders));
+      }
 
       const existingSku = await products.findBySku(req.sku);
       if (existingSku) {

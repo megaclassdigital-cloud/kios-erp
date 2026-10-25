@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { duplicateMessage, findDuplicate, type KnownProductRef } from "@/modules/products/domain/duplicate-product";
+import type { KnownProductRef } from "@/modules/products/domain/duplicate-product";
+import { findReminders } from "@/modules/products/domain/similar-products";
+import { SimilarReminder } from "./similar-reminder";
 
 export interface EditableProduct {
   id: string;
@@ -71,10 +73,11 @@ export function ProductEditModal({
 
   // Renaming into another product's name would recreate the duplicate the
   // add form refuses. The server checks the same thing.
-  const duplicate = useMemo(
-    () => findDuplicate(knownProducts.filter((p) => p.id !== product.id), { name }),
-    [knownProducts, product.id, name]
+  const reminders = useMemo(
+    () => (name.trim() === product.name.trim() ? [] : findReminders(knownProducts.filter((p) => p.id !== product.id), { name })),
+    [knownProducts, product.id, product.name, name]
   );
+  const [reminderOk, setReminderOk] = useState(true);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -86,6 +89,7 @@ export function ProductEditModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          acknowledgeSimilar: reminders.length > 0 ? true : undefined,
           categoryId: categoryId || null,
           purchasePrice,
           sellingPrice,
@@ -178,11 +182,7 @@ export function ProductEditModal({
           </div>
         </fieldset>
 
-        {duplicate && (
-          <div role="alert" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm text-foreground">
-            {duplicateMessage(duplicate)}
-          </div>
-        )}
+        <SimilarReminder reminders={reminders} onAcknowledgedChange={setReminderOk} />
 
         <fieldset className="rounded-lg border border-border p-3">
           <legend className="px-1 text-xs font-semibold text-muted-foreground">
@@ -258,7 +258,7 @@ export function ProductEditModal({
           </button>
           <button
             type="submit"
-            disabled={saving || !!duplicate}
+            disabled={saving || !reminderOk}
             className="flex-1 rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           >
             {saving ? "Menyimpan..." : "Simpan Perubahan"}

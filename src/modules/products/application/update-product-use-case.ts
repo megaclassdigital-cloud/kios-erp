@@ -1,7 +1,7 @@
 import { TransactionManager } from "@/shared/infrastructure/transaction-manager";
 import { AuditLogger } from "@/shared/infrastructure/audit-logger";
 import { DuplicateProductError } from "../domain/duplicate-product-error";
-import { duplicateMessage, findDuplicate } from "../domain/duplicate-product";
+import { findReminders, needsAcknowledgement, reminderMessage } from "../domain/similar-products";
 import { PrismaProductRepository } from "../infrastructure/prisma-product-repository";
 
 export interface UpdateProductRequest {
@@ -14,6 +14,8 @@ export interface UpdateProductRequest {
   serviceProvider?: string | null;
   expiryDate?: Date | null;
   expiryWarnDays?: number;
+  /** The user saw the similar-name reminder and confirmed the new name is deliberate. */
+  acknowledgeSimilar?: boolean;
 }
 
 export class ProductNotFoundError extends Error {}
@@ -31,7 +33,7 @@ export class ProductNotFoundError extends Error {}
 export class UpdateProductUseCase {
   constructor(private readonly txManager = new TransactionManager()) {}
 
-  async execute(id: string, req: UpdateProductRequest, actorId: string) {
+  async execute(id: string, { acknowledgeSimilar, ...req }: UpdateProductRequest, actorId: string) {
     return this.txManager.run(async (tx) => {
       const products = new PrismaProductRepository(tx);
       const audit = new AuditLogger(tx);
@@ -43,8 +45,10 @@ export class UpdateProductUseCase {
       // adding refuses.
       if (req.name !== undefined) {
         const others = (await products.listForDuplicateCheck()).filter((p) => p.id !== id);
-        const duplicate = findDuplicate(others, { name: req.name });
-        if (duplicate) throw new DuplicateProductError(duplicateMessage(duplicate));
+        const reminders = findReminders(others, { name: req.name });
+        if (needsAcknowledgement(reminders) && !acknowledgeSimilar) {
+          throw new DuplicateProductError(reminderMessage(reminders));
+        }
       }
 
       // A service has nothing physical to expire, so a date sent for one is

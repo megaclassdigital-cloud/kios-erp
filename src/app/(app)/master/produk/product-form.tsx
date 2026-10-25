@@ -7,6 +7,8 @@ import { CheckCircle2 } from "lucide-react";
 import { BarcodeLabelPrinter } from "./barcode-label-printer";
 import { BarcodeValue } from "@/shared/barcode/barcode-value";
 import { duplicateMessage, findDuplicate } from "@/modules/products/domain/duplicate-product";
+import { findReminders } from "@/modules/products/domain/similar-products";
+import { SimilarReminder } from "./similar-reminder";
 import { BarcodeStep, type BarcodeMode, type KnownProduct } from "./barcode-step";
 
 interface Category {
@@ -58,7 +60,14 @@ export function ProductForm({
   const needsBarcodeChoice = !isService;
   // Already in Master Produk? Block it here, before anything is sent, and
   // point to Barang Masuk -- the server enforces the same rule.
-  const duplicate = useMemo(() => {
+  const refs = () =>
+    knownProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      activeBarcodes: p.barcodes.filter((b) => b.status === "ACTIVE").map((b) => b.barcodeValue),
+    }));
+  const candidate = useMemo(() => {
     let barcode: string | undefined;
     if (barcodeMode === "EXISTING" && scannedBarcode.trim()) {
       try {
@@ -67,17 +76,15 @@ export function ProductForm({
         barcode = undefined;
       }
     }
-    return findDuplicate(
-      knownProducts.map((p) => ({
-        id: p.id,
-        name: p.name,
-        sku: p.sku,
-        activeBarcodes: p.barcodes.filter((b) => b.status === "ACTIVE").map((b) => b.barcodeValue),
-      })),
-      { name, sku, barcode }
-    );
-  }, [knownProducts, name, sku, barcodeMode, scannedBarcode]);
-  const canSubmit = !loading && !duplicate && (!needsBarcodeChoice || barcodeMode !== null);
+    return { barcode, refs: refs() };
+  }, [knownProducts, barcodeMode, scannedBarcode]);
+  const duplicate = useMemo(() => findDuplicate(candidate.refs, { sku, barcode: candidate.barcode }), [candidate, sku]);
+  const reminders = useMemo(
+    () => (duplicate ? [] : findReminders(candidate.refs, { name, barcode: candidate.barcode })),
+    [candidate, name, duplicate]
+  );
+  const [reminderOk, setReminderOk] = useState(true);
+  const canSubmit = !loading && !duplicate && reminderOk && (!needsBarcodeChoice || barcodeMode !== null);
 
   // This page has two things a scan could mean: find an existing product, or
   // fill in the barcode of the one being added. The capture itself lives in
@@ -117,6 +124,7 @@ export function ProductForm({
         trackInventory: !isService,
         expiryDate: isService || !expiryDate ? undefined : expiryDate,
         expiryWarnDays: isService ? undefined : Number(expiryWarnDays || 30),
+        acknowledgeSimilar: reminders.length > 0 ? true : undefined,
         initialStock: isService ? undefined : initialStock,
         initialDamaged: isService || !initialDamaged ? undefined : initialDamaged,
         barcode,
@@ -222,6 +230,8 @@ export function ProductForm({
             </Link>
           </div>
         )}
+
+        {!duplicate && <SimilarReminder reminders={reminders} onAcknowledgedChange={setReminderOk} />}
 
         <fieldset className="rounded-lg border border-border p-3">
           <legend className="px-1 text-xs font-semibold text-muted-foreground">

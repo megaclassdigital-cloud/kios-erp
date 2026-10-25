@@ -8,7 +8,7 @@ const products: KnownProductRef[] = [
 
 describe("findDuplicate", () => {
   it("finds the same barcode first", () => {
-    const d = findDuplicate(products, { barcode: "8998866200301", name: "Lain", sku: "X" });
+    const d = findDuplicate(products, { barcode: "8998866200301", sku: "X" });
     expect(d?.kind).toBe("BARCODE");
     expect(d?.product.id).toBe("1");
   });
@@ -17,12 +17,8 @@ describe("findDuplicate", () => {
     expect(findDuplicate(products, { sku: " gula-1 " })?.product.id).toBe("2");
   });
 
-  it("finds the same name ignoring case and extra spaces", () => {
-    expect(findDuplicate(products, { name: "  indomie   GORENG " })?.product.id).toBe("1");
-  });
-
   it("returns null for a genuinely new product", () => {
-    expect(findDuplicate(products, { name: "Teh Botol", sku: "TEH-1", barcode: "123456789012" })).toBeNull();
+    expect(findDuplicate(products, { sku: "TEH-1", barcode: "123456789012" })).toBeNull();
     expect(findDuplicate(products, {})).toBeNull();
   });
 
@@ -33,12 +29,10 @@ describe("findDuplicate", () => {
   });
 });
 
-describe("findDuplicate barcode similarity", () => {
-  it("catches the same barcode written differently", () => {
-    const d = findDuplicate(
-      [{ id: "9", name: "Kopi", sku: "K", activeBarcodes: ["012345678905"] }],
-      { name: "Lain", sku: "L", barcode: "0012345678905" }
-    );
-    expect(d?.kind).toBe("BARCODE");
+describe("findDuplicate is only for identical codes", () => {
+  it("does not flag a look-alike barcode; that is a reminder, not a block", () => {
+    expect(
+      findDuplicate([{ id: "9", name: "Kopi", sku: "K", activeBarcodes: ["012345678905"] }], { sku: "L", barcode: "0012345678905" })
+    ).toBeNull();
   });
 });

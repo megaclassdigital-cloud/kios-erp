@@ -13,6 +13,7 @@ const schema = z.object({
   sellingPrice: z.string().optional(),
   minimumStock: z.number().int().nonnegative().optional(),
   active: z.boolean().optional(),
+  acknowledgeSimilar: z.boolean().optional(),
   serviceProvider: z.string().optional(),
   // Null clears the date (a product that no longer tracks one); omitted
   // leaves it untouched, so a partial edit cannot wipe it by accident.
