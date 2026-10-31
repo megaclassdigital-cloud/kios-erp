@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 /**
@@ -66,7 +67,11 @@ export function ExpenseForm() {
         Hanya biaya menjalankan toko. <strong className="text-foreground">Belanja stok ke supplier
         jangan dicatat di sini</strong> — modalnya sudah dihitung otomatis saat barangnya terjual,
         jadi mencatatnya lagi membuat laba terlihat jauh lebih kecil dari seharusnya. Belanja stok
-        masuk lewat <strong className="text-foreground">Barang Masuk</strong>.
+        masuk lewat <strong className="text-foreground">Barang Masuk</strong>. Beli{" "}
+        <strong className="text-foreground">peralatan tahan lama</strong> (freezer, rak, timbangan,
+        printer) juga bukan di sini — catat di{" "}
+        <Link href="/aset" className="font-medium text-primary hover:underline">Aset Toko</Link>{" "}
+        supaya untung bulan ini tidak terlihat anjlok.
       </p>
       <div className="grid gap-3 md:grid-cols-4">
         <select

@@ -24,6 +24,8 @@ const ALL_PERMISSIONS = [
   "audit.view",
   "shifts.monitor",
   "data.reset",
+  "stockout.manage",
+  "assets.manage",
 ] as const;
 
 describe("RBAC: OWNER superset invariant", () => {

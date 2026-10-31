@@ -50,6 +50,7 @@ const SECONDARY_LINKS: { href: string; label: string; permission: Permission }[]
   { href: "/master/produk", label: "Master Produk", permission: "products.manage" },
   { href: "/master/kategori", label: "Kategori", permission: "products.manage" },
   { href: "/master/supplier", label: "Supplier", permission: "suppliers.manage" },
+  { href: "/aset", label: "Aset Toko (peralatan)", permission: "assets.manage" },
   { href: "/stok-opname", label: "Stock Opname", permission: "stockopname.manage" },
   { href: "/master/users", label: "Master User", permission: "users.manage" },
   { href: "/master/terminals", label: "Terminal & Perangkat", permission: "terminals.view" },

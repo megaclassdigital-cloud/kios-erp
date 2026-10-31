@@ -14,6 +14,8 @@ export type Permission =
   | "receiving.edit"
   /** Take stock out of the shelf (damaged, expired, returned to supplier...). */
   | "stockout.manage"
+  /** Record and correct the shop's equipment (Aset Toko). */
+  | "assets.manage"
   | "stockopname.manage"
   | "stockopname.approve"
   | "transactions.view"
@@ -41,6 +43,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "receiving.manage",
     "receiving.edit",
     "stockout.manage",
+    "assets.manage",
     "stockopname.manage",
     "stockopname.approve",
     "transactions.view",
@@ -64,6 +67,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "receiving.manage",
     "receiving.edit",
     "stockout.manage",
+    "assets.manage",
     "stockopname.manage",
     "stockopname.approve",
     "transactions.view",

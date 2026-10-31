@@ -39,6 +39,7 @@ model User {
   stockOpnames    StockOpname[]      @relation("StartedBy")
   approvedOpnames StockOpname[]      @relation("ApprovedBy")
   expenses        Expense[]
+  assetsCreated   Asset[]
   auditLogs       AuditLog[]
   scanSessions    ScanSession[]
 
@@ -463,6 +464,44 @@ model Expense {
   // Backs the finance aggregate query's date-range filter.
   @@index([expenseDate])
   @@map("expenses")
+}
+
+// ---------------------------------------------------------------------------
+// Aset toko: long-lived equipment (freezer, shelves, scale, printer...).
+// Not stock and not an expense -- it never touches Product.currentStock or the
+// profit figures, so a freezer bought this month does not wipe out its profit.
+// ---------------------------------------------------------------------------
+
+enum AssetCondition {
+  BAIK
+  PERLU_PERBAIKAN
+  RUSAK
+  DIJUAL
+  HILANG
+}
+
+model Asset {
+  id            String         @id @default(uuid())
+  name          String
+  category      String
+  quantity      Int            @default(1)
+  /// Price paid per unit; the asset's value is quantity x purchasePrice.
+  purchasePrice Decimal        @db.Decimal(14, 2)
+  purchaseDate  DateTime
+  condition     AssetCondition @default(BAIK)
+  location      String?
+  note          String?
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  updatedById   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  /// Deleting from the screen only stamps this, so the record and its audit
+  /// trail survive.
+  deletedAt     DateTime?
+
+  @@index([deletedAt])
+  @@map("assets")
 }
 
 // ---------------------------------------------------------------------------
