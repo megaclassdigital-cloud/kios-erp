@@ -10,6 +10,7 @@ import { PeriodSelector } from "../laporan/period-selector";
 import { resolvePeriod } from "../laporan/resolve-period";
 import { ExportToolbar } from "../laporan/export-toolbar";
 import { ExpenseForm } from "./expense-form";
+import { FinanceSlipButton } from "./finance-slip-button";
 import { ExpenseTable } from "./expense-table";
 import Link from "next/link";
 import { ListAssetsUseCase } from "@/modules/assets/application/asset-use-cases";
@@ -78,11 +79,21 @@ export default async function KeuanganPage({
 
       <div data-tour="period" className="flex flex-wrap items-center justify-between gap-2">
         <PeriodSelector basePath="/keuangan" active={period.key} />
+        <div className="flex flex-wrap items-center gap-2">
+        <FinanceSlipButton
+          title="Ringkasan Keuangan"
+          periodLabel={period.label}
+          lines={[
+            ...cards.map((c) => ({ label: c.label, value: formatRupiah(c.value), bold: c.label === "Untung Bersih" })),
+            { label: "Jumlah Transaksi", value: String(transactionCount) },
+          ]}
+        />
         <ExportToolbar
           csvHref={`/api/reports/export?tab=keuangan&period=${period.key}${
             period.key === "custom" ? `&from=${params.from ?? ""}&to=${params.to ?? ""}` : ""
           }`}
         />
+        </div>
       </div>
 
       <div data-tour="kpi-grid" className="grid grid-cols-2 gap-3 md:grid-cols-4">

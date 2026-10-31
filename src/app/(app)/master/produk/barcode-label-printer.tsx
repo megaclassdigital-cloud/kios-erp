@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { BarcodePreview } from "./barcode-preview";
 import { buildLabelPng, downloadBlob } from "./barcode-label-file";
+import { buildBarcodeLabelBytes } from "@/shared/printing/label-escpos";
+import { ThermalPrintButton } from "../../thermal-print-button";
 
 const PAPER_SIZES = [
   { id: "thermal-58x40", label: "Label Thermal 58 × 40 mm", widthMm: 58, heightMm: 40, kind: "single" as const },
@@ -33,6 +35,7 @@ export function BarcodeLabelPrinter({
 }) {
   const [paperId, setPaperId] = useState(PAPER_SIZES[0].id);
   const [quantity, setQuantity] = useState(12);
+  const [directCopies, setDirectCopies] = useState(1);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const paper = PAPER_SIZES.find((p) => p.id === paperId) ?? PAPER_SIZES[0];
@@ -111,7 +114,27 @@ export function BarcodeLabelPrinter({
 
       {downloadError && <p className="mt-2 text-xs text-red-600 print:hidden">{downloadError}</p>}
 
-      <div className="mt-4 flex gap-2 print:hidden">
+      {/* Straight to the receipt printer, with no print dialog: the way to print
+          on an Android tablet. The buttons below remain for A4 sheets and files. */}
+      <div className="mt-4 flex flex-wrap items-end gap-2 rounded-md border border-border p-2 print:hidden">
+        <label className="text-xs font-medium text-gray-500">
+          JUMLAH LABEL
+          <input
+            type="number"
+            min={1}
+            max={200}
+            value={directCopies}
+            onChange={(e) => setDirectCopies(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+            className="mt-1 block w-24 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          />
+        </label>
+        <ThermalPrintButton
+          label="Cetak ke printer struk"
+          build={(c) => buildBarcodeLabelBytes({ productName, barcodeValue, barcodeType, copies: directCopies }, { columns: c.columns, cut: c.cut })}
+        />
+      </div>
+
+      <div className="mt-3 flex gap-2 print:hidden">
         <button
           onClick={() => window.print()}
           className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"

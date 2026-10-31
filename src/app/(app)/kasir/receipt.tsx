@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { printReceipt } from "@/shared/printing/print-receipt";
 import { readPrinterConfig } from "@/shared/printing/printer-config";
-import { PrinterSettingsModal } from "./printer-settings";
+import { PrinterSettingsModal } from "../printer-settings";
 
 interface ReceiptItem {
   productNameSnapshot: string;

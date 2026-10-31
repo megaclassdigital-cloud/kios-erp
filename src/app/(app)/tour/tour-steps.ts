@@ -53,7 +53,7 @@ export const TOURS: Record<string, TourStep[]> = {
     {
       target: "printer-button",
       title: "Printer struk",
-      body: "Atur printer thermal di tablet ini: USB lewat adaptor, atau Bluetooth lewat aplikasi RawBT. Setelah terhubung, struk tercetak langsung tanpa jendela preview, bahkan otomatis setelah bayar kalau diaktifkan. Tes cetak ada di sini juga.",
+      body: "Atur printer thermal di tablet ini: USB lewat adaptor, atau Bluetooth lewat aplikasi RawBT. Setelah terhubung, struk tercetak langsung tanpa jendela preview, bahkan otomatis setelah bayar kalau diaktifkan. Pengaturan yang sama dipakai untuk cetak ulang struk di Transaksi, label barcode di Master Produk, dan ringkasan di Keuangan. Tes cetak ada di sini juga.",
     },
     {
       target: "close-shift",

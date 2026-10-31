@@ -68,6 +68,27 @@ export class EscPosBuilder {
     return this;
   }
 
+  /**
+   * A barcode with its number printed underneath. Module width is chosen so the
+   * code fits the paper (`maxDots`: 384 for 58 mm, 576 for 80 mm); a code that
+   * cannot fit even at width 1 is the caller's problem to avoid.
+   */
+  barcode(value: string, format: "CODE128" | "EAN13", maxDots = 384): this {
+    const isEan = format === "EAN13" && /^\d{13}$/.test(value);
+    const data = isEan ? value : `{B${toPrinterText(value)}`;
+    // Code 128 is 11 modules per symbol plus start, check and stop; EAN-13 is always 95.
+    const modules = isEan ? 95 : (value.length + 3) * 11 + 13;
+    const width = [3, 2].find((w) => modules * w <= maxDots) ?? 1;
+    this.bytes.push(GS, 0x68, 80); // height
+    this.bytes.push(GS, 0x77, width);
+    this.bytes.push(GS, 0x48, 2); // number below the bars
+    this.bytes.push(GS, 0x66, 0); // font A for that number
+    if (isEan) this.bytes.push(GS, 0x6b, 67, 13);
+    else this.bytes.push(GS, 0x6b, 73, data.length);
+    for (const ch of data) this.bytes.push(ch.charCodeAt(0));
+    return this;
+  }
+
   /** Kick the cash drawer wired to the printer's RJ11 port. */
   openDrawer(): this {
     this.bytes.push(ESC, 0x70, 0x00, 0x19, 0xfa);

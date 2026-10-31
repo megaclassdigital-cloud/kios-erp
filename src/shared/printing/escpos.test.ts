@@ -115,3 +115,61 @@ describe("receipt for a 58 mm roll", () => {
     expect(ascii(buildTestPage({ columns: 32 }))).toContain("Printer siap dipakai");
   });
 });
+
+import { buildBarcodeLabelBytes, buildSummarySlipBytes } from "./label-escpos";
+
+/** Positions where the GS k (print barcode) command starts. */
+const barcodeStarts = (b: Uint8Array) => Array.from(b).flatMap((v, i) => (v === 0x1d && b[i + 1] === 0x6b ? [i] : []));
+
+describe("barcode on the receipt printer", () => {
+  it("prints an EAN-13 with the number below, at a width that fits 58 mm", () => {
+    const b = new EscPosBuilder().barcode("8998866200301", "EAN13", 384).build();
+    const hex = Array.from(b);
+    expect(hex.slice(0, 3)).toEqual([0x1d, 0x68, 80]); // height
+    expect(hex.slice(3, 6)).toEqual([0x1d, 0x77, 3]); // 95 modules x 3 = 285 <= 384
+    expect(hex.slice(6, 9)).toEqual([0x1d, 0x48, 2]); // number below
+    const at = barcodeStarts(b)[0];
+    expect(hex.slice(at, at + 4)).toEqual([0x1d, 0x6b, 67, 13]);
+    expect(String.fromCharCode(...hex.slice(at + 4))).toBe("8998866200301");
+  });
+
+  it("uses Code 128 subset B for anything else, and narrows the bars for a long code", () => {
+    const short = new EscPosBuilder().barcode("2000000017", "CODE128", 384).build();
+    const at = barcodeStarts(short)[0];
+    expect(short[at + 2]).toBe(73);
+    expect(String.fromCharCode(...Array.from(short).slice(at + 4))).toBe("{B2000000017");
+    // 24 characters: (24+3)*11+13 = 310 modules; width 2 would be 620 dots, too wide.
+    const long = new EscPosBuilder().barcode("A".repeat(24), "CODE128", 384).build();
+    expect(Array.from(long.slice(3, 6))).toEqual([0x1d, 0x77, 1]);
+  });
+
+  it("falls back to Code 128 when an EAN-13 does not have 13 digits", () => {
+    const b = new EscPosBuilder().barcode("12345", "EAN13").build();
+    expect(b[barcodeStarts(b)[0] + 2]).toBe(73);
+  });
+});
+
+describe("label and summary slips", () => {
+  it("prints one barcode per copy, with the name above", () => {
+    const b = buildBarcodeLabelBytes({ productName: "Indomie Goreng 70g", barcodeValue: "8998866200301", barcodeType: "EAN13", copies: 3 }, { columns: 32 });
+    expect(barcodeStarts(b)).toHaveLength(3);
+    expect(ascii(b)).toContain("Indomie Goreng 70g");
+  });
+
+  it("limits copies to a sane range", () => {
+    const job = { productName: "X", barcodeValue: "1234567890128", barcodeType: "EAN13" as const };
+    expect(barcodeStarts(buildBarcodeLabelBytes({ ...job, copies: 0 }, { columns: 32 }))).toHaveLength(1);
+    expect(barcodeStarts(buildBarcodeLabelBytes({ ...job, copies: 999 }, { columns: 32 }))).toHaveLength(200);
+  });
+
+  it("lays a summary out within the paper width", () => {
+    const b = buildSummarySlipBytes(
+      { title: "Ringkasan Keuangan", subtitle: "Bulan Ini", lines: [{ label: "Omzet (Uang Masuk)", value: "Rp12.500.000" }, { label: "Untung Bersih", value: "Rp1.250.000", bold: true }], footer: "Dicetak 31/10/2026" },
+      { columns: 32 }
+    );
+    const rows = lines(b);
+    expect(Math.max(...rows.map((r) => r.length))).toBeLessThanOrEqual(32);
+    expect(rows.join("\n")).toMatch(/Omzet \(Uang Masuk\)\s+Rp12\.500\.000/);
+    expect(rows.join("\n")).toMatch(/Untung Bersih\s+Rp1\.250\.000/);
+  });
+});

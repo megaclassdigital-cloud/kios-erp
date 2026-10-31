@@ -8,7 +8,7 @@ import { Clock, Power, Printer } from "lucide-react";
 import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { PromoEditor } from "./promo-editor";
-import { PrinterSettingsModal } from "./printer-settings";
+import { PrinterSettingsModal } from "../printer-settings";
 import { ProductPicker, type PickerItem } from "../product-picker";
 import { searchProducts } from "@/modules/products/domain/product-search";
 import { cartTotals, clampPromo, lineDiscount, lineGross, lineNet, promoLabel } from "./cart-math";
