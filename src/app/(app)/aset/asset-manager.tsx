@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Boxes, Wallet, Wrench } from "lucide-react";
 import { KpiCard } from "@/components/kios/kpi-card";
-import { ASSET_CATEGORIES, CONDITION_LABEL, type AssetSummary } from "@/modules/assets/domain/asset";
+import { CONDITION_LABEL, type AssetSummary } from "@/modules/assets/domain/asset";
 import { formatWibDate } from "@/shared/format/wib";
 import { ExportPreviewButton } from "../export-preview";
 import { AssetForm, emptyAsset, type AssetFormValues } from "./asset-form";
 import { AssetGuide } from "./asset-guide";
+import { AssetCategories, type CategoryRow } from "./asset-categories";
 
 interface Asset {
   id: string;
@@ -18,7 +19,6 @@ interface Asset {
   purchasePrice: string;
   purchaseDate: string;
   condition: keyof typeof CONDITION_LABEL;
-  location: string | null;
   note: string | null;
   createdByName: string;
   updatedAt: string;
@@ -35,7 +35,6 @@ const toValues = (a: Asset): AssetFormValues => ({
   purchasePrice: String(Number(a.purchasePrice)),
   purchaseDate: a.purchaseDate.slice(0, 10),
   condition: a.condition,
-  location: a.location ?? "",
   note: a.note ?? "",
 });
 
@@ -53,6 +52,7 @@ async function send(url: string, method: string, body?: AssetFormValues): Promis
 export function AssetManager() {
   const [assets, setAssets] = useState<Asset[] | null>(null);
   const [summary, setSummary] = useState<AssetSummary | null>(null);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [category, setCategory] = useState("");
   const [condition, setCondition] = useState("");
@@ -67,6 +67,7 @@ export function AssetManager() {
       if (!res.ok) throw new Error(data.error ?? "Daftar aset belum bisa dimuat.");
       setAssets(data.assets);
       setSummary(data.summary);
+      setCategories(data.categories ?? []);
       setLoadError(null);
     } catch (e) {
       setLoadError((e as Error).message);
@@ -82,7 +83,7 @@ export function AssetManager() {
       (a) =>
         (!category || a.category === category) &&
         (!condition || a.condition === condition) &&
-        (!q || `${a.name} ${a.location ?? ""} ${a.note ?? ""}`.toLowerCase().includes(q))
+        (!q || `${a.name} ${a.note ?? ""}`.toLowerCase().includes(q))
     );
   }, [assets, category, condition, search]);
 
@@ -119,7 +120,7 @@ export function AssetManager() {
     <div className="space-y-4">
       <AssetGuide />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div data-tour="asset-kpi" className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <KpiCard label="Unit aset dimiliki" value={summary ? String(summary.totalUnits) : "-"} icon={Boxes} />
         <KpiCard label="Nilai perolehan" value={summary ? rupiah(summary.totalValue) : "-"} icon={Wallet} tone="info" />
         <KpiCard label="Rusak / perlu perbaikan (unit)" value={summary ? String(summary.needsAttentionUnits) : "-"} icon={Wrench} tone={summary && summary.needsAttentionUnits > 0 ? "warning" : "default"} />
@@ -140,17 +141,19 @@ export function AssetManager() {
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <AssetCategories categories={categories} onChanged={load} />
+
+      <div key={categories.length === 0 ? "no-categories" : "ready"} data-tour="asset-form" className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-foreground">Tambah Aset</h2>
-        <AssetForm initial={emptyAsset()} submitLabel="Simpan Aset" onSubmit={add} />
+        <AssetForm categories={categories.map((c) => c.name)} initial={emptyAsset(categories[0]?.name ?? "")} submitLabel="Simpan Aset" onSubmit={add} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, lokasi, catatan" className="min-w-48 flex-1 rounded-md border border-input px-3 py-1.5 text-sm" />
+      <div data-tour="asset-export" className="flex flex-wrap items-center gap-2">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama atau catatan" className="min-w-48 flex-1 rounded-md border border-input px-3 py-1.5 text-sm" />
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-md border border-input px-2 py-1.5 text-sm">
           <option value="">Semua kategori</option>
-          {ASSET_CATEGORIES.map((c) => (
-            <option key={c}>{c}</option>
+          {categories.map((c) => (
+            <option key={c.id}>{c.name}</option>
           ))}
         </select>
         <select value={condition} onChange={(e) => setCondition(e.target.value)} className="rounded-md border border-input px-2 py-1.5 text-sm">
@@ -165,13 +168,12 @@ export function AssetManager() {
         </a>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <div data-tour="asset-table" className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Aset</th>
               <th className="px-3 py-2">Kategori</th>
-              <th className="px-3 py-2">Lokasi</th>
               <th className="px-3 py-2">Tgl Beli</th>
               <th className="px-3 py-2 text-right">Jumlah</th>
               <th className="px-3 py-2 text-right">Harga/unit</th>
@@ -183,16 +185,15 @@ export function AssetManager() {
           </thead>
           <tbody>
             {loadError && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-destructive">{loadError}</td></tr>
+              <tr><td colSpan={9} className="px-3 py-6 text-center text-destructive">{loadError}</td></tr>
             )}
             {assets && shown.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">{assets.length === 0 ? "Belum ada aset tercatat. Isi formulir di atas untuk mulai." : "Tidak ada aset yang cocok dengan filter."}</td></tr>
+              <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">{assets.length === 0 ? "Belum ada aset tercatat. Isi formulir di atas untuk mulai." : "Tidak ada aset yang cocok dengan filter."}</td></tr>
             )}
             {shown.map((a) => (
               <tr key={a.id} className={`border-t border-border ${owned(a) ? "" : "text-muted-foreground"}`}>
                 <td className="px-3 py-2"><span className="font-medium text-foreground">{a.name}</span>{a.note && <span className="block text-xs text-muted-foreground">{a.note}</span>}</td>
                 <td className="px-3 py-2">{a.category}</td>
-                <td className="px-3 py-2">{a.location ?? "-"}</td>
                 <td className="whitespace-nowrap px-3 py-2">{formatWibDate(new Date(a.purchaseDate))}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{a.quantity}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(a.purchasePrice)}</td>
@@ -220,7 +221,7 @@ export function AssetManager() {
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-card p-5 shadow-xl">
             <h2 className="mb-3 text-base font-semibold text-foreground">Ubah Aset</h2>
-            <AssetForm initial={toValues(editing)} submitLabel="Simpan Perubahan" onSubmit={save} onCancel={() => setEditing(null)} />
+            <AssetForm categories={categories.map((c) => c.name)} initial={toValues(editing)} submitLabel="Simpan Perubahan" onSubmit={save} onCancel={() => setEditing(null)} />
           </div>
         </div>
       )}

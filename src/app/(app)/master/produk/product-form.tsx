@@ -355,6 +355,7 @@ export function ProductForm({
                   />
                 </Field>
                 <Field
+                  tour="damaged-field"
                   label="Barang rusak"
                   hint={
                     Number(initialDamaged || 0) > 0

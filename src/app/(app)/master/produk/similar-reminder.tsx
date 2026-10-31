@@ -37,7 +37,7 @@ export function SimilarReminder({
   // back in case it was ticked by mistake.
   if (mustConfirm && acknowledged) {
     return (
-      <p className="flex flex-wrap items-center gap-x-2 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-xs text-success">
+      <p data-tour="similar-reminder" className="flex flex-wrap items-center gap-x-2 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-xs text-success">
         <span>✓ Dikonfirmasi: produk ini berbeda dari {reminders.length} produk yang mirip.</span>
         <button type="button" onClick={() => setAcknowledged(false)} className="underline">
           Lihat / batalkan
@@ -48,6 +48,7 @@ export function SimilarReminder({
 
   return (
     <div
+      data-tour="similar-reminder"
       role="status"
       className={`rounded-lg border p-3 text-sm ${mustConfirm ? "border-warning/40 bg-warning-soft" : "border-border bg-muted"}`}
     >

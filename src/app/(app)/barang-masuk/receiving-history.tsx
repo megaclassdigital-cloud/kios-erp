@@ -98,7 +98,7 @@ export function ReceivingHistory({
   }, [qs, customReady, refreshKey, localKey]);
 
   return (
-    <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <section data-tour="receiving-history" className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">{productId ? "Riwayat Barang Masuk Produk Ini" : "Riwayat Barang Masuk"}</h2>

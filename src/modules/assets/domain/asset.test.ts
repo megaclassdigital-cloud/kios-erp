@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanAsset, InvalidAssetError, summarizeAssets, type AssetInput } from "./asset";
+import { cleanAsset, cleanCategoryName, InvalidAssetError, summarizeAssets, type AssetInput } from "./asset";
 
 const base: AssetInput = {
   name: "  Freezer   Box 300L ",
@@ -8,7 +8,6 @@ const base: AssetInput = {
   purchasePrice: "3500000",
   purchaseDate: "2026-10-01",
   condition: "BAIK",
-  location: " Depan ",
   note: "",
 };
 const now = new Date("2026-10-31T00:00:00Z");
@@ -19,14 +18,13 @@ describe("cleanAsset", () => {
     expect(a.name).toBe("Freezer Box 300L");
     expect(a.quantity).toBe(2);
     expect(a.purchasePrice).toBe("3500000.00");
-    expect(a.location).toBe("Depan");
     expect(a.note).toBeNull();
   });
 
   it("rejects each bad field with a readable message", () => {
     const bad = (over: Partial<AssetInput>) => () => cleanAsset({ ...base, ...over }, now);
     expect(bad({ name: "  " })).toThrow(/Nama aset/);
-    expect(bad({ category: "Lain" })).toThrow(/kategori/);
+    expect(bad({ category: "  " })).toThrow(/kategori/);
     expect(bad({ quantity: "0" })).toThrow(/minimal 1/);
     expect(bad({ quantity: "1.5" })).toThrow(/bulat/);
     expect(bad({ purchasePrice: "abc" })).toThrow(/angka/);
@@ -66,5 +64,13 @@ describe("summarizeAssets", () => {
 
   it("is empty-safe", () => {
     expect(summarizeAssets([])).toMatchObject({ totalUnits: 0, totalValue: "0.00", byCategory: [], needsAttentionUnits: 0 });
+  });
+});
+
+describe("cleanCategoryName", () => {
+  it("tidies spacing and rejects empty or very long names", () => {
+    expect(cleanCategoryName("  Alat   Dapur ")).toBe("Alat Dapur");
+    expect(() => cleanCategoryName("  ")).toThrow(/wajib/);
+    expect(() => cleanCategoryName("x".repeat(41))).toThrow(/maksimal/);
   });
 });

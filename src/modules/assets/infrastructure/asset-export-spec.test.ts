@@ -12,7 +12,6 @@ const rec = (over: Partial<AssetRecord>): AssetRecord => ({
   purchasePrice: "3500000.00",
   purchaseDate: new Date("2026-10-01"),
   condition: "BAIK",
-  location: "Depan",
   note: null,
   createdByName: "Owner",
   createdAt: new Date(),
@@ -41,8 +40,8 @@ describe("asset export", () => {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load((await buildAssetXlsx(assets, "Owner")) as unknown as ArrayBuffer);
     const ws = wb.worksheets[0];
-    const valueCell = ws.getRow(7).getCell(9).value as { formula: string };
-    expect(valueCell.formula).toContain("IF(OR(H7=");
-    expect((ws.getRow(9).getCell(9).value as { formula: string }).formula).toBe("SUM(I7:I8)");
+    const valueCell = ws.getRow(7).getCell(8).value as { formula: string };
+    expect(valueCell.formula).toContain("IF(OR(G7=");
+    expect((ws.getRow(9).getCell(8).value as { formula: string }).formula).toBe("SUM(H7:H8)");
   });
 });

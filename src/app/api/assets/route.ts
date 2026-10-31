@@ -10,7 +10,6 @@ const assetSchema = z.object({
   purchasePrice: z.string(),
   purchaseDate: z.string(),
   condition: z.enum(["BAIK", "PERLU_PERBAIKAN", "RUSAK", "DIJUAL", "HILANG"]),
-  location: z.string().optional(),
   note: z.string().optional(),
 });
 

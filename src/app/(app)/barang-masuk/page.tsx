@@ -148,7 +148,7 @@ export default function BarangMasukPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Barang Masuk" description="Terima stok dari supplier dengan mudah dan cepat." />
+      <PageHeader title="Barang Masuk" description="Terima stok barang dagangan dari supplier. Membeli peralatan toko (freezer, rak, timbangan)? Catat di Aset Toko, bukan di sini." />
 
       <div data-tour="supplier-invoice" className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-2">
         <div>

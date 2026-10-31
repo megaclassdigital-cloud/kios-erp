@@ -117,7 +117,7 @@ export default function MasterProdukPage() {
     <div className="space-y-4">
       <PageHeader
         title="Master Produk"
-        description="Daftarkan barang dan layanan yang dijual, beserta barcodenya."
+        description="Daftarkan barang dan layanan yang dijual, beserta barcodenya. Peralatan toko (freezer, rak) tidak didaftarkan di sini — catat di Aset Toko."
       />
 
       <ProductForm
@@ -156,8 +156,9 @@ export default function MasterProdukPage() {
         </p>
         {/* Server-side, from the same list and the same search rule as the
             table, so the file always matches what is on screen. */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-tour="export-buttons" className="flex flex-wrap items-center gap-2">
         <button
+          data-tour="duplicate-check"
           onClick={() => setAuditing(true)}
           className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
         >
@@ -177,7 +178,7 @@ export default function MasterProdukPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <div data-tour="product-table" className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>

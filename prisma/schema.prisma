@@ -483,13 +483,13 @@ enum AssetCondition {
 model Asset {
   id            String         @id @default(uuid())
   name          String
+  /// Name of an AssetCategory (kept as text; a rename updates it everywhere).
   category      String
   quantity      Int            @default(1)
   /// Price paid per unit; the asset's value is quantity x purchasePrice.
   purchasePrice Decimal        @db.Decimal(14, 2)
   purchaseDate  DateTime
   condition     AssetCondition @default(BAIK)
-  location      String?
   note          String?
   createdById   String
   createdBy     User           @relation(fields: [createdById], references: [id])
@@ -502,6 +502,15 @@ model Asset {
 
   @@index([deletedAt])
   @@map("assets")
+}
+
+/// Categories of Aset Toko, editable on the Aset Toko page.
+model AssetCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("asset_categories")
 }
 
 // ---------------------------------------------------------------------------

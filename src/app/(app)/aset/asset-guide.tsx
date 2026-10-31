@@ -4,7 +4,7 @@ import Link from "next/link";
  * this page answers before anyone fills in a form. */
 export function AssetGuide() {
   return (
-    <div className="rounded-xl border border-border bg-card p-3 text-sm shadow-sm">
+    <div data-tour="asset-guide" className="rounded-xl border border-border bg-card p-3 text-sm shadow-sm">
       <p className="mb-2 text-xs font-semibold text-muted-foreground">MAU CATAT APA? PILIH TEMPATNYA</p>
       <ul className="space-y-1.5 text-foreground">
         <li>
@@ -17,6 +17,10 @@ export function AssetGuide() {
         </li>
         <li>
           <b>Peralatan tahan lama</b> (freezer, rak, timbangan, printer) → <b>di halaman ini</b>. Tidak mengubah stok, tidak mengurangi untung.
+        </li>
+        <li>
+          <b>Barang dagangan yang rusak atau kedaluwarsa</b> → menu{" "}
+          <Link href="/barang-keluar" className="text-primary hover:underline">Barang Keluar</Link>. <b>Peralatan yang rusak</b> → cukup ubah Kondisi-nya di sini.
         </li>
       </ul>
     </div>

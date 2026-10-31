@@ -63,7 +63,7 @@ export function StockOutForm() {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+      <form data-tour="stockout-form" onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div>
           {product ? (
             <>

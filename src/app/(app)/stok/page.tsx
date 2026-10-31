@@ -48,7 +48,7 @@ export default async function StokPage() {
     <div className="space-y-4">
       <PageHeader
         title="Stok Barang"
-        description="Kelola data stok barang fisik dengan mudah dan akurat."
+        description="Stok barang dagangan. Peralatan toko tidak masuk di sini — lihat Aset Toko."
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">

@@ -13,7 +13,7 @@ export default async function BarangKeluarPage() {
     <div className="space-y-4">
       <PageHeader
         title="Barang Keluar"
-        description="Catat barang yang keluar bukan karena dijual: rusak, kedaluwarsa, retur ke supplier, atau dipakai sendiri. Stok langsung berkurang dan tercatat di riwayat."
+        description="Catat barang dagangan yang keluar bukan karena dijual: rusak, kedaluwarsa, retur ke supplier, atau dipakai sendiri. Stok langsung berkurang dan tercatat di riwayat. Untuk peralatan toko yang rusak, ubah kondisinya di Aset Toko."
       />
       <StockOutForm />
     </div>

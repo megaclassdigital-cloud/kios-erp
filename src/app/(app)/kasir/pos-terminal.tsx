@@ -384,7 +384,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
               {/* When a barcode will not scan: find the item by name instead.
                   Searched in the browser over the catalog already loaded, so
                   it is as quick as a scan. Nothing is added until one is chosen. */}
-              <div className="mt-3 border-t border-border pt-3">
+              <div data-tour="name-search" className="mt-3 border-t border-border pt-3">
                 <ProductPicker
                   label="CARI BERDASARKAN NAMA — kalau barcode error"
                   hint="Pilih dari daftar untuk memasukkan ke keranjang."

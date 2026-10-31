@@ -11,6 +11,8 @@ import { PeriodSelector } from "../laporan/period-selector";
 import { resolvePeriod } from "../laporan/resolve-period";
 import { ExportToolbar } from "../laporan/export-toolbar";
 import { ExpenseForm } from "./expense-form";
+import Link from "next/link";
+import { ListAssetsUseCase } from "@/modules/assets/application/asset-use-cases";
 
 function formatRupiah(value: string) {
   return `Rp${Number(value).toLocaleString("id-ID")}`;
@@ -47,7 +49,8 @@ export default async function KeuanganPage({
   const params = await searchParams;
   const period = resolvePeriod(params);
 
-  const [summary, expenses, transactionCount] = await Promise.all([
+  const canSeeAssets = hasPermission(session.user.role, "assets.manage");
+  const [summary, expenses, transactionCount, assets] = await Promise.all([
     new GetFinancialSummaryUseCase().execute(period.start, period.end),
     prisma.expense.findMany({
       where: { expenseDate: { gte: period.start, lte: period.end } },
@@ -57,6 +60,7 @@ export default async function KeuanganPage({
     prisma.sale.count({
       where: { status: "PAID", paidAt: { gte: period.start, lte: period.end } },
     }),
+    canSeeAssets ? new ListAssetsUseCase().execute() : Promise.resolve(null),
   ]);
 
   // Named for a shopkeeper, not an accountant: "Revenue" and "HPP" meant
@@ -94,6 +98,16 @@ export default async function KeuanganPage({
         ))}
         <KpiCard label="Jumlah Transaksi" value={String(transactionCount)} icon={ShoppingCart} />
       </div>
+
+      {/* Equipment is not part of any figure above: shown beside them so the two
+          are never confused, with the way to the page that owns it. */}
+      {assets && (
+        <p data-tour="asset-note" className="rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground shadow-sm">
+          <b className="text-foreground">Aset toko</b> (freezer, rak, timbangan, dan sejenisnya): {assets.summary.totalUnits} unit, nilai perolehan{" "}
+          {formatRupiah(assets.summary.totalValue)}. Angka ini <b className="text-foreground">tidak termasuk</b> omzet, pengeluaran, maupun untung di atas.{" "}
+          <Link href="/aset" className="font-medium text-primary hover:underline">Kelola di Aset Toko</Link>
+        </p>
+      )}
 
       <div data-tour="expense-form">
         <ExpenseForm />

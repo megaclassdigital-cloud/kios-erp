@@ -3,16 +3,6 @@ import type { AssetCondition } from "@prisma/client";
 
 export class InvalidAssetError extends Error {}
 
-/** Shop equipment, not goods for sale: what a shopkeeper would call "peralatan". */
-export const ASSET_CATEGORIES = [
-  "Pendingin & Freezer",
-  "Rak & Perabot",
-  "Timbangan & Alat Ukur",
-  "Elektronik & Kasir",
-  "Kendaraan",
-  "Peralatan Lain",
-] as const;
-
 export const CONDITION_LABEL: Record<AssetCondition, string> = {
   BAIK: "Baik",
   PERLU_PERBAIKAN: "Perlu perbaikan",
@@ -28,7 +18,6 @@ export interface AssetInput {
   purchasePrice: string;
   purchaseDate: string;
   condition: AssetCondition;
-  location?: string;
   note?: string;
 }
 
@@ -39,7 +28,6 @@ export interface CleanAsset {
   purchasePrice: string;
   purchaseDate: Date;
   condition: AssetCondition;
-  location: string | null;
   note: string | null;
 }
 
@@ -47,9 +35,9 @@ export interface CleanAsset {
 export function cleanAsset(input: AssetInput, now = new Date()): CleanAsset {
   const name = input.name.trim().replace(/\s+/g, " ");
   if (!name) throw new InvalidAssetError("Nama aset wajib diisi.");
-  if (!(ASSET_CATEGORIES as readonly string[]).includes(input.category)) {
-    throw new InvalidAssetError("Pilih kategori aset dari daftar.");
-  }
+  // That the category exists is checked against the saved list by the use case.
+  const category = input.category.trim();
+  if (!category) throw new InvalidAssetError("Pilih kategori aset dari daftar.");
 
   const quantity = Number(input.quantity);
   if (!Number.isInteger(quantity) || quantity < 1) throw new InvalidAssetError("Jumlah harus bilangan bulat, minimal 1.");
@@ -69,12 +57,11 @@ export function cleanAsset(input: AssetInput, now = new Date()): CleanAsset {
 
   return {
     name,
-    category: input.category,
+    category,
     quantity,
     purchasePrice: price.toFixed(2),
     purchaseDate: date,
     condition: input.condition,
-    location: input.location?.trim() || null,
     note: input.note?.trim() || null,
   };
 }
@@ -126,4 +113,12 @@ export function summarizeAssets(rows: AssetRow[]): AssetSummary {
     byCondition: [...cond.entries()].map(([condition, units]) => ({ condition, units })),
     needsAttentionUnits: (cond.get("RUSAK") ?? 0) + (cond.get("PERLU_PERBAIKAN") ?? 0),
   };
+}
+
+/** A category name as typed: tidy spacing, never empty, short enough to read in a table. */
+export function cleanCategoryName(raw: string): string {
+  const name = raw.trim().replace(/\s+/g, " ");
+  if (!name) throw new InvalidAssetError("Nama kategori wajib diisi.");
+  if (name.length > 40) throw new InvalidAssetError("Nama kategori maksimal 40 huruf.");
+  return name;
 }

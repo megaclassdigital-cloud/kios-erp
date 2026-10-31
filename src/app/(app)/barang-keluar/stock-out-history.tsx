@@ -45,7 +45,7 @@ export function StockOutHistory({ refreshKey }: { refreshKey: number }) {
   }, [period, refreshKey]);
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm">
+    <div data-tour="stockout-history" className="rounded-xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">Riwayat Barang Keluar</h2>
         <select value={period} onChange={(e) => setPeriod(e.target.value)} className="rounded-md border border-input px-2 py-1 text-sm">
