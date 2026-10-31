@@ -1,5 +1,11 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { printReceipt } from "@/shared/printing/print-receipt";
+import { readPrinterConfig } from "@/shared/printing/printer-config";
+import { PrinterSettingsModal } from "./printer-settings";
+
 interface ReceiptItem {
   productNameSnapshot: string;
   quantity: string;
@@ -37,6 +43,33 @@ function formatRupiah(value: string | number) {
  * #receipt-print + the @media print rule in globals.css. */
 export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => void }) {
   const date = new Date(sale.paidAt ?? sale.createdAt);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const autoPrinted = useRef(false);
+
+  /** Straight to the thermal printer when one is set up; the browser's dialog otherwise or if it fails. */
+  async function print() {
+    setPrinting(true);
+    const outcome = await printReceipt(sale);
+    setPrinting(false);
+    if (!outcome.ok) {
+      toast.error(outcome.message, {
+        action: { label: "Cetak lewat browser", onClick: () => window.print() },
+        duration: 10000,
+      });
+    } else if (outcome.via === "printer") {
+      toast.success("Struk dikirim ke printer.");
+    }
+  }
+
+  // Print once, as soon as the receipt appears, for devices set to do that.
+  useEffect(() => {
+    if (autoPrinted.current) return;
+    autoPrinted.current = true;
+    const config = readPrinterConfig();
+    if (config.autoPrint && (config.mode === "usb" || config.mode === "rawbt")) void print();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4 print:static print:bg-transparent print:p-0">
@@ -119,10 +152,19 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
 
         <div className="flex gap-2 border-t border-border p-4 print:hidden">
           <button
-            onClick={() => window.print()}
-            className="flex-1 rounded-md border border-border py-2 text-sm font-medium text-foreground"
+            onClick={() => void print()}
+            disabled={printing}
+            className="flex-1 rounded-md border border-border py-2 text-sm font-medium text-foreground disabled:opacity-50"
           >
-            Cetak Struk
+            {printing ? "Mencetak..." : "Cetak Struk"}
+          </button>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Pengaturan printer"
+            title="Pengaturan printer"
+            className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
+          >
+            ⚙
           </button>
           <button
             onClick={onClose}
@@ -132,6 +174,7 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
           </button>
         </div>
       </div>
+      {settingsOpen && <PrinterSettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

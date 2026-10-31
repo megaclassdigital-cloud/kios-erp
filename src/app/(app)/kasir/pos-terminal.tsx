@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Clock, Power } from "lucide-react";
+import { Clock, Power, Printer } from "lucide-react";
 import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { PromoEditor } from "./promo-editor";
+import { PrinterSettingsModal } from "./printer-settings";
 import { ProductPicker, type PickerItem } from "../product-picker";
 import { searchProducts } from "@/modules/products/domain/product-search";
 import { cartTotals, clampPromo, lineDiscount, lineGross, lineNet, promoLabel } from "./cart-math";
@@ -136,6 +137,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
   const totals = cartTotals(cart);
   const grandTotal = totals.net;
   const [promoLineId, setPromoLineId] = useState<string | null>(null);
+  const [printerOpen, setPrinterOpen] = useState(false);
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault();
@@ -349,6 +351,14 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
               <Clock className="h-3.5 w-3.5" />
               Durasi: {duration || "..."}
             </span>
+            <button
+              onClick={() => setPrinterOpen(true)}
+              data-tour="printer-button"
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+            >
+              <Printer className="h-4 w-4" />
+              Printer
+            </button>
             <button
               onClick={closeShift}
               data-tour="close-shift"
@@ -586,6 +596,8 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
           onConfirm={addServiceLine}
         />
       )}
+
+      {printerOpen && <PrinterSettingsModal onClose={() => setPrinterOpen(false)} />}
 
       {showPayment && (
         <PaymentModal
