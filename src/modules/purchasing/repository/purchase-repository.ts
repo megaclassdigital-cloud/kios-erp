@@ -51,9 +51,10 @@ export interface ReceivedItemRow {
    * they can differ from what was paid at the time. */
   masterPurchasePrice: string;
   sellingPrice: string;
-  /** Quantity x buy price. For a supplier receipt that is what was paid; for
-   * stock that came in another way (initial stock, opname...) it is an estimate
-   * at the product's current buy price. */
+  /** For a supplier receipt: Qty x the price paid (damaged units were paid for
+   * too). For stock that came in another way (initial stock, opname...): an
+   * ESTIMATE, the quantity that reached the shelf (stock after - stock before)
+   * x the product's current buy price. Kept apart in the totals. */
   subtotal: string | null;
   /** Expiry this delivery arrived with; null for older receipts or none entered. */
   expiryDate: Date | null;

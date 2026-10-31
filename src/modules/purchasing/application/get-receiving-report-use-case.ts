@@ -11,7 +11,10 @@ export interface ReceivingReport {
     receiptCount: number;
     lineCount: number;
     totalQuantity: string;
+    /** Paid to suppliers (supplier receipts only). */
     totalValue: string;
+    /** Estimated value of stock that came in without a purchase, kept apart. */
+    estimatedValue: string;
   };
 }
 
@@ -45,11 +48,14 @@ export class GetReceivingReportUseCase {
 
     let totalQuantity = new Decimal(0);
     let totalValue = new Decimal(0);
+    let estimatedValue = new Decimal(0);
     for (const r of rows) {
       totalQuantity = totalQuantity.plus(r.quantity);
-      // Only supplier receipts have a cost; initial stock, opname and returns
-      // add goods but no purchase value.
-      if (r.subtotal !== null) totalValue = totalValue.plus(r.subtotal);
+      if (r.subtotal === null) continue;
+      // What was paid to suppliers and what is only an estimate (initial stock,
+      // opname...) are kept apart, so the paid figure is never inflated.
+      if (r.source === "PURCHASE") totalValue = totalValue.plus(r.subtotal);
+      else estimatedValue = estimatedValue.plus(r.subtotal);
     }
 
     return {
@@ -60,6 +66,7 @@ export class GetReceivingReportUseCase {
         lineCount: rows.length,
         totalQuantity: totalQuantity.toString(),
         totalValue: totalValue.toFixed(2),
+        estimatedValue: estimatedValue.toFixed(2),
       },
     };
   }

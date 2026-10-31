@@ -63,7 +63,7 @@ describe("GetReceivingReportUseCase", () => {
     expect(report.summary.lineCount).toBe(3);
   });
 
-  it("lists stock that did not come from a supplier, valued at the master buy price, and totals it with the receipts", async () => {
+  it("lists stock that did not come from a supplier, estimated at the master buy price and totalled apart from what was paid", async () => {
     const report = await new GetReceivingReportUseCase(
       repoOf([
         row({ quantity: "5", subtotal: "5000.00" }),
@@ -73,7 +73,8 @@ describe("GetReceivingReportUseCase", () => {
     expect(report.summary.lineCount).toBe(2);
     expect(report.summary.receiptCount).toBe(1); // only the supplier receipt is a receipt
     expect(report.summary.totalQuantity).toBe("29"); // goods added, from any source
-    expect(report.summary.totalValue).toBe("1469000.00"); // 5.000 paid + 1.464.000 estimated for the initial stock
+    expect(report.summary.totalValue).toBe("5000.00"); // paid to suppliers only
+    expect(report.summary.estimatedValue).toBe("1464000.00"); // initial stock, estimated, kept apart
   });
 
   it("keeps the supplier receipts and says so when the other stock additions cannot load", async () => {
@@ -116,7 +117,8 @@ describe("GetReceivingReportUseCase", () => {
     expect(r.getCell(5).value).toBe("null"); // no supplier -> "null"
     expect(r.getCell(12).value).toBe(61000); // no price of its own -> master price
     expect(r.getCell(13).value).toBe(75000);
-    expect(r.getCell(15).value).toEqual({ formula: "H7*L7", result: 183000 }); // 3 x master buy price 61.000
+    // Stock that went onto the shelf (after - before = 3) x master buy price 61.000
+    expect(r.getCell(15).value).toEqual({ formula: "(J7-G7)*L7", result: 183000 });
     expect(r.getCell(10).value).toEqual({ formula: "G7+H7-I7", result: 13 });
   });
 
@@ -153,8 +155,11 @@ describe("GetReceivingReportUseCase", () => {
     expect(cell(first + 1, 15)).toEqual({ formula: "H8*L8", result: 35000 });
     // Totals are SUMs over the data range; the extra row is an AVERAGE.
     expect(cell(first + 2, 8)).toEqual({ formula: "SUM(H7:H8)", result: 12.5 });
-    expect(cell(first + 2, 15)).toEqual({ formula: "SUM(O7:O8)", result: 635000 });
-    expect(cell(first + 3, 12)).toEqual({ formula: "AVERAGE(L7:L8)", result: 37000 });
+    // What was paid and what is only an estimate are separate rows.
+    expect(cell(first + 3, 15)).toEqual({ formula: 'SUMIF(C7:C8,"PO-*",O7:O8)', result: 635000 });
+    // (exceljs does not read back a cached result of 0, so only the formula is checked)
+    expect(cell(first + 4, 15)).toMatchObject({ formula: 'SUM(O7:O8)-SUMIF(C7:C8,"PO-*",O7:O8)' });
+    expect(cell(first + 5, 12)).toEqual({ formula: "AVERAGE(L7:L8)", result: 37000 });
     expect(report.summary.totalValue).toBe("635000.00");
   });
 });

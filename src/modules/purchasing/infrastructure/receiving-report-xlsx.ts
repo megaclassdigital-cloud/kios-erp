@@ -21,7 +21,7 @@ export function buildReceivingReportSpec(
     title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
       `Periode: ${period.label} (${formatWibDate(period.start)} - ${formatWibDate(period.end)})`,
-      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk − Rusak · Subtotal = Qty × Harga Beli (baris non-supplier: harga beli master, estimasi)`,
+      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk − Rusak · Subtotal supplier = Qty × Harga Beli · Subtotal baris lain (stok awal, opname) = estimasi: (Stok Sesudah − Stok Sebelum) × harga beli master`,
       ...report.warnings.map((w) => `Perhatian: ${w}`),
       `Dicetak ${formatWibDateTime(new Date())} oleh ${printedBy}`,
     ],
@@ -66,18 +66,30 @@ export function buildReceivingReportSpec(
         price: num(r.purchasePrice ?? r.masterPurchasePrice),
         sell: num(r.sellingPrice),
         expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
-        // Qty x Harga Beli for every row. For a supplier receipt that is what was
-        // paid; for initial stock, opname and the like the price is the product's
-        // current buy price, so the figure is an estimate (the header says so).
-        subtotal: r.subtotal !== null ? { formula: "{qty}*{price}", result: num(r.subtotal) } : "-",
+        // Supplier receipt: Qty x the price paid. Other rows: an estimate on what
+        // went onto the shelf (Stok Sesudah - Stok Sebelum) at the master buy
+        // price, so their formula is written differently on purpose.
+        subtotal:
+          r.subtotal === null
+            ? "-"
+            : fromSupplier
+              ? { formula: "{qty}*{price}", result: num(r.subtotal) }
+              : { formula: "({after}-{before})*{price}", result: num(r.subtotal) },
       };
     }),
     totals: [
       {
-        product: "TOTAL",
+        product: "TOTAL QTY",
         qty: { formula: "SUM({qty:range})", result: num(summary.totalQuantity) },
         damaged: { formula: "SUM({damaged:range})", result: rows.reduce((sum, r) => sum + num(r.damagedQuantity), 0) },
-        subtotal: { formula: "SUM({subtotal:range})", result: num(summary.totalValue) },
+      },
+      {
+        product: "Total pembelian supplier (dibayar)",
+        subtotal: { formula: 'SUMIF({purchaseNumber:range},"PO-*",{subtotal:range})', result: num(summary.totalValue) },
+      },
+      {
+        product: "Estimasi stok awal / penyesuaian",
+        subtotal: { formula: "SUM({subtotal:range})-SUMIF({purchaseNumber:range},\"PO-*\",{subtotal:range})", result: num(summary.estimatedValue) },
       },
       {
         product: "Rata-rata harga beli",
