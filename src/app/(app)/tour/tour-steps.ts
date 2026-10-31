@@ -115,7 +115,12 @@ export const TOURS: Record<string, TourStep[]> = {
     {
       target: "export-buttons",
       title: "Preview sebelum download",
-      body: "Preview menampilkan dokumen sebagaimana tercetak di kertas A4, lengkap dengan halaman dan total. Dari situ bisa Download Excel atau Cetak / simpan PDF.",
+      body: "Preview menampilkan dokumen sebagaimana tercetak di kertas A4, lengkap dengan halaman dan total. Dari situ bisa Download Excel atau Cetak / simpan PDF. Di tablet Android, simpan PDF atau Excel lebih cepat daripada dialog cetak.",
+    },
+    {
+      target: "product-table",
+      title: "Cetak label barcode",
+      body: "Lihat Barcode di tiap baris membuka label barcode. Untuk printer struk (USB atau Bluetooth), isi Jumlah Label lalu tekan Cetak ke printer struk — langsung tercetak tanpa preview. Printer belum diatur? Tekan ikon ⚙ di sebelahnya. Tombol Cetak dan Unduh PNG di bawahnya untuk kertas label atau lembar A4.",
     },
     {
       target: "product-table",
@@ -143,6 +148,11 @@ export const TOURS: Record<string, TourStep[]> = {
       target: "kpi-grid",
       title: "Untung Bersih — ini angkanya",
       body: "Omzet dikurangi modal barang, lalu dikurangi pengeluaran toko. Inilah yang benar-benar Anda bawa pulang.",
+    },
+    {
+      target: "print-slip",
+      title: "Cetak ringkasan ke printer struk",
+      body: "Cetak ringkasan mengirim angka periode ini ke printer struk tanpa jendela preview (butuh printer yang sudah diatur — ikon ⚙ di sebelahnya). Cetak di sebelahnya untuk laporan lengkap ukuran A4, dan Export CSV untuk Excel.",
     },
     {
       target: "asset-note",
@@ -224,6 +234,18 @@ export const TOURS: Record<string, TourStep[]> = {
       target: "stockout-history",
       title: "Riwayat barang keluar",
       body: "Setiap pengeluaran tercatat dengan alasan dan siapa yang mencatat. Pilih periodenya di pojok kanan atas.",
+    },
+  ],
+
+  "/transaksi": [
+    {
+      title: "Riwayat transaksi",
+      body: "Semua penjualan ada di sini. Buka Detail untuk melihat harga jual, modal, promo, dan mutasi stok tiap transaksi.",
+    },
+    {
+      target: "transaction-table",
+      title: "Detail dan cetak ulang struk",
+      body: "Tekan Detail di baris transaksi. Untuk transaksi yang sudah lunas ada tombol Cetak ulang struk yang langsung mengirim struk ke printer thermal (USB atau Bluetooth lewat RawBT), tanpa jendela preview. Printer belum diatur? Tekan ikon ⚙ di sebelahnya. Struk memuat harga awal, promo, dan total seperti aslinya.",
     },
   ],
 

@@ -77,7 +77,7 @@ export default async function TransaksiPage() {
         <KpiCard label="Total Cashless" value={formatRupiah(todayCashless)} icon={CreditCard} tone="info" />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <div data-tour="transaction-table" className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>

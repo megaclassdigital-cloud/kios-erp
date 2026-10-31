@@ -79,7 +79,7 @@ export default async function KeuanganPage({
 
       <div data-tour="period" className="flex flex-wrap items-center justify-between gap-2">
         <PeriodSelector basePath="/keuangan" active={period.key} />
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-tour="print-slip" className="flex flex-wrap items-center gap-2">
         <FinanceSlipButton
           title="Ringkasan Keuangan"
           periodLabel={period.label}
