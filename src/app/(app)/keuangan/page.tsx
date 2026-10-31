@@ -6,26 +6,17 @@ import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { PageHeader } from "@/components/kios/page-header";
 import { KpiCard } from "@/components/kios/kpi-card";
-import { EmptyState } from "@/components/kios/empty-state";
 import { PeriodSelector } from "../laporan/period-selector";
 import { resolvePeriod } from "../laporan/resolve-period";
 import { ExportToolbar } from "../laporan/export-toolbar";
 import { ExpenseForm } from "./expense-form";
+import { ExpenseTable } from "./expense-table";
 import Link from "next/link";
 import { ListAssetsUseCase } from "@/modules/assets/application/asset-use-cases";
 
 function formatRupiah(value: string) {
   return `Rp${Number(value).toLocaleString("id-ID")}`;
 }
-
-const EXPENSE_LABEL: Record<string, string> = {
-  SUPPLIER: "Supplier (tidak dipakai lagi)",
-  ELECTRICITY: "Listrik & Air",
-  TRANSPORT: "Transportasi & Bensin",
-  SALARY: "Gaji Karyawan",
-  OPERATIONAL: "Operasional Toko",
-  OTHER: "Lain-lain",
-};
 
 /**
  * The one place the money picture lives.
@@ -50,17 +41,19 @@ export default async function KeuanganPage({
   const period = resolvePeriod(params);
 
   const canSeeAssets = hasPermission(session.user.role, "assets.manage");
-  const [summary, expenses, transactionCount, assets] = await Promise.all([
+  const [summary, expenses, transactionCount, assets, expenseCount] = await Promise.all([
     new GetFinancialSummaryUseCase().execute(period.start, period.end),
     prisma.expense.findMany({
       where: { expenseDate: { gte: period.start, lte: period.end } },
       orderBy: { expenseDate: "desc" },
-      take: 20,
+      include: { createdBy: { select: { name: true } } },
+      take: 200,
     }),
     prisma.sale.count({
       where: { status: "PAID", paidAt: { gte: period.start, lte: period.end } },
     }),
     canSeeAssets ? new ListAssetsUseCase().execute() : Promise.resolve(null),
+    prisma.expense.count({ where: { expenseDate: { gte: period.start, lte: period.end } } }),
   ]);
 
   // Named for a shopkeeper, not an accountant: "Revenue" and "HPP" meant
@@ -113,37 +106,19 @@ export default async function KeuanganPage({
         <ExpenseForm />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2">Tanggal</th>
-              <th className="px-3 py-2">Kategori</th>
-              <th className="px-3 py-2">Keterangan</th>
-              <th className="px-3 py-2">Jumlah</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-3 py-8">
-                  <EmptyState title="Belum ada pengeluaran tercatat pada periode ini." />
-                </td>
-              </tr>
-            )}
-            {expenses.map((e) => (
-              <tr key={e.id} className="border-t border-border">
-                <td className="px-3 py-2 text-muted-foreground">{e.expenseDate.toLocaleDateString("id-ID")}</td>
-                <td className="px-3 py-2 text-foreground">{EXPENSE_LABEL[e.category] ?? e.category}</td>
-                <td className="px-3 py-2 text-muted-foreground">{e.description ?? "—"}</td>
-                <td className="px-3 py-2 font-medium text-foreground tabular-nums">
-                  {formatRupiah(e.amount.toString())}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ExpenseTable
+        expenses={expenses.map((e) => ({
+          id: e.id,
+          category: e.category,
+          amount: e.amount.toString(),
+          description: e.description,
+          expenseDate: e.expenseDate.toISOString(),
+          createdByName: e.createdBy.name,
+        }))}
+        total={expenseCount}
+        assetCategories={assets?.categories.map((c) => c.name) ?? []}
+        canMove={canSeeAssets}
+      />
     </div>
   );
 }

@@ -149,6 +149,11 @@ export const TOURS: Record<string, TourStep[]> = {
       title: "Pengeluaran: hanya biaya habis pakai",
       body: "Listrik, bensin, plastik, gaji. Belanja stok jangan dicatat di sini — modalnya sudah dihitung saat barang terjual, dan mencatatnya lagi membuat untung tampak kecil. Belanja stok lewat Barang Masuk; peralatan tahan lama lewat Aset Toko.",
     },
+    {
+      target: "expense-table",
+      title: "Salah catat? Bisa diperbaiki",
+      body: "Ubah untuk mengoreksi kategori, jumlah, tanggal, atau keterangan. Hapus untuk membuang catatan yang keliru. Kalau ternyata itu pembelian peralatan (freezer, rak), pilih Pindah ke Aset: nilainya keluar dari pengeluaran dan tercatat di Aset Toko. Semua perubahan tercatat di Audit Log.",
+    },
   ],
 
   "/barang-masuk": [
