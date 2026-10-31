@@ -63,17 +63,17 @@ describe("GetReceivingReportUseCase", () => {
     expect(report.summary.lineCount).toBe(3);
   });
 
-  it("lists stock that did not come from a supplier without inventing a cost", async () => {
+  it("lists stock that did not come from a supplier, valued at the master buy price, and totals it with the receipts", async () => {
     const report = await new GetReceivingReportUseCase(
       repoOf([
         row({ quantity: "5", subtotal: "5000.00" }),
-        row({ source: "INITIAL_STOCK", itemId: "m1", purchaseId: null, purchaseNumber: null, invoiceNumber: null, supplierName: null, purchasePrice: null, subtotal: null, expiryDate: null, quantity: "24", stockBefore: "0", stockAfter: "24" }),
+        row({ source: "INITIAL_STOCK", itemId: "m1", purchaseId: null, purchaseNumber: null, invoiceNumber: null, supplierName: null, purchasePrice: null, subtotal: "1464000.00", expiryDate: null, quantity: "24", stockBefore: "0", stockAfter: "24" }),
       ])
     ).execute({ start: new Date(0), end: new Date() });
     expect(report.summary.lineCount).toBe(2);
     expect(report.summary.receiptCount).toBe(1); // only the supplier receipt is a receipt
     expect(report.summary.totalQuantity).toBe("29"); // goods added, from any source
-    expect(report.summary.totalValue).toBe("5000.00"); // cost only where there was a purchase
+    expect(report.summary.totalValue).toBe("1469000.00"); // 5.000 paid + 1.464.000 estimated for the initial stock
   });
 
   it("keeps the supplier receipts and says so when the other stock additions cannot load", async () => {
@@ -104,9 +104,9 @@ describe("GetReceivingReportUseCase", () => {
     expect(called).toBe(false);
   });
 
-  it("writes non-supplier rows to the xlsx with the source and no subtotal formula", async () => {
+  it("writes non-supplier rows to the xlsx with the source and an estimated subtotal formula", async () => {
     const report = await new GetReceivingReportUseCase(
-      repoOf([row({ source: "STOCK_OPNAME", itemId: "m2", purchaseId: null, purchaseNumber: null, invoiceNumber: null, supplierName: null, purchasePrice: null, subtotal: null, expiryDate: null, quantity: "3", stockBefore: "10", stockAfter: "13" })])
+      repoOf([row({ source: "STOCK_OPNAME", itemId: "m2", purchaseId: null, purchaseNumber: null, invoiceNumber: null, supplierName: null, purchasePrice: null, subtotal: "183000.00", expiryDate: null, quantity: "3", stockBefore: "10", stockAfter: "13" })])
     ).execute({ start: new Date(0), end: new Date() });
     const buf = await buildReceivingReportXlsx(report, { label: "Uji", start: new Date(), end: new Date() }, "Owner");
     const wb = new ExcelJS.Workbook();
@@ -116,7 +116,7 @@ describe("GetReceivingReportUseCase", () => {
     expect(r.getCell(5).value).toBe("null"); // no supplier -> "null"
     expect(r.getCell(12).value).toBe(61000); // no price of its own -> master price
     expect(r.getCell(13).value).toBe(75000);
-    expect(r.getCell(15).value).toBe("-");
+    expect(r.getCell(15).value).toEqual({ formula: "H7*L7", result: 183000 }); // 3 x master buy price 61.000
     expect(r.getCell(10).value).toEqual({ formula: "G7+H7-I7", result: 13 });
   });
 

@@ -177,7 +177,9 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
           purchasePrice: null,
           masterPurchasePrice: product.purchasePrice.toString(),
           sellingPrice: product.sellingPrice.toString(),
-          subtotal: null,
+          // No purchase behind it, so no price paid: value it at the product's
+          // current buy price (the same one shown in the Harga Beli column).
+          subtotal: effective.times(product.purchasePrice.toString()).toFixed(2),
           expiryDate: null,
           stockBefore: before.toString(),
           stockAfter: before.plus(effective).minus(damagedQty).toString(),

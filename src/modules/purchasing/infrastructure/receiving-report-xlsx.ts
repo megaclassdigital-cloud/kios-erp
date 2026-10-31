@@ -21,7 +21,7 @@ export function buildReceivingReportSpec(
     title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
       `Periode: ${period.label} (${formatWibDate(period.start)} - ${formatWibDate(period.end)})`,
-      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk − Rusak · Subtotal = Qty × Harga Beli`,
+      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk − Rusak · Subtotal = Qty × Harga Beli (baris non-supplier: harga beli master, estimasi)`,
       ...report.warnings.map((w) => `Perhatian: ${w}`),
       `Dicetak ${formatWibDateTime(new Date())} oleh ${printedBy}`,
     ],
@@ -66,9 +66,10 @@ export function buildReceivingReportSpec(
         price: num(r.purchasePrice ?? r.masterPurchasePrice),
         sell: num(r.sellingPrice),
         expiry: r.expiryDate ? formatWibDate(r.expiryDate) : "-",
-        // Cost only exists for a supplier receipt, so only those rows have a
-        // subtotal; the others show "-" and are skipped by SUM and AVERAGE.
-        subtotal: fromSupplier && r.subtotal !== null ? { formula: "{qty}*{price}", result: num(r.subtotal) } : "-",
+        // Qty x Harga Beli for every row. For a supplier receipt that is what was
+        // paid; for initial stock, opname and the like the price is the product's
+        // current buy price, so the figure is an estimate (the header says so).
+        subtotal: r.subtotal !== null ? { formula: "{qty}*{price}", result: num(r.subtotal) } : "-",
       };
     }),
     totals: [

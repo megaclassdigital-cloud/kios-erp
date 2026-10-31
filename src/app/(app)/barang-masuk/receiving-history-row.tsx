@@ -183,7 +183,8 @@ export function HistoryRow({
           )}
         </td>
         <td className="px-3 py-2 text-right font-medium tabular-nums">
-          {fromSupplier ? rupiah(String(Number(quantity || 0) * Number(price || 0))) : "-"}
+          {rupiah(String(Number(quantity || 0) * Number(fromSupplier ? price || 0 : row.masterPurchasePrice)))}
+          {!fromSupplier && <span className="block text-[10px] font-normal text-muted-foreground">estimasi</span>}
         </td>
         <td className="px-3 py-2">
           <div className="flex flex-col items-end gap-1">
@@ -223,7 +224,10 @@ export function HistoryRow({
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(row.sellingPrice)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{row.expiryDate ? dateLabel(row.expiryDate) : "-"}</td>
-        <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">{rupiah(row.subtotal)}</td>
+        <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">
+          {rupiah(row.subtotal)}
+          {!fromSupplier && row.subtotal !== null && <span className="block text-[10px] font-normal text-muted-foreground">estimasi</span>}
+        </td>
         <td className="whitespace-nowrap px-3 py-2 text-right">
           {canEdit && (
             <>
