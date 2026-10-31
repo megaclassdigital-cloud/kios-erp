@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
-import type { FinanceReadRepository, FinancialAggregate } from "../repository/finance-read-repository";
+import type { FinanceReadRepository, FinancialAggregate, ProductBreakdownRow } from "../repository/finance-read-repository";
 
 /** Revenue/cogs and cash/cashless are deliberately two separate queries
  * rather than one join: sale_items joined to sales would duplicate each
@@ -9,6 +9,21 @@ import type { FinanceReadRepository, FinancialAggregate } from "../repository/fi
  * fan-out entirely instead of trying to be clever with it. */
 export class PrismaFinanceReadRepository implements FinanceReadRepository {
   constructor(private readonly db: Db) {}
+
+  async productBreakdown(start: Date, end: Date, limit: number): Promise<ProductBreakdownRow[]> {
+    return this.db.$queryRaw<ProductBreakdownRow[]>(Prisma.sql`
+      SELECT si."productNameSnapshot" AS name,
+             SUM(si.quantity)::text AS quantity,
+             COALESCE(SUM(si.quantity * si."unitPriceAtSale" - si."discountAmount"), 0)::text AS revenue,
+             COALESCE(SUM(si.quantity * si."costPriceAtSale"), 0)::text AS cogs
+      FROM sale_items si
+      JOIN sales s ON s.id = si."saleId"
+      WHERE s.status = 'PAID' AND s."paidAt" >= ${start} AND s."paidAt" <= ${end}
+      GROUP BY si."productId", si."productNameSnapshot"
+      ORDER BY SUM(si.quantity * si."unitPriceAtSale" - si."discountAmount") DESC
+      LIMIT ${limit}
+    `);
+  }
 
   async summary(start: Date, end: Date): Promise<FinancialAggregate> {
     const [revenueCogs, cashSplit, expenseTotal] = await Promise.all([

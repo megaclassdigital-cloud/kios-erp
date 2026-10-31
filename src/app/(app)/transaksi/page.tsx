@@ -4,6 +4,7 @@ import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { PageHeader } from "@/components/kios/page-header";
 import { KpiCard } from "@/components/kios/kpi-card";
+import { KpiDetail, type DetailRow } from "@/components/kios/kpi-detail";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { RefundButton } from "./refund-button";
 import { TransactionDetailButton } from "./transaction-detail-button";
@@ -50,7 +51,8 @@ export default async function TransaksiPage() {
     }),
     prisma.sale.findMany({
       where: { ...cashierFilter, createdAt: { gte: startOfDay, lte: now } },
-      select: { status: true, paymentMethod: true, grandTotal: true },
+      orderBy: { createdAt: "desc" },
+      select: { transactionNumber: true, createdAt: true, status: true, paymentMethod: true, grandTotal: true },
     }),
   ]);
 
@@ -63,6 +65,12 @@ export default async function TransaksiPage() {
     .filter((s) => s.status === "PAID" && s.paymentMethod === "CASHLESS")
     .reduce((acc, s) => acc + Number(s.grandTotal), 0);
 
+  const todayColumns = [{ header: "No. Transaksi" }, { header: "Jam" }, { header: "Metode" }, { header: "Total", align: "right" as const }];
+  const todayRows = (keep: (s: (typeof todaySales)[number]) => boolean): DetailRow[] =>
+    todaySales.filter(keep).map((s) => ({
+      cells: [s.transactionNumber, s.createdAt.toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }), s.paymentMethod === "CASH" ? "Tunai" : "Cashless", formatRupiah(Number(s.grandTotal))],
+    }));
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -71,10 +79,18 @@ export default async function TransaksiPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Total Transaksi Hari Ini" value={String(todayCount)} icon={FileText} />
-        <KpiCard label="Refund Hari Ini" value={String(todayRefunds)} icon={RotateCcw} tone="destructive" />
-        <KpiCard label="Total Cash" value={formatRupiah(todayCash)} icon={Banknote} tone="success" />
-        <KpiCard label="Total Cashless" value={formatRupiah(todayCashless)} icon={CreditCard} tone="info" />
+        <KpiDetail title="Transaksi lunas hari ini" columns={todayColumns} rows={todayRows((s) => s.status === "PAID")} emptyText="Belum ada transaksi lunas hari ini.">
+          <KpiCard interactive label="Total Transaksi Hari Ini" value={String(todayCount)} icon={FileText} />
+        </KpiDetail>
+        <KpiDetail title="Refund hari ini" columns={todayColumns} rows={todayRows((s) => s.status === "REFUNDED")} emptyText="Belum ada refund hari ini.">
+          <KpiCard interactive label="Refund Hari Ini" value={String(todayRefunds)} icon={RotateCcw} tone="destructive" />
+        </KpiDetail>
+        <KpiDetail title="Transaksi tunai hari ini" columns={todayColumns} rows={todayRows((s) => s.status === "PAID" && s.paymentMethod === "CASH")} emptyText="Belum ada transaksi tunai hari ini.">
+          <KpiCard interactive label="Total Cash" value={formatRupiah(todayCash)} icon={Banknote} tone="success" />
+        </KpiDetail>
+        <KpiDetail title="Transaksi cashless hari ini" columns={todayColumns} rows={todayRows((s) => s.status === "PAID" && s.paymentMethod === "CASHLESS")} emptyText="Belum ada transaksi cashless hari ini.">
+          <KpiCard interactive label="Total Cashless" value={formatRupiah(todayCashless)} icon={CreditCard} tone="info" />
+        </KpiDetail>
       </div>
 
       <div data-tour="transaction-table" className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">

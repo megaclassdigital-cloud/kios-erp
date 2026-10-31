@@ -1,15 +1,26 @@
 import { Wallet, Receipt, Banknote, CreditCard, TrendingDown, PiggyBank, PackageMinus, PackageX } from "lucide-react";
 import { GetFinancialSummaryUseCase } from "@/modules/finance/application/get-financial-summary-use-case";
+import Link from "next/link";
 import { prisma } from "@/shared/infrastructure/prisma";
 import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { KpiCard } from "@/components/kios/kpi-card";
+import { KpiDetail, KpiLink, type DetailRow } from "@/components/kios/kpi-detail";
 import { EmptyState } from "@/components/kios/empty-state";
 import { resolvePeriod } from "../laporan/resolve-period";
 import { SalesTrendWidget } from "./sales-trend-widget";
 import { CashCashlessWidget } from "./cash-cashless-widget";
 import { ExpenseWidget } from "./expense-widget";
 import { TopProductsWidget } from "./top-products-widget";
+
+/** Makes a whole dashboard widget a link, with a hint of where it goes. */
+function WidgetLink({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} title={label} className="group block rounded-xl outline-none transition hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring">
+      {children}
+    </Link>
+  );
+}
 
 function formatRupiah(value: string) {
   return `Rp${Number(value).toLocaleString("id-ID")}`;
@@ -63,7 +74,7 @@ export default async function DashboardPage({
   const now = new Date();
   const trend = resolvePeriod(await searchParams);
 
-  const [summary, transactionCount, products, recentSales, openShifts, trendSales, expenseByCategory, topProductsToday] =
+  const [summary, transactionCount, products, recentSales, openShifts, trendSales, expenseByCategory, topProductsToday, todaySales] =
     await Promise.all([
       new GetFinancialSummaryUseCase().execute(startOfDay, now),
       prisma.sale.count({ where: { status: "PAID", paidAt: { gte: startOfDay, lte: now } } }),
@@ -100,6 +111,15 @@ export default async function DashboardPage({
         orderBy: { _sum: { subtotal: "desc" } },
         take: 5,
       }),
+      // Behind the day's sales cards; opening one must not be able to break the page.
+      prisma.sale
+        .findMany({
+          where: { status: "PAID", paidAt: { gte: startOfDay, lte: now } },
+          orderBy: { paidAt: "desc" },
+          take: 100,
+          select: { transactionNumber: true, paidAt: true, paymentMethod: true, grandTotal: true },
+        })
+        .catch(() => null),
     ]);
 
   const trendSeries = buildDailySeries(trend.start, trend.end, trendSales);
@@ -110,6 +130,19 @@ export default async function DashboardPage({
   const outOfStock = products.filter((p) => Number(p.currentStock) <= 0);
 
   const firstName = session?.user?.name?.split(" ")[0] ?? "Admin";
+
+  const saleRows = (method?: "CASH" | "CASHLESS"): DetailRow[] =>
+    (todaySales ?? [])
+      .filter((s) => !method || s.paymentMethod === method)
+      .map((s) => ({
+        cells: [s.transactionNumber, (s.paidAt ?? now).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }), s.paymentMethod === "CASH" ? "Tunai" : "Non-tunai", formatRupiah(s.grandTotal.toString())],
+      }));
+  const saleColumns = [{ header: "No. Transaksi" }, { header: "Jam" }, { header: "Metode" }, { header: "Total", align: "right" as const }];
+  const saleEmpty = todaySales ? "Belum ada transaksi hari ini." : "Rincian belum bisa dimuat. Muat ulang halaman untuk mencoba lagi.";
+  const saleNote = todaySales && transactionCount > todaySales.length ? `Menampilkan ${todaySales.length} terbaru dari ${transactionCount} transaksi.` : undefined;
+  const stockColumns = [{ header: "Produk" }, { header: "Stok", align: "right" as const }, { header: "Minimum", align: "right" as const }];
+  const stockRows = (list: typeof products): DetailRow[] =>
+    list.map((p) => ({ cells: [p.name, Number(p.currentStock).toLocaleString("id-ID"), String(p.minimumStock)] }));
 
   return (
     <div className="space-y-6">
@@ -125,34 +158,50 @@ export default async function DashboardPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Omzet Hari Ini" value={formatRupiah(summary.revenue.toFixed(2))} icon={Wallet} />
-        <KpiCard label="Transaksi Hari Ini" value={String(transactionCount)} icon={Receipt} />
-        <KpiCard label="Tunai Hari Ini" value={formatRupiah(summary.cash.toFixed(2))} icon={Banknote} tone="success" />
-        <KpiCard label="Non-Tunai Hari Ini" value={formatRupiah(summary.cashless.toFixed(2))} icon={CreditCard} tone="info" />
-        <KpiCard label="Pengeluaran Toko" value={formatRupiah(summary.expense.toFixed(2))} icon={TrendingDown} tone="warning" />
-        <KpiCard label="Untung Kotor" value={formatRupiah(summary.grossProfit.toFixed(2))} icon={PiggyBank} tone="success" />
-        <KpiCard label="Stok Menipis" value={String(lowStock.length)} icon={PackageMinus} tone="warning" />
-        <KpiCard label="Stok Habis" value={String(outOfStock.length)} icon={PackageX} tone="destructive" />
+        <KpiDetail title="Omzet hari ini" description="Transaksi lunas hari ini." columns={saleColumns} rows={saleRows()} emptyText={saleEmpty} note={saleNote} footerHref="/transaksi" footerLabel="Buka Transaksi">
+          <KpiCard interactive label="Omzet Hari Ini" value={formatRupiah(summary.revenue.toFixed(2))} icon={Wallet} />
+        </KpiDetail>
+        <KpiDetail title="Transaksi hari ini" description="Transaksi lunas hari ini." columns={saleColumns} rows={saleRows()} emptyText={saleEmpty} note={saleNote} footerHref="/transaksi" footerLabel="Buka Transaksi">
+          <KpiCard interactive label="Transaksi Hari Ini" value={String(transactionCount)} icon={Receipt} />
+        </KpiDetail>
+        <KpiDetail title="Transaksi tunai hari ini" columns={saleColumns} rows={saleRows("CASH")} emptyText={todaySales ? "Belum ada transaksi tunai hari ini." : saleEmpty} note={saleNote} footerHref="/transaksi" footerLabel="Buka Transaksi">
+          <KpiCard interactive label="Tunai Hari Ini" value={formatRupiah(summary.cash.toFixed(2))} icon={Banknote} tone="success" />
+        </KpiDetail>
+        <KpiDetail title="Transaksi non-tunai hari ini" columns={saleColumns} rows={saleRows("CASHLESS")} emptyText={todaySales ? "Belum ada transaksi non-tunai hari ini." : saleEmpty} note={saleNote} footerHref="/transaksi" footerLabel="Buka Transaksi">
+          <KpiCard interactive label="Non-Tunai Hari Ini" value={formatRupiah(summary.cashless.toFixed(2))} icon={CreditCard} tone="info" />
+        </KpiDetail>
+        <KpiLink href="/keuangan#pengeluaran">
+          <KpiCard interactive label="Pengeluaran Toko" value={formatRupiah(summary.expense.toFixed(2))} icon={TrendingDown} tone="warning" />
+        </KpiLink>
+        <KpiLink href="/keuangan">
+          <KpiCard interactive label="Untung Kotor" value={formatRupiah(summary.grossProfit.toFixed(2))} icon={PiggyBank} tone="success" />
+        </KpiLink>
+        <KpiDetail title="Stok menipis" description="Stok di bawah atau sama dengan batas minimum." columns={stockColumns} rows={stockRows(lowStock)} emptyText="Tidak ada stok yang menipis." footerHref="/barang-masuk" footerLabel="Buka Barang Masuk">
+          <KpiCard interactive label="Stok Menipis" value={String(lowStock.length)} icon={PackageMinus} tone="warning" />
+        </KpiDetail>
+        <KpiDetail title="Stok habis" description="Stok sudah nol." columns={stockColumns} rows={stockRows(outOfStock)} emptyText="Tidak ada stok yang habis." footerHref="/barang-masuk" footerLabel="Buka Barang Masuk">
+          <KpiCard interactive label="Stok Habis" value={String(outOfStock.length)} icon={PackageX} tone="destructive" />
+        </KpiDetail>
       </div>
 
       <SalesTrendWidget activePeriod={trend.key} series={trendSeries} />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <CashCashlessWidget cash={Number(summary.cash)} cashless={Number(summary.cashless)} />
-        <ExpenseWidget
+        <WidgetLink href="/keuangan" label="Lihat Keuangan"><CashCashlessWidget cash={Number(summary.cash)} cashless={Number(summary.cashless)} /></WidgetLink>
+        <WidgetLink href="/keuangan#pengeluaran" label="Lihat pengeluaran"><ExpenseWidget
           items={expenseByCategory.map((e) => ({
             category: e.category,
             total: Number(e._sum.amount ?? 0),
           }))}
-        />
-        <TopProductsWidget
+        /></WidgetLink>
+        <WidgetLink href="/laporan?tab=produk" label="Lihat laporan produk"><TopProductsWidget
           items={topProductsToday.map((p) => ({
             productId: p.productId,
             name: p.productNameSnapshot,
             qty: Number(p._sum.quantity ?? 0),
             total: Number(p._sum.subtotal ?? 0),
           }))}
-        />
+        /></WidgetLink>
       </div>
 
       {canMonitorShifts && (

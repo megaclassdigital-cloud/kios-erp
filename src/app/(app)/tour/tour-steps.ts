@@ -141,6 +141,11 @@ export const TOURS: Record<string, TourStep[]> = {
     },
     {
       target: "kpi-grid",
+      title: "Kartu bisa diklik",
+      body: "Tiap kartu angka bisa ditekan untuk melihat isinya: transaksi di balik omzet, tunai dan non-tunai, modal dan untung per produk, atau rumus untung bersih. Kartu Pengeluaran membawa Anda ke daftar pengeluaran di bawah.",
+    },
+    {
+      target: "kpi-grid",
       title: "Omzet bukan keuntungan",
       body: "Omzet adalah seluruh uang masuk. Di dalamnya masih ada modal barang, jadi angka besar di sini belum tentu untung besar.",
     },

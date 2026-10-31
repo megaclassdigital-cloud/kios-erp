@@ -65,7 +65,7 @@ export function ExpenseTable({
   }
 
   return (
-    <div data-tour="expense-table" className="space-y-2">
+    <div id="pengeluaran" data-tour="expense-table" className="scroll-mt-24 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari keterangan atau kategori" className="min-w-48 flex-1 rounded-md border border-input px-3 py-1.5 text-sm" />
         <p className="text-xs text-muted-foreground">

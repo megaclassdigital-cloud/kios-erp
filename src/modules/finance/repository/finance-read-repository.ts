@@ -9,6 +9,16 @@ export interface FinancialAggregate {
   expense: string;
 }
 
+/** One product's share of the period's sales, from the stored price/cost snapshots. */
+export interface ProductBreakdownRow {
+  name: string;
+  quantity: string;
+  revenue: string;
+  cogs: string;
+}
+
 export interface FinanceReadRepository {
   summary(start: Date, end: Date): Promise<FinancialAggregate>;
+  /** Paid sales grouped by product, biggest revenue first (for the card details). */
+  productBreakdown(start: Date, end: Date, limit: number): Promise<ProductBreakdownRow[]>;
 }

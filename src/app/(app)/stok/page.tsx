@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { KpiCard } from "@/components/kios/kpi-card";
+import { KpiDetail, KpiLink, type DetailRow } from "@/components/kios/kpi-detail";
 import { BarcodeAudit } from "./barcode-audit";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "destructive"> = {
@@ -44,6 +45,18 @@ export default async function StokPage() {
   const expired = products.filter((p) => expiryOf(p) === "KEDALUWARSA").length;
   const untracked = products.filter((p) => expiryOf(p) === "TIDAK_DIPANTAU").length;
 
+  const num = (v: unknown) => Number(v).toLocaleString("id-ID");
+  const stockRows = (list: typeof products): DetailRow[] =>
+    list.map((p) => ({ cells: [p.name, num(p.currentStock), String(p.minimumStock)] }));
+  const expiryRows = (list: typeof products): DetailRow[] =>
+    list.map((p) => {
+      const status = expiryOf(p);
+      return { cells: [p.name, num(p.currentStock), expiryService.describe(status, expiryService.daysUntil(p.expiryDate as Date, now))] };
+    });
+  const stockColumns = [{ header: "Produk" }, { header: "Stok", align: "right" as const }, { header: "Minimum", align: "right" as const }];
+  const expiryColumns = [{ header: "Produk" }, { header: "Stok", align: "right" as const }, { header: "Kedaluwarsa" }];
+  const byStatus = (status: string) => products.filter((p) => inventoryService.classifyStock(Number(p.currentStock), p.minimumStock) === status);
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -52,11 +65,21 @@ export default async function StokPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <KpiCard label="Total SKU Fisik" value={String(products.length)} icon={Boxes} />
-        <KpiCard label="Stok Menipis" value={String(lowStockCount)} icon={PackageMinus} tone="warning" />
-        <KpiCard label="Stok Habis" value={String(outOfStockCount)} icon={PackageX} tone="destructive" />
-        <KpiCard label="Mendekati Kedaluwarsa" value={String(expiringSoon)} icon={CalendarClock} tone="warning" />
-        <KpiCard label="Sudah Kedaluwarsa" value={String(expired)} icon={CalendarX} tone="destructive" />
+        <KpiLink href="#daftar-stok">
+          <KpiCard interactive label="Total SKU Fisik" value={String(products.length)} icon={Boxes} />
+        </KpiLink>
+        <KpiDetail title="Stok Menipis" description="Stok di bawah atau sama dengan batas minimum. Tambah lewat Barang Masuk." columns={stockColumns} rows={stockRows(byStatus("MENIPIS"))} emptyText="Tidak ada stok yang menipis." footerHref="/barang-masuk" footerLabel="Buka Barang Masuk">
+          <KpiCard interactive label="Stok Menipis" value={String(lowStockCount)} icon={PackageMinus} tone="warning" />
+        </KpiDetail>
+        <KpiDetail title="Stok Habis" description="Stok sudah nol. Tidak bisa dijual sampai ditambah." columns={stockColumns} rows={stockRows(byStatus("HABIS"))} emptyText="Tidak ada stok yang habis." footerHref="/barang-masuk" footerLabel="Buka Barang Masuk">
+          <KpiCard interactive label="Stok Habis" value={String(outOfStockCount)} icon={PackageX} tone="destructive" />
+        </KpiDetail>
+        <KpiDetail title="Mendekati Kedaluwarsa" description="Sudah masuk masa peringatan sesuai pengaturan tiap produk." columns={expiryColumns} rows={expiryRows(products.filter((p) => expiryOf(p) === "MENDEKATI"))} emptyText="Tidak ada barang yang mendekati kedaluwarsa." footerHref="/barang-keluar" footerLabel="Catat barang keluar">
+          <KpiCard interactive label="Mendekati Kedaluwarsa" value={String(expiringSoon)} icon={CalendarClock} tone="warning" />
+        </KpiDetail>
+        <KpiDetail title="Sudah Kedaluwarsa" description="Jangan dijual. Catat sebagai barang keluar (kedaluwarsa) supaya stok sesuai." columns={expiryColumns} rows={expiryRows(products.filter((p) => expiryOf(p) === "KEDALUWARSA"))} emptyText="Tidak ada barang yang kedaluwarsa." footerHref="/barang-keluar" footerLabel="Catat barang keluar">
+          <KpiCard interactive label="Sudah Kedaluwarsa" value={String(expired)} icon={CalendarX} tone="destructive" />
+        </KpiDetail>
       </div>
 
       {untracked > 0 && (
@@ -69,7 +92,7 @@ export default async function StokPage() {
       <BarcodeAudit />
 
       <h2 className="text-sm font-semibold text-foreground">Daftar Stok Barang (Produk Fisik)</h2>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <div id="daftar-stok" className="scroll-mt-24 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>

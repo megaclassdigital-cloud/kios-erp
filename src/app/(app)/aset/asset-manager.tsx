@@ -82,10 +82,18 @@ export function AssetManager() {
     return (assets ?? []).filter(
       (a) =>
         (!category || a.category === category) &&
-        (!condition || a.condition === condition) &&
+        (!condition || (condition === "ATTENTION" ? a.condition === "RUSAK" || a.condition === "PERLU_PERBAIKAN" : a.condition === condition)) &&
         (!q || `${a.name} ${a.note ?? ""}`.toLowerCase().includes(q))
     );
   }, [assets, category, condition, search]);
+
+  /** A card was pressed: show what is behind it, in the list below. */
+  function showInList(next: { category?: string; condition?: string }, target: string) {
+    setCategory(next.category ?? "");
+    setCondition(next.condition ?? "");
+    setSearch("");
+    document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   async function add(values: AssetFormValues) {
     const problem = await send("/api/assets", "POST", values);
@@ -121,13 +129,19 @@ export function AssetManager() {
       <AssetGuide />
 
       <div data-tour="asset-kpi" className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <KpiCard label="Unit aset dimiliki" value={summary ? String(summary.totalUnits) : "-"} icon={Boxes} />
-        <KpiCard label="Nilai perolehan" value={summary ? rupiah(summary.totalValue) : "-"} icon={Wallet} tone="info" />
-        <KpiCard label="Rusak / perlu perbaikan (unit)" value={summary ? String(summary.needsAttentionUnits) : "-"} icon={Wrench} tone={summary && summary.needsAttentionUnits > 0 ? "warning" : "default"} />
+        <button type="button" onClick={() => showInList({}, "daftar-aset")} className="group block h-full w-full rounded-xl text-left outline-none">
+          <KpiCard interactive label="Unit aset dimiliki" value={summary ? String(summary.totalUnits) : "-"} icon={Boxes} />
+        </button>
+        <button type="button" onClick={() => showInList({}, document.getElementById("rekap-aset") ? "rekap-aset" : "daftar-aset")} className="group block h-full w-full rounded-xl text-left outline-none">
+          <KpiCard interactive label="Nilai perolehan" value={summary ? rupiah(summary.totalValue) : "-"} icon={Wallet} tone="info" />
+        </button>
+        <button type="button" onClick={() => showInList({ condition: "ATTENTION" }, "daftar-aset")} className="group block h-full w-full rounded-xl text-left outline-none">
+          <KpiCard interactive label="Rusak / perlu perbaikan (unit)" value={summary ? String(summary.needsAttentionUnits) : "-"} icon={Wrench} tone={summary && summary.needsAttentionUnits > 0 ? "warning" : "default"} />
+        </button>
       </div>
 
       {summary && summary.byCategory.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+        <div id="rekap-aset" className="scroll-mt-24 rounded-xl border border-border bg-card p-3 shadow-sm">
           <p className="mb-2 text-xs font-semibold text-muted-foreground">REKAP PER KATEGORI</p>
           <div className="grid gap-x-6 gap-y-1 text-sm md:grid-cols-2">
             {summary.byCategory.map((c) => (
@@ -158,6 +172,7 @@ export function AssetManager() {
         </select>
         <select value={condition} onChange={(e) => setCondition(e.target.value)} className="rounded-md border border-input px-2 py-1.5 text-sm">
           <option value="">Semua kondisi</option>
+          <option value="ATTENTION">Rusak / perlu perbaikan</option>
           {Object.entries(CONDITION_LABEL).map(([k, l]) => (
             <option key={k} value={k}>{l}</option>
           ))}
@@ -168,7 +183,7 @@ export function AssetManager() {
         </a>
       </div>
 
-      <div data-tour="asset-table" className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <div id="daftar-aset" data-tour="asset-table" className="scroll-mt-24 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>
