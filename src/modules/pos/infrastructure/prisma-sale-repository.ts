@@ -1,6 +1,6 @@
 import type { Sale } from "@prisma/client";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
-import type { CreateSaleInput, SaleRepository } from "../repository/sale-repository";
+import type { CreateSaleInput, SaleRepository, SaleWithLines } from "../repository/sale-repository";
 
 export class PrismaSaleRepository implements SaleRepository {
   constructor(private readonly db: Db) {}
@@ -44,6 +44,14 @@ export class PrismaSaleRepository implements SaleRepository {
         payments: true,
         cashier: { select: { name: true } },
       },
+    });
+  }
+
+  async listByShift(shiftId: string): Promise<SaleWithLines[]> {
+    return this.db.sale.findMany({
+      where: { shiftId },
+      orderBy: { createdAt: "desc" },
+      include: { items: { include: { serviceDetail: true } }, cashier: { select: { name: true } } },
     });
   }
 

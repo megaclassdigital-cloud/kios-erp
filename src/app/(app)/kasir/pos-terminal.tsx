@@ -9,6 +9,7 @@ import type { CartLine, OpenShift, ServiceDetailInput } from "./types";
 import { PaymentModal } from "./payment-modal";
 import { PromoEditor } from "./promo-editor";
 import { PrinterSettingsModal } from "../printer-settings";
+import { ShiftHistory } from "./shift-history";
 import { ProductPicker, type PickerItem } from "../product-picker";
 import { searchProducts } from "@/modules/products/domain/product-search";
 import { cartTotals, clampPromo, lineDiscount, lineGross, lineNet, promoLabel } from "./cart-math";
@@ -596,6 +597,9 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
           onConfirm={addServiceLine}
         />
       )}
+
+      {/* Below the till and the payment panel: the shift's own transactions, with their lines. */}
+      <ShiftHistory shiftId={shiftId} refreshKey={completedSaleCount} />
 
       {printerOpen && <PrinterSettingsModal onClose={() => setPrinterOpen(false)} />}
 

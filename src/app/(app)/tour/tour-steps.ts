@@ -51,6 +51,11 @@ export const TOURS: Record<string, TourStep[]> = {
       body: "Ringkasan menampilkan Harga awal, Promo, dan Total yang harus dibayar. Pilih tunai atau non-tunai; untuk tunai, isi uang yang diterima dan kembaliannya dihitung otomatis.",
     },
     {
+      target: "shift-history",
+      title: "Riwayat transaksi shift ini",
+      body: "Di bawah kasir ada semua transaksi shift ini: barang, jumlah, harga, promo, dan total tiap transaksi, plus ringkasan tunai dan non-tunai. Otomatis bertambah setiap transaksi selesai, dan tetap ada setelah halaman dimuat ulang. Tombol Cetak mencetak ulang struknya. Riwayat semua shift ada di menu Transaksi.",
+    },
+    {
       target: "printer-button",
       title: "Printer struk",
       body: "Atur printer thermal di tablet ini: USB lewat adaptor, atau Bluetooth lewat aplikasi RawBT. Setelah terhubung, struk tercetak langsung tanpa jendela preview, bahkan otomatis setelah bayar kalau diaktifkan. Pengaturan yang sama dipakai untuk cetak ulang struk di Transaksi, label barcode di Master Produk, dan ringkasan di Keuangan. Tes cetak ada di sini juga.",
