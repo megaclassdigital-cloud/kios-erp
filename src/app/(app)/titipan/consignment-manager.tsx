@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { HandCoins, Package, Users } from "lucide-react";
 import { KpiCard } from "@/components/kios/kpi-card";
 import { ConsignorCards } from "./consignor-cards";
+import { CatchUpForm } from "./catch-up-form";
 import { DropForm } from "./drop-form";
 import { DropsList } from "./drops-list";
 import { qty, rupiah, type Overview } from "./types";
 
-/** The whole Titipan screen. Reloads itself, so a sale at the till shows up here as owed without a refresh. */
+/** The whole Titipan screen. Sales at the till are recorded as they happen; this page shows them when it is opened or reloaded. */
 export function ConsignmentManager() {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export function ConsignmentManager() {
 
       {data && <ConsignorCards consignors={data.consignors} onChanged={load} />}
       {data && <DropForm suppliers={data.suppliers} onSaved={load} />}
+      {data && <CatchUpForm suppliers={data.suppliers} onSaved={load} />}
       {data && <DropsList drops={data.drops} payments={data.payments} onChanged={load} />}
     </div>
   );

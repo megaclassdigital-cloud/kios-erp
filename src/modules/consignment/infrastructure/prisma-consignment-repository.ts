@@ -51,6 +51,14 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
     return items.length;
   }
 
+  findConsignmentProduct(productId: string) {
+    return this.db.product.findFirst({ where: { id: productId, isConsignment: true, consignorId: { not: null }, deletedAt: null } });
+  }
+
+  createCatchUp(data: { productId: string; supplierId: string; quantity: string; unitCost: string; soldAt: Date; note: string | null; createdById: string }) {
+    return this.db.consignmentSale.create({ data });
+  }
+
   async positionData(): Promise<PositionInput> {
     const [consignors, products, items, saleItems, payments] = await Promise.all([
       this.db.supplier.findMany({ where: { OR: [{ consignedProducts: { some: {} } }, { consignments: { some: {} } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -62,8 +70,9 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
       // What the till recorded as it sold; only while the sale is PAID, so a refund or an
       // unpaid cashless sale drops out by itself.
       this.db.consignmentSale.findMany({
-        where: { sale: { status: "PAID" } },
-        select: { productId: true, supplierId: true, quantity: true, unitCost: true, sale: { select: { paidAt: true } } },
+        // plus catch-up entries (no sale behind them), which count as soon as they are entered.
+        where: { OR: [{ sale: { status: "PAID" } }, { saleId: null }] },
+        select: { productId: true, supplierId: true, quantity: true, unitCost: true, soldAt: true, createdAt: true, sale: { select: { paidAt: true } } },
       }),
       this.db.consignmentPayment.findMany({ select: { supplierId: true, amount: true } }),
     ]);
@@ -79,9 +88,10 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
         unitCost: i.unitCost.toString(),
         droppedAt: i.consignment.createdAt,
       })),
-      saleLines: saleItems.flatMap((s) =>
-        s.sale.paidAt ? [{ productId: s.productId, consignorId: s.supplierId, quantity: s.quantity.toString(), costPriceAtSale: s.unitCost.toString(), paidAt: s.sale.paidAt }] : []
-      ),
+      saleLines: saleItems.flatMap((s) => {
+        const at = s.sale?.paidAt ?? s.soldAt ?? s.createdAt;
+        return [{ productId: s.productId, consignorId: s.supplierId, quantity: s.quantity.toString(), costPriceAtSale: s.unitCost.toString(), paidAt: at }];
+      }),
       payments: payments.map((p) => ({ consignorId: p.supplierId, amount: p.amount.toString() })),
     };
   }

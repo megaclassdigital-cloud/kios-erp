@@ -11,6 +11,7 @@ const db = vi.hoisted(() => ({
   payments: [] as { amount: string }[],
   audits: [] as string[],
   position: null as null | object,
+  catchUps: [] as { productId: string; quantity: string }[],
 }));
 
 vi.mock("@/shared/infrastructure/prisma", () => ({ prisma: {} }));
@@ -40,15 +41,17 @@ vi.mock("../infrastructure/prisma-consignment-repository", () => ({
     async addReturned(id: string, q: string) { const i = db.items.get(id)!; i.quantityReturned = new Decimal(i.quantityReturned).plus(q).toString(); }
     async createPayment(d: { amount: string }) { db.payments.push(d); return { id: "pay1" }; }
     async positionData() { return db.position; }
+    async findConsignmentProduct(id: string) { const p = db.products.get(id) as Prod | undefined; return p?.isConsignment && p.consignorId ? p : null; }
+    async createCatchUp(d: { productId: string; quantity: string }) { db.catchUps.push(d); return { id: "cu1" }; }
   },
 }));
 
-import { PayConsignorUseCase, ReceiveConsignmentUseCase, ReturnConsignmentItemUseCase } from "./consignment-use-cases";
+import { PayConsignorUseCase, RecordCatchUpSaleUseCase, ReceiveConsignmentUseCase, ReturnConsignmentItemUseCase } from "./consignment-use-cases";
 
 const product = (over: Partial<Prod> = {}): Prod => ({ id: "p1", name: "Roti Tawar", active: true, trackInventory: true, isConsignment: true, consignorId: "s1", purchasePrice: "8000", sellingPrice: "12000", currentStock: "0", deletedAt: null, ...over });
 
 beforeEach(() => {
-  db.products.clear(); db.movements.length = 0; db.consignments.length = 0; db.items.clear(); db.payments.length = 0; db.audits.length = 0;
+  db.products.clear(); db.movements.length = 0; db.consignments.length = 0; db.items.clear(); db.payments.length = 0; db.audits.length = 0; db.catchUps.length = 0;
   db.products.set("p1", product());
 });
 
@@ -123,5 +126,32 @@ describe("paying a consignor", () => {
     db.position = position("90000", "30000");
     await expect(new PayConsignorUseCase().execute({ supplierId: "s1", amount: "60001", actorId: "u" })).rejects.toThrow(/melebihi utang/);
     expect(db.payments).toHaveLength(0);
+  });
+});
+
+describe("catching up a sale that was never rung up", () => {
+  it("takes the units off the shelf as a SALE movement and adds them to what is owed", async () => {
+    (db.products.get("p1") as Prod).currentStock = "10";
+    const r = await new RecordCatchUpSaleUseCase().execute({ productId: "p1", quantity: "4", actorId: "u" });
+    expect((db.products.get("p1") as Prod).currentStock).toBe("6");
+    expect(db.movements).toEqual([expect.objectContaining({ quantity: "-4", movementType: "SALE", referenceType: "CONSIGNMENT_CATCHUP" })]);
+    expect(db.catchUps).toEqual([expect.objectContaining({ productId: "p1", quantity: "4" })]);
+    expect(r.owed).toBe("32000.00");
+  });
+
+  it("refuses more than is on the shelf and records nothing on the stock side", async () => {
+    (db.products.get("p1") as Prod).currentStock = "2";
+    await expect(new RecordCatchUpSaleUseCase().execute({ productId: "p1", quantity: "5", actorId: "u" })).rejects.toThrow(/tidak cukup/);
+    expect(db.movements).toHaveLength(0);
+  });
+
+  it("rejects a product that is not consignment goods", async () => {
+    db.products.set("p2", product({ id: "p2", isConsignment: false, consignorId: null }));
+    await expect(new RecordCatchUpSaleUseCase().execute({ productId: "p2", quantity: "1", actorId: "u" })).rejects.toThrow(/tidak ditemukan/);
+  });
+
+  it("rejects zero and non-numeric quantities", async () => {
+    await expect(new RecordCatchUpSaleUseCase().execute({ productId: "p1", quantity: "0", actorId: "u" })).rejects.toThrow(/lebih dari 0/);
+    await expect(new RecordCatchUpSaleUseCase().execute({ productId: "p1", quantity: "abc", actorId: "u" })).rejects.toThrow(/angka/);
   });
 });

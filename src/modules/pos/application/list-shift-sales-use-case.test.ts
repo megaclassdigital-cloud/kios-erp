@@ -5,7 +5,7 @@ const db = vi.hoisted(() => ({
   sales: [] as unknown[],
 }));
 
-vi.mock("@/shared/infrastructure/prisma", () => ({ prisma: {} }));
+vi.mock("@/shared/infrastructure/prisma", () => ({ prisma: { consignmentSale: { findMany: async () => [] } } }));
 vi.mock("../infrastructure/prisma-shift-repository", () => ({ PrismaShiftRepository: class { async findById() { return db.shift; } } }));
 vi.mock("../infrastructure/prisma-sale-repository", () => ({ PrismaSaleRepository: class { async listByShift() { return db.sales; } } }));
 

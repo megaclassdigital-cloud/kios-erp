@@ -67,6 +67,19 @@ export function cleanReturnQuantity(raw: string, available: Decimal): string {
 }
 
 /** A payment to a consignor: positive, whole cents, and not more than what is owed. */
+/** A catch-up quantity: a positive number with at most 3 decimals. */
+export function cleanCatchUpQuantity(raw: string): string {
+  let q: Decimal;
+  try {
+    q = new Decimal((raw ?? "").trim());
+  } catch {
+    throw new InvalidConsignmentError("Jumlah terjual harus berupa angka.");
+  }
+  if (q.lte(0)) throw new InvalidConsignmentError("Jumlah terjual harus lebih dari 0.");
+  if (q.decimalPlaces() > 3) throw new InvalidConsignmentError("Jumlah terjual maksimal 3 angka di belakang koma.");
+  return q.toString();
+}
+
 export function cleanPayment(rawAmount: string, owed: string): string {
   const amount = dec(rawAmount, "Jumlah bayar");
   if (amount.lte(0)) throw new InvalidConsignmentError("Jumlah bayar harus lebih dari 0.");

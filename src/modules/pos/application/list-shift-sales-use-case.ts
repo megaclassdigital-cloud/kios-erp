@@ -18,6 +18,9 @@ export class ListShiftSalesUseCase {
     if (shift.cashierId !== userId && !canMonitor) throw new ForbiddenError();
 
     const sales = await new PrismaSaleRepository(prisma).listByShift(shiftId);
+    const consigned = new Set(
+      (await prisma.consignmentSale.findMany({ where: { saleId: { in: sales.map((s) => s.id) } }, select: { saleItemId: true } })).map((c) => c.saleItemId)
+    );
     const view = sales.map((s) => {
       return {
         id: s.id,
@@ -34,6 +37,7 @@ export class ListShiftSalesUseCase {
         cashier: s.cashier,
         items: s.items.map((i) => ({
           productNameSnapshot: i.productNameSnapshot,
+          isConsignment: consigned.has(i.id),
           quantity: i.quantity.toString(),
           unitPriceAtSale: i.unitPriceAtSale.toString(),
           discountAmount: i.discountAmount.toString(),

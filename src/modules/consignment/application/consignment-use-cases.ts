@@ -9,6 +9,7 @@ import { moveStock } from "@/modules/inventory/application/move-stock";
 import {
   buildConsignorPositions,
   cleanDropLines,
+  cleanCatchUpQuantity,
   cleanPayment,
   cleanReturnQuantity,
   InvalidConsignmentError,
@@ -160,6 +161,55 @@ export class ReturnConsignmentItemUseCase {
         afterValue: { product: item.product.name, quantity },
       });
       return { quantity };
+    });
+  }
+}
+
+export const CONSIGNMENT_CATCHUP_REFERENCE = "CONSIGNMENT_CATCHUP";
+
+/**
+ * Consigned units that sold but were never rung up at the till. Stock goes down
+ * by a SALE movement and the units join the consignor's ledger at the product's
+ * current consignor price, so what is owed is complete. No Sale is created, so
+ * takings and profit reports are untouched.
+ */
+export class RecordCatchUpSaleUseCase {
+  constructor(private readonly txManager = new TransactionManager()) {}
+
+  async execute(input: { productId: string; quantity: string; soldAt?: Date; note?: string; actorId: string }) {
+    const quantity = cleanCatchUpQuantity(input.quantity);
+    return this.txManager.run(async (tx) => {
+      const repo = new PrismaConsignmentRepository(tx);
+      const product = await repo.findConsignmentProduct(input.productId);
+      if (!product) throw new ConsignmentNotFoundError("Barang titipan tidak ditemukan.");
+
+      const entry = await repo.createCatchUp({
+        productId: product.id,
+        supplierId: product.consignorId as string,
+        quantity,
+        unitCost: product.purchasePrice.toString(),
+        soldAt: input.soldAt ?? new Date(),
+        note: input.note?.trim() || null,
+        createdById: input.actorId,
+      });
+      await moveStock(
+        tx,
+        { productId: product.id, productName: product.name },
+        `-${quantity}`,
+        CONSIGNMENT_CATCHUP_REFERENCE,
+        entry.id,
+        input.actorId,
+        `Penjualan titipan susulan: ${quantity}${input.note?.trim() ? ` (${input.note.trim()})` : ""}`,
+        "SALE"
+      );
+      await new AuditLogger(tx).record({
+        actorId: input.actorId,
+        action: "CONSIGNMENT_CATCHUP_SALE",
+        entityType: "ConsignmentSale",
+        entityId: entry.id,
+        afterValue: { product: product.name, quantity, unitCost: product.purchasePrice.toString() },
+      });
+      return { id: entry.id, productName: product.name, owed: new Decimal(quantity).mul(product.purchasePrice.toString()).toFixed(2) };
     });
   }
 }

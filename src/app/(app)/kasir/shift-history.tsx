@@ -8,6 +8,7 @@ import { ThermalPrintButton } from "../thermal-print-button";
 
 interface SaleLine {
   productNameSnapshot: string;
+  isConsignment?: boolean;
   quantity: string;
   unitPriceAtSale: string;
   discountAmount: string;
@@ -107,6 +108,7 @@ export function ShiftHistory({ shiftId, refreshKey }: { shiftId: string; refresh
                     <tr key={i} className="border-t border-border/60 align-top">
                       <td className="px-3 py-1.5 text-foreground">
                         {item.productNameSnapshot}
+                        {item.isConsignment && <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 align-middle text-[10px] font-medium text-muted-foreground">Titipan</span>}
                         {item.serviceDetail && (
                           <span className="block text-[11px] text-muted-foreground">
                             {item.serviceDetail.phoneNumber ? `HP: ${item.serviceDetail.phoneNumber}` : `Meter: ${item.serviceDetail.meterNumber} · Plgn: ${item.serviceDetail.customerNumber}`}

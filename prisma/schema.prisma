@@ -571,13 +571,17 @@ model ConsignmentItem {
 /// is PAID, so a refund or an unpaid cashless sale takes it back out by itself.
 model ConsignmentSale {
   id         String   @id @default(uuid())
-  saleId     String
-  sale       Sale     @relation(fields: [saleId], references: [id])
-  saleItemId String   @unique
+  /// Null for a catch-up entry: units sold but never rung up at the till.
+  saleId     String?
+  sale       Sale?    @relation(fields: [saleId], references: [id])
+  saleItemId String?  @unique
   productId  String
   supplierId String
   quantity   Decimal  @db.Decimal(14, 3)
   unitCost   Decimal  @db.Decimal(14, 2)
+  soldAt     DateTime?
+  note       String?
+  createdById String?
   createdAt  DateTime @default(now())
 
   @@index([supplierId])
