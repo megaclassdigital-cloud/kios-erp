@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Announcement } from "@/modules/announcements/announcements";
+import { Megaphone } from "lucide-react";
+import { nextToShow, type Announcement } from "@/modules/announcements/announcements";
+import { useAutoRefresh } from "@/shared/ui/use-auto-refresh";
+import { markTourPending, pendingTourKey } from "./announcement-state";
 
 /** **bold** in a slide's text, nothing else: the copy is ours, so this is all the markup it needs. */
 function Rich({ text }: { text: string }) {
@@ -16,98 +19,97 @@ function Rich({ text }: { text: string }) {
 }
 
 /**
- * The big "what's new" window. It cannot be dismissed: every slide has to be
- * read to the last one before the button that closes it is enabled, and closing
- * it is recorded for this user, so it never comes back once completed. It then
- * opens the new page with the guided tour already running.
+ * The "what's new" box: a centred card over a dimmed screen, big icon, title,
+ * text and a button, in the style of a confirmation dialog.
+ *
+ *  - It appears by itself, on every open screen, within a few seconds of an
+ *    announcement being published: the app asks the server every 5 seconds
+ *    (and the moment a tab regains focus), so nobody has to reload.
+ *  - It cannot be dismissed. Reading the slides leads to the tutorial, and only
+ *    finishing the tutorial records it as done for that person. Quit the
+ *    tutorial early and the box returns on the next reload.
  */
 export function AnnouncementGate() {
   const router = useRouter();
-  const [queue, setQueue] = useState<Announcement[]>([]);
+  const [current, setCurrent] = useState<Announcement | null>(null);
   const [slide, setSlide] = useState(0);
-  const [reached, setReached] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Announcements whose tutorial was started in this page session and not finished yet.
+  const inProgress = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/announcements", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { announcements: [] }))
-      .then((d) => !cancelled && setQueue(d.announcements ?? []))
-      .catch(() => undefined); // a failed check must never lock anyone out of the app
-    return () => {
-      cancelled = true;
-    };
+  const check = useCallback(async () => {
+    try {
+      const res = await fetch("/api/announcements", { cache: "no-store" });
+      if (!res.ok) return; // a failed check must never lock anyone out of the app
+      const data = await res.json();
+      const wanted = pendingTourKey();
+      if (wanted) inProgress.current.add(wanted);
+      const next = nextToShow<Announcement>(data.announcements ?? [], inProgress.current);
+      // Keep the one on screen (and the slide being read) as it is; only open a new one.
+      setCurrent((shown) => shown ?? next);
+    } catch {
+      // Offline for a moment: the next check will catch up.
+    }
   }, []);
 
-  const current = queue[0];
+  useAutoRefresh(check, 5_000);
+  // The first check should not wait five seconds.
+  useEffect(() => {
+    void check();
+  }, [check]);
+
   if (!current) return null;
 
   const last = slide === current.slides.length - 1;
   const s = current.slides[slide];
 
-  async function finish() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/announcements/ack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: current.key }) });
-      if (!res.ok) throw new Error();
-      setQueue((q) => q.slice(1));
-      setSlide(0);
-      setReached(0);
-      router.push(`${current.href}${current.startTour ? "?tour=1" : ""}`);
-    } catch {
-      setError("Belum tersimpan. Periksa koneksi lalu tekan lagi.");
-    } finally {
-      setBusy(false);
-    }
+  function startTutorial() {
+    if (!current) return;
+    markTourPending(current.key);
+    inProgress.current.add(current.key);
+    const href = current.href;
+    setCurrent(null);
+    setSlide(0);
+    router.push(`${href}${current.startTour ? "?tour=1" : ""}`);
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={current.title} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 print:hidden">
-      <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-card shadow-2xl">
-        <div className="bg-primary px-6 py-5 text-primary-foreground">
-          <p className="text-xs font-semibold tracking-wide uppercase opacity-80">Fitur baru</p>
-          <h2 className="mt-1 text-xl font-bold">{current.title}</h2>
+    <div role="dialog" aria-modal="true" aria-label={current.title} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 print:hidden">
+      <div className="w-full max-w-md rounded-lg bg-card px-6 pt-8 pb-6 text-center shadow-2xl">
+        <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full border-4 border-primary/25">
+          <Megaphone className="h-9 w-9 text-primary" />
         </div>
 
-        <div className="min-h-56 space-y-3 px-6 py-5">
-          <h3 className="text-base font-semibold text-foreground">{s.title}</h3>
+        <p className="text-xs font-semibold tracking-wide text-primary uppercase">{current.title}</p>
+        <h2 className="mt-2 text-2xl font-semibold text-foreground">{s.title}</h2>
+        <div className="mt-3 min-h-24 space-y-2">
           {s.body.map((line, i) => (
             <p key={i} className="text-sm leading-relaxed text-muted-foreground"><Rich text={line} /></p>
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-4">
-          <div className="flex items-center gap-1.5" aria-label={`Langkah ${slide + 1} dari ${current.slides.length}`}>
-            {current.slides.map((_, i) => (
-              <span key={i} className={`h-2 w-2 rounded-full ${i === slide ? "bg-primary" : i <= reached ? "bg-primary/40" : "bg-muted"}`} />
-            ))}
-            <span className="ml-2 text-xs text-muted-foreground">{slide + 1}/{current.slides.length}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {slide > 0 && (
-              <button onClick={() => setSlide((n) => n - 1)} className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">Kembali</button>
-            )}
-            {!last ? (
-              <button
-                onClick={() => {
-                  setSlide((n) => n + 1);
-                  setReached((r) => Math.max(r, slide + 1));
-                }}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-              >
-                Lanjut
-              </button>
-            ) : (
-              <button disabled={busy} onClick={() => void finish()} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50">
-                {busy ? "Menyimpan..." : "Mengerti — buka halamannya"}
-              </button>
-            )}
-          </div>
+        <div className="mt-4 flex items-center justify-center gap-1.5" aria-label={`Langkah ${slide + 1} dari ${current.slides.length}`}>
+          {current.slides.map((_, i) => (
+            <span key={i} className={`h-2 w-2 rounded-full ${i === slide ? "bg-primary" : "bg-muted"}`} />
+          ))}
         </div>
-        {error && <p className="px-6 pb-3 text-sm text-destructive">{error}</p>}
-        <p className="border-t border-border bg-muted/40 px-6 py-2 text-[11px] text-muted-foreground">Baca sampai langkah terakhir untuk melanjutkan. Pengumuman ini hanya muncul sekali.</p>
+
+        <div className="mt-5 flex items-center justify-center gap-3">
+          {slide > 0 && (
+            <button onClick={() => setSlide((n) => n - 1)} className="rounded-md border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted">
+              Kembali
+            </button>
+          )}
+          {!last ? (
+            <button onClick={() => setSlide((n) => n + 1)} className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow hover:bg-primary-hover">
+              Lanjut
+            </button>
+          ) : (
+            <button onClick={startTutorial} className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow hover:bg-primary-hover">
+              Lihat tutorial
+            </button>
+          )}
+        </div>
+        <p className="mt-4 text-[11px] text-muted-foreground">Wajib dibaca sampai tutorial selesai.</p>
       </div>
     </div>
   );

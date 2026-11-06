@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { tourFor, type TourStep } from "./tour-steps";
+import { completePendingTour } from "../announcement-state";
 
 interface TourContextValue {
   /** Whether this page has a tour at all — the "?" button hides otherwise,
@@ -74,6 +75,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setIndex((i) => {
       if (i + 1 >= steps.length) {
         setRunning(false);
+        // Reaching the last step is what completes an announcement's tutorial.
+        void completePendingTour();
         return 0;
       }
       return i + 1;

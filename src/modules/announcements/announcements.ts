@@ -21,7 +21,7 @@ export interface Announcement {
 /** New features worth stopping everyone for. Newest last; each shows once per user, until completed. */
 export const ANNOUNCEMENTS: Announcement[] = [
   {
-    key: "titipan-v1",
+    key: "titipan-v2",
     title: "Fitur baru: Barang Titipan",
     permission: "consignment.manage",
     href: "/titipan",
@@ -59,7 +59,7 @@ export const ANNOUNCEMENTS: Announcement[] = [
         title: "Angkanya selalu terbaru",
         body: [
           "Halaman Titipan menyegarkan diri otomatis (sekitar tiap 15 detik dan saat Anda kembali ke tab ini), jadi penjualan di kasir langsung terlihat sebagai penambahan utang.",
-          "Setelah ini kami buka halaman Titipan dengan panduan langkah demi langkah. Tombol **?** di pojok kanan atas bisa dipakai kapan saja.",
+          "Tekan **Lihat tutorial**: halaman Titipan terbuka dengan panduan langkah demi langkah. Pengumuman ini baru selesai setelah tutorialnya dibaca sampai langkah terakhir. Tombol **?** di pojok kanan atas bisa dipakai kapan saja.",
         ],
       },
     ],
@@ -69,4 +69,14 @@ export const ANNOUNCEMENTS: Announcement[] = [
 /** The announcements this role should see, minus the keys already completed. */
 export function pendingAnnouncements(opts: { has: (p: Permission) => boolean; done: Set<string> }): Announcement[] {
   return ANNOUNCEMENTS.filter((a) => !opts.done.has(a.key) && (!a.permission || opts.has(a.permission)));
+}
+
+/**
+ * What the screen should show now: the first announcement the server still
+ * lists, skipping any whose tutorial this browser has already started and not
+ * finished (they come back on the next full reload, so the tutorial stays
+ * mandatory without the window reappearing under the person mid-tutorial).
+ */
+export function nextToShow<T extends { key: string }>(fromServer: T[], inProgress: ReadonlySet<string>): T | null {
+  return fromServer.find((a) => !inProgress.has(a.key)) ?? null;
 }
