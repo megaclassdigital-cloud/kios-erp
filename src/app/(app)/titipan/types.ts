@@ -6,6 +6,10 @@ export interface ProductPositionView {
   sold: string;
   onHand: string;
   owed: string;
+  sellingPrice: string;
+  unitCost: string;
+  revenue: string;
+  margin: string;
 }
 
 export interface ConsignorView {
@@ -16,6 +20,8 @@ export interface ConsignorView {
   soldUnits: string;
   onHandUnits: string;
   soldCost: string;
+  revenue: string;
+  margin: string;
   paid: string;
   balance: string;
   products: ProductPositionView[];

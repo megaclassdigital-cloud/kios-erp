@@ -36,6 +36,12 @@ export function ConsignorCards({ consignors, onChanged }: { consignors: Consigno
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               <dt className="text-muted-foreground">Terjual</dt>
               <dd className="text-right tabular-nums">{qty(c.soldUnits)} unit · {rupiah(c.soldCost)}</dd>
+              <dt className="text-muted-foreground">Penjualan toko</dt>
+              <dd className="text-right tabular-nums">{rupiah(c.revenue)}</dd>
+              <dt className="text-muted-foreground">Untung toko (margin)</dt>
+              <dd className={`text-right font-medium tabular-nums ${Number(c.margin) < 0 ? "text-destructive" : "text-success"}`}>
+                {rupiah(c.margin)}{Number(c.revenue) > 0 ? ` · ${Math.round((Number(c.margin) / Number(c.revenue)) * 100)}%` : ""}
+              </dd>
               <dt className="text-muted-foreground">Sudah dibayar</dt>
               <dd className="text-right tabular-nums">{rupiah(c.paid)}</dd>
               <dt className="text-muted-foreground">Sisa di toko</dt>
@@ -45,10 +51,14 @@ export function ConsignorCards({ consignors, onChanged }: { consignors: Consigno
             </dl>
 
             {open === c.consignorId && (
-              <table className="mt-3 w-full text-xs">
+              <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs">
                 <thead className="text-left text-muted-foreground">
                   <tr>
                     <th className="py-1">Barang</th>
+                    <th className="py-1 text-right">Harga titip</th>
+                    <th className="py-1 text-right">Harga jual</th>
+                    <th className="py-1 text-right">Margin/unit</th>
                     <th className="py-1 text-right">Masuk</th>
                     <th className="py-1 text-right">Retur</th>
                     <th className="py-1 text-right">Terjual</th>
@@ -60,6 +70,11 @@ export function ConsignorCards({ consignors, onChanged }: { consignors: Consigno
                   {c.products.map((p) => (
                     <tr key={p.productId} className="border-t border-border">
                       <td className="py-1 text-foreground">{p.name}</td>
+                      <td className="py-1 text-right tabular-nums">{rupiah(p.unitCost)}</td>
+                      <td className="py-1 text-right tabular-nums">{rupiah(p.sellingPrice)}</td>
+                      <td className={`py-1 text-right tabular-nums ${Number(p.sellingPrice) <= Number(p.unitCost) ? "font-medium text-destructive" : ""}`}>
+                        {rupiah(Number(p.sellingPrice) - Number(p.unitCost))}
+                      </td>
                       <td className="py-1 text-right tabular-nums">{qty(p.received)}</td>
                       <td className="py-1 text-right tabular-nums">{qty(p.returned)}</td>
                       <td className="py-1 text-right tabular-nums">{qty(p.sold)}</td>
@@ -69,6 +84,7 @@ export function ConsignorCards({ consignors, onChanged }: { consignors: Consigno
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
 
             <button

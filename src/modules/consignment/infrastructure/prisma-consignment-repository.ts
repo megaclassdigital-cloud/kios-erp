@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
 import type { PositionInput } from "../domain/consignment";
 import type { ConsignmentRepository, DropRecord, PaymentRecord } from "../repository/consignment-repository";
@@ -64,7 +65,7 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
       this.db.supplier.findMany({ where: { OR: [{ consignedProducts: { some: {} } }, { consignments: { some: {} } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       this.db.product.findMany({
         where: { isConsignment: true, consignorId: { not: null }, deletedAt: null },
-        select: { id: true, name: true, consignorId: true, currentStock: true },
+        select: { id: true, name: true, consignorId: true, currentStock: true, sellingPrice: true, purchasePrice: true },
       }),
       this.db.consignmentItem.findMany({ include: { consignment: { select: { supplierId: true, createdAt: true } } } }),
       // What the till recorded as it sold; only while the sale is PAID, so a refund or an
@@ -72,14 +73,20 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
       this.db.consignmentSale.findMany({
         // plus catch-up entries (no sale behind them), which count as soon as they are entered.
         where: { OR: [{ sale: { status: "PAID" } }, { saleId: null }] },
-        select: { productId: true, supplierId: true, quantity: true, unitCost: true, soldAt: true, createdAt: true, sale: { select: { paidAt: true } } },
+        select: { productId: true, supplierId: true, quantity: true, unitCost: true, soldAt: true, createdAt: true, saleItemId: true, sale: { select: { paidAt: true } } },
       }),
       this.db.consignmentPayment.findMany({ select: { supplierId: true, amount: true } }),
     ]);
 
+    const prices = new Map(products.map((p) => [p.id, p.sellingPrice.toString()]));
+    const lineIds = saleItems.flatMap((s) => (s.saleItemId ? [s.saleItemId] : []));
+    const takings = new Map(
+      (lineIds.length ? await this.db.saleItem.findMany({ where: { id: { in: lineIds } }, select: { id: true, subtotal: true } }) : []).map((i) => [i.id, i.subtotal.toString()])
+    );
+
     return {
       consignors,
-      products: products.map((p) => ({ id: p.id, name: p.name, consignorId: p.consignorId as string, currentStock: p.currentStock.toString() })),
+      products: products.map((p) => ({ id: p.id, name: p.name, consignorId: p.consignorId as string, currentStock: p.currentStock.toString(), sellingPrice: p.sellingPrice.toString(), purchasePrice: p.purchasePrice.toString() })),
       items: items.map((i) => ({
         productId: i.productId,
         consignorId: i.consignment.supplierId,
@@ -90,7 +97,10 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
       })),
       saleLines: saleItems.flatMap((s) => {
         const at = s.sale?.paidAt ?? s.soldAt ?? s.createdAt;
-        return [{ productId: s.productId, consignorId: s.supplierId, quantity: s.quantity.toString(), costPriceAtSale: s.unitCost.toString(), paidAt: at }];
+        // The till's own figure (after promo) when there is a sale; a catch-up entry has none, so the current price.
+        const taken = s.saleItemId ? takings.get(s.saleItemId) : undefined;
+        const revenue = taken ?? new Decimal(s.quantity.toString()).times(prices.get(s.productId) ?? 0).toString();
+        return [{ productId: s.productId, consignorId: s.supplierId, quantity: s.quantity.toString(), costPriceAtSale: s.unitCost.toString(), revenue, paidAt: at }];
       }),
       payments: payments.map((p) => ({ consignorId: p.supplierId, amount: p.amount.toString() })),
     };

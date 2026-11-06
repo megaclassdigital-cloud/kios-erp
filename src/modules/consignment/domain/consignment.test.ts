@@ -45,16 +45,16 @@ describe("buildConsignorPositions", () => {
   const base = {
     consignors: [{ id: "c1", name: "Sales Roti" }, { id: "c2", name: "Sales Snack" }],
     products: [
-      { id: "p1", name: "Roti Tawar", consignorId: "c1", currentStock: "6" },
-      { id: "p2", name: "Keripik", consignorId: "c2", currentStock: "10" },
+      { id: "p1", name: "Roti Tawar", consignorId: "c1", currentStock: "6", sellingPrice: "12000", purchasePrice: "9000" },
+      { id: "p2", name: "Keripik", consignorId: "c2", currentStock: "10", sellingPrice: "12000", purchasePrice: "9000" },
     ],
     items: [
       { productId: "p1", consignorId: "c1", quantity: "20", quantityReturned: "4", unitCost: "9000", droppedAt: t("2026-11-01T01:00:00Z") },
       { productId: "p2", consignorId: "c2", quantity: "10", quantityReturned: "0", unitCost: "1000", droppedAt: t("2026-11-02T01:00:00Z") },
     ],
     saleLines: [
-      { productId: "p1", consignorId: "c1", quantity: "6", costPriceAtSale: "9000", paidAt: t("2026-11-03T03:00:00Z") },
-      { productId: "p1", consignorId: "c1", quantity: "4", costPriceAtSale: "9000", paidAt: t("2026-11-04T03:00:00Z") },
+      { productId: "p1", consignorId: "c1", quantity: "6", costPriceAtSale: "9000", revenue: "72000", paidAt: t("2026-11-03T03:00:00Z") },
+      { productId: "p1", consignorId: "c1", quantity: "4", costPriceAtSale: "9000", revenue: "48000", paidAt: t("2026-11-04T03:00:00Z") },
     ],
     payments: [{ consignorId: "c1", amount: "30000" }],
   };
@@ -78,9 +78,9 @@ describe("buildConsignorPositions", () => {
   it("lists the biggest debt first within a consignor and ignores another consignor's payments", () => {
     const [roti] = buildConsignorPositions({
       ...base,
-      products: [...base.products, { id: "p3", name: "Donat", consignorId: "c1", currentStock: "0" }],
+      products: [...base.products, { id: "p3", name: "Donat", consignorId: "c1", currentStock: "0", sellingPrice: "12000", purchasePrice: "9000" }],
       items: [...base.items, { productId: "p3", consignorId: "c1", quantity: "5", quantityReturned: "0", unitCost: "5000", droppedAt: t("2026-11-01T01:00:00Z") }],
-      saleLines: [...base.saleLines, { productId: "p3", consignorId: "c1", quantity: "5", costPriceAtSale: "5000", paidAt: t("2026-11-05T01:00:00Z") }],
+      saleLines: [...base.saleLines, { productId: "p3", consignorId: "c1", quantity: "5", costPriceAtSale: "5000", revenue: "6000", paidAt: t("2026-11-05T01:00:00Z") }],
       payments: [...base.payments, { consignorId: "c2", amount: "999" }],
     });
     expect(roti.products.map((p) => p.name)).toEqual(["Roti Tawar", "Donat"]);
@@ -91,15 +91,23 @@ describe("buildConsignorPositions", () => {
     const [roti] = buildConsignorPositions({
       ...base,
       saleLines: [
-        { productId: "p1", consignorId: "c1", quantity: "2", costPriceAtSale: "9000", paidAt: t("2026-11-03T03:00:00Z") },
-        { productId: "p1", consignorId: "c1", quantity: "2", costPriceAtSale: "9500", paidAt: t("2026-11-06T03:00:00Z") },
+        { productId: "p1", consignorId: "c1", quantity: "2", costPriceAtSale: "9000", revenue: "10800", paidAt: t("2026-11-03T03:00:00Z") },
+        { productId: "p1", consignorId: "c1", quantity: "2", costPriceAtSale: "9500", revenue: "11400", paidAt: t("2026-11-06T03:00:00Z") },
       ],
     });
     expect(roti.soldCost).toBe("37000.00"); // 2x9000 + 2x9500
   });
 
   it("ignores a sale recorded for a different consignor's claim on the same product id", () => {
-    const [roti] = buildConsignorPositions({ ...base, saleLines: [{ productId: "p1", consignorId: "c2", quantity: "9", costPriceAtSale: "9000", paidAt: t("2026-11-03T03:00:00Z") }] });
+    const [roti] = buildConsignorPositions({ ...base, saleLines: [{ productId: "p1", consignorId: "c2", quantity: "9", costPriceAtSale: "9000", revenue: "10800", paidAt: t("2026-11-03T03:00:00Z") }] });
     expect(roti.soldUnits).toBe("0");
+  });
+
+  it("reports the shop's margin: what it took for sold units minus what it owes", () => {
+    const [roti] = buildConsignorPositions(base);
+    // 10 units sold at 12000 each, owed at 9000 each.
+    expect(roti.revenue).toBe("120000.00");
+    expect(roti.margin).toBe("30000.00");
+    expect(roti.products[0]).toMatchObject({ sellingPrice: "12000.00", unitCost: "9000.00", margin: "30000.00" });
   });
 });
