@@ -327,6 +327,7 @@ model Sale {
 
   items    SaleItem[]
   payments Payment[]
+  consignmentSales ConsignmentSale[]
 
   @@index([status])
   @@index([createdAt])
@@ -562,6 +563,27 @@ model ConsignmentItem {
   @@index([consignmentId])
   @@index([productId])
   @@map("consignment_items")
+}
+
+/// One consigned item sold at the till, written in the same transaction as the
+/// sale: the units that left the shelf and what the shop owes the consignor for
+/// them (the consignor's price at that moment). It only counts while its sale
+/// is PAID, so a refund or an unpaid cashless sale takes it back out by itself.
+model ConsignmentSale {
+  id         String   @id @default(uuid())
+  saleId     String
+  sale       Sale     @relation(fields: [saleId], references: [id])
+  saleItemId String   @unique
+  productId  String
+  supplierId String
+  quantity   Decimal  @db.Decimal(14, 3)
+  unitCost   Decimal  @db.Decimal(14, 2)
+  createdAt  DateTime @default(now())
+
+  @@index([supplierId])
+  @@index([productId])
+  @@index([saleId])
+  @@map("consignment_sales")
 }
 
 /// Money paid to a consignor for the units that sold. Not an expense: the cost

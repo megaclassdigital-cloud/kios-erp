@@ -260,7 +260,7 @@ export const TOURS: Record<string, TourStep[]> = {
     {
       target: "titipan-kpi",
       title: "Angka yang selalu terbaru",
-      body: "Total utang ke semua penitip, jumlah barang titipan yang masih di toko, dan jumlah penitip. Halaman ini menyegarkan diri sekitar tiap 15 detik, jadi barang yang baru terjual di kasir langsung menambah utang.",
+      body: "Total utang ke semua penitip, jumlah barang titipan yang masih di toko, dan jumlah penitip. Barang yang terjual di kasir otomatis tercatat bersama transaksinya (stok berkurang, utang bertambah); buka atau muat ulang halaman ini untuk melihat angka terbaru.",
     },
     {
       target: "consignor-cards",

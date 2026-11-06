@@ -108,7 +108,7 @@ describe("paying a consignor", () => {
     consignors: [{ id: "s1", name: "Sales Roti" }],
     products: [{ id: "p1", name: "Roti Tawar", consignorId: "s1", currentStock: "10" }],
     items: [{ productId: "p1", consignorId: "s1", quantity: "20", quantityReturned: "0", unitCost: "9000", droppedAt: new Date("2026-11-01") }],
-    saleLines: [{ productId: "p1", quantity: new Decimal(soldCost).div(9000).toString(), costPriceAtSale: "9000", paidAt: new Date("2026-11-02") }],
+    saleLines: [{ productId: "p1", consignorId: "s1", quantity: new Decimal(soldCost).div(9000).toString(), costPriceAtSale: "9000", paidAt: new Date("2026-11-02") }],
     payments: [{ consignorId: "s1", amount: paid }],
   });
 

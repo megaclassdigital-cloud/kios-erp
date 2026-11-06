@@ -81,7 +81,8 @@ export interface PositionInput {
   consignors: { id: string; name: string }[];
   products: { id: string; name: string; consignorId: string; currentStock: string }[];
   items: { productId: string; consignorId: string; quantity: string; quantityReturned: string; unitCost: string; droppedAt: Date }[];
-  saleLines: { productId: string; quantity: string; costPriceAtSale: string; paidAt: Date }[];
+  /** Consigned units sold on PAID sales, as recorded at the till when they sold. */
+  saleLines: { productId: string; consignorId: string; quantity: string; costPriceAtSale: string; paidAt: Date }[];
   payments: { consignorId: string; amount: string }[];
 }
 
@@ -112,24 +113,17 @@ export interface ConsignorPosition {
 }
 
 /**
- * Where each consignor stands. Only units that sold are owed, at the cost
- * snapshotted on each sale; a sale from before a product's first drop-off is not
- * theirs (the product may have been the shop's own before). Refunded sales are
- * not paid sales, so they never reach `saleLines`.
+ * Where each consignor stands. Only units that sold are owed, at the consignor's
+ * price recorded on each sale as it happened. Sales are written to the ledger by
+ * the till itself, so a sale of the shop's own earlier stock is never in it, and a
+ * refunded or unpaid sale is not PAID so it never reaches `saleLines`.
  */
 export function buildConsignorPositions(input: PositionInput): ConsignorPosition[] {
-  const firstDrop = new Map<string, Date>();
-  for (const item of input.items) {
-    const seen = firstDrop.get(item.productId);
-    if (!seen || item.droppedAt < seen) firstDrop.set(item.productId, item.droppedAt);
-  }
-
   return input.consignors.map((c) => {
     const products = input.products.filter((p) => p.consignorId === c.id);
     const rows: ProductPosition[] = products.map((p) => {
       const items = input.items.filter((i) => i.productId === p.id && i.consignorId === c.id);
-      const since = firstDrop.get(p.id);
-      const sales = since ? input.saleLines.filter((s) => s.productId === p.id && s.paidAt >= since) : [];
+      const sales = input.saleLines.filter((s) => s.productId === p.id && s.consignorId === c.id);
       const sum = (values: string[]) => values.reduce((a, v) => a.plus(v), new Decimal(0));
       return {
         productId: p.id,

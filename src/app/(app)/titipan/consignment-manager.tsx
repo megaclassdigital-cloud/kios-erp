@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { HandCoins, Package, Users } from "lucide-react";
 import { KpiCard } from "@/components/kios/kpi-card";
-import { useAutoRefresh } from "@/shared/ui/use-auto-refresh";
 import { ConsignorCards } from "./consignor-cards";
 import { DropForm } from "./drop-form";
 import { DropsList } from "./drops-list";
@@ -31,7 +30,6 @@ export function ConsignmentManager() {
   useEffect(() => {
     void load();
   }, [load]);
-  useAutoRefresh(load, 15_000);
 
   const owed = data?.consignors.reduce((sum, c) => sum + Math.max(0, Number(c.balance)), 0) ?? 0;
   const onHand = data?.consignors.reduce((sum, c) => sum + Number(c.onHandUnits), 0) ?? 0;
@@ -40,7 +38,7 @@ export function ConsignmentManager() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
-          {updatedAt ? `Diperbarui ${updatedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · otomatis tiap 15 detik` : "Memuat..."}
+          {updatedAt ? `Diperbarui ${updatedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Memuat..."}
         </span>
         <button onClick={() => void load()} className="text-primary hover:underline">Muat ulang sekarang</button>
       </div>

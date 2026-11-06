@@ -53,10 +53,8 @@ describe("buildConsignorPositions", () => {
       { productId: "p2", consignorId: "c2", quantity: "10", quantityReturned: "0", unitCost: "1000", droppedAt: t("2026-11-02T01:00:00Z") },
     ],
     saleLines: [
-      { productId: "p1", quantity: "6", costPriceAtSale: "9000", paidAt: t("2026-11-03T03:00:00Z") },
-      { productId: "p1", quantity: "4", costPriceAtSale: "9000", paidAt: t("2026-11-04T03:00:00Z") },
-      // Before the first drop-off: the shop's own earlier stock, not owed to anyone.
-      { productId: "p1", quantity: "50", costPriceAtSale: "8000", paidAt: t("2026-10-20T03:00:00Z") },
+      { productId: "p1", consignorId: "c1", quantity: "6", costPriceAtSale: "9000", paidAt: t("2026-11-03T03:00:00Z") },
+      { productId: "p1", consignorId: "c1", quantity: "4", costPriceAtSale: "9000", paidAt: t("2026-11-04T03:00:00Z") },
     ],
     payments: [{ consignorId: "c1", amount: "30000" }],
   };
@@ -82,10 +80,26 @@ describe("buildConsignorPositions", () => {
       ...base,
       products: [...base.products, { id: "p3", name: "Donat", consignorId: "c1", currentStock: "0" }],
       items: [...base.items, { productId: "p3", consignorId: "c1", quantity: "5", quantityReturned: "0", unitCost: "5000", droppedAt: t("2026-11-01T01:00:00Z") }],
-      saleLines: [...base.saleLines, { productId: "p3", quantity: "5", costPriceAtSale: "5000", paidAt: t("2026-11-05T01:00:00Z") }],
+      saleLines: [...base.saleLines, { productId: "p3", consignorId: "c1", quantity: "5", costPriceAtSale: "5000", paidAt: t("2026-11-05T01:00:00Z") }],
       payments: [...base.payments, { consignorId: "c2", amount: "999" }],
     });
     expect(roti.products.map((p) => p.name)).toEqual(["Roti Tawar", "Donat"]);
     expect(roti.paid).toBe("30000.00");
+  });
+
+  it("owes each sale at the price recorded when it sold, even after the price changed", () => {
+    const [roti] = buildConsignorPositions({
+      ...base,
+      saleLines: [
+        { productId: "p1", consignorId: "c1", quantity: "2", costPriceAtSale: "9000", paidAt: t("2026-11-03T03:00:00Z") },
+        { productId: "p1", consignorId: "c1", quantity: "2", costPriceAtSale: "9500", paidAt: t("2026-11-06T03:00:00Z") },
+      ],
+    });
+    expect(roti.soldCost).toBe("37000.00"); // 2x9000 + 2x9500
+  });
+
+  it("ignores a sale recorded for a different consignor's claim on the same product id", () => {
+    const [roti] = buildConsignorPositions({ ...base, saleLines: [{ productId: "p1", consignorId: "c2", quantity: "9", costPriceAtSale: "9000", paidAt: t("2026-11-03T03:00:00Z") }] });
+    expect(roti.soldUnits).toBe("0");
   });
 });

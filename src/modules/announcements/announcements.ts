@@ -56,9 +56,9 @@ export const ANNOUNCEMENTS: Announcement[] = [
         ],
       },
       {
-        title: "Angkanya selalu terbaru",
+        title: "Tercatat otomatis dari kasir",
         body: [
-          "Halaman Titipan menyegarkan diri otomatis (sekitar tiap 15 detik dan saat Anda kembali ke tab ini), jadi penjualan di kasir langsung terlihat sebagai penambahan utang.",
+          "Saat barang titipan terjual di kasir, stoknya langsung berkurang dan utang ke penitip langsung bertambah, tercatat bersama transaksi itu. Tidak ada yang perlu Anda input ulang. Buka atau muat ulang halaman Titipan untuk melihat angka terbaru.",
           "Tekan **Lihat tutorial**: halaman Titipan terbuka dengan panduan langkah demi langkah. Tombol **?** di pojok kanan atas bisa dipakai kapan saja.",
         ],
       },

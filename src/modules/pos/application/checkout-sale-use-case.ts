@@ -10,6 +10,7 @@ import type { RecordMovementInput } from "@/modules/inventory/repository/invento
 import { PrismaSaleRepository } from "../infrastructure/prisma-sale-repository";
 import { PrismaPaymentRepository } from "../infrastructure/prisma-payment-repository";
 import { PrismaShiftRepository } from "../infrastructure/prisma-shift-repository";
+import { PrismaConsignmentRepository } from "@/modules/consignment/infrastructure/prisma-consignment-repository";
 import { promoAmount, type Promo } from "../domain/promo";
 import {
   CheckoutDomainService,
@@ -154,6 +155,10 @@ export class CheckoutSaleUseCase {
           serviceDetail: line.serviceDetail,
         })),
       });
+
+      // Consigned items on this sale are written to their ledger in the same transaction,
+      // so the amount owed to the consignor is current the moment the sale is.
+      await new PrismaConsignmentRepository(tx).recordSaleLines(sale.id);
 
       await payments.create({
         saleId: sale.id,

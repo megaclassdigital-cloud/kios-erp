@@ -27,6 +27,30 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
     return this.db.consignmentPayment.create({ data });
   }
 
+  /**
+   * Called inside the checkout transaction: every consigned item on the sale is
+   * written to the ledger with the units and the consignor's price, so what is
+   * owed grows the moment it sells -- nothing has to be recomputed or polled.
+   */
+  async recordSaleLines(saleId: string): Promise<number> {
+    const items = await this.db.saleItem.findMany({
+      where: { saleId, product: { isConsignment: true, consignorId: { not: null } } },
+      select: { id: true, productId: true, quantity: true, costPriceAtSale: true, product: { select: { consignorId: true } } },
+    });
+    if (items.length === 0) return 0;
+    await this.db.consignmentSale.createMany({
+      data: items.map((i) => ({
+        saleId,
+        saleItemId: i.id,
+        productId: i.productId,
+        supplierId: i.product.consignorId as string,
+        quantity: i.quantity,
+        unitCost: i.costPriceAtSale,
+      })),
+    });
+    return items.length;
+  }
+
   async positionData(): Promise<PositionInput> {
     const [consignors, products, items, saleItems, payments] = await Promise.all([
       this.db.supplier.findMany({ where: { OR: [{ consignedProducts: { some: {} } }, { consignments: { some: {} } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -35,10 +59,11 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
         select: { id: true, name: true, consignorId: true, currentStock: true },
       }),
       this.db.consignmentItem.findMany({ include: { consignment: { select: { supplierId: true, createdAt: true } } } }),
-      // Paid sales of consignment products only; refunded ones are not PAID, so they drop out by themselves.
-      this.db.saleItem.findMany({
-        where: { product: { isConsignment: true }, sale: { status: "PAID" } },
-        select: { productId: true, quantity: true, costPriceAtSale: true, sale: { select: { paidAt: true } } },
+      // What the till recorded as it sold; only while the sale is PAID, so a refund or an
+      // unpaid cashless sale drops out by itself.
+      this.db.consignmentSale.findMany({
+        where: { sale: { status: "PAID" } },
+        select: { productId: true, supplierId: true, quantity: true, unitCost: true, sale: { select: { paidAt: true } } },
       }),
       this.db.consignmentPayment.findMany({ select: { supplierId: true, amount: true } }),
     ]);
@@ -55,7 +80,7 @@ export class PrismaConsignmentRepository implements ConsignmentRepository {
         droppedAt: i.consignment.createdAt,
       })),
       saleLines: saleItems.flatMap((s) =>
-        s.sale.paidAt ? [{ productId: s.productId, quantity: s.quantity.toString(), costPriceAtSale: s.costPriceAtSale.toString(), paidAt: s.sale.paidAt }] : []
+        s.sale.paidAt ? [{ productId: s.productId, consignorId: s.supplierId, quantity: s.quantity.toString(), costPriceAtSale: s.unitCost.toString(), paidAt: s.sale.paidAt }] : []
       ),
       payments: payments.map((p) => ({ consignorId: p.supplierId, amount: p.amount.toString() })),
     };

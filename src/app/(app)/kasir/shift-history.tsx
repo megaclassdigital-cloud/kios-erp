@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useAutoRefresh } from "@/shared/ui/use-auto-refresh";
 import { toast } from "sonner";
 import { buildReceiptBytes, type PrintableSale } from "@/shared/printing/receipt-escpos";
 import type { ShiftSalesSummary } from "@/modules/pos/domain/shift-sales-summary";
@@ -59,8 +58,6 @@ export function ShiftHistory({ shiftId, refreshKey }: { shiftId: string; refresh
   useEffect(() => {
     void load();
   }, [load, refreshKey]);
-  // Also reloads by itself, so a sale rung up on another tablet shows here too.
-  useAutoRefresh(load, 20_000);
 
   return (
     <section data-tour="shift-history" className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
