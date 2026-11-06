@@ -10,6 +10,7 @@ export interface PickerItem {
   barcode: string;
   currentStock?: string;
   sellingPrice?: string;
+  purchasePrice?: string;
   baseUnit?: string;
 }
 
@@ -163,9 +164,9 @@ export function ProductPicker({
 }
 
 /** Search the server for one screen's scope; for screens that do not already hold the catalog. */
-export function serverSearch(scope: "receiving" | "stockout" | "opname" | "audit") {
+export function serverSearch(scope: "receiving" | "stockout" | "opname" | "audit" | "consignment", extra = "") {
   return async (query: string): Promise<PickerItem[]> => {
-    const res = await fetch(`/api/products/search?scope=${scope}&q=${encodeURIComponent(query)}`);
+    const res = await fetch(`/api/products/search?scope=${scope}&q=${encodeURIComponent(query)}${extra}`);
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
     return data.products ?? [];

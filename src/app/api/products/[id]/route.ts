@@ -14,6 +14,8 @@ const schema = z.object({
   minimumStock: z.number().int().nonnegative().optional(),
   active: z.boolean().optional(),
   acknowledgeSimilar: z.boolean().optional(),
+  isConsignment: z.boolean().optional(),
+  consignorId: z.string().nullable().optional(),
   serviceProvider: z.string().optional(),
   // Null clears the date (a product that no longer tracks one); omitted
   // leaves it untouched, so a partial edit cannot wipe it by accident.

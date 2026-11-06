@@ -49,6 +49,14 @@ export class ReceiveStockUseCase {
       const counters = new DailyCounterRepository(tx);
       const audit = new AuditLogger(tx);
 
+      // Goods on consignment are not bought: they come in through Barang Titipan,
+      // where the consignor's price and what is owed are tracked.
+      const known = await products.findByIds(req.items.map((i) => i.productId));
+      const consigned = known.find((p) => p.isConsignment);
+      if (consigned) {
+        throw new Error(`${consigned.name} adalah barang titipan. Terima stoknya lewat menu Barang Titipan, bukan Barang Masuk.`);
+      }
+
       let totalAmount = new Decimal(0);
       const lineItems = req.items.map((item) => {
         const subtotal = new Decimal(item.purchasePrice).times(item.quantity);

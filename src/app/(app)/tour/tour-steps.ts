@@ -98,6 +98,11 @@ export const TOURS: Record<string, TourStep[]> = {
       body: "Laba dihitung dari selisih harga beli dan harga jual. Salah di sini membuat semua laporan laba ikut salah.",
     },
     {
+      target: "consignment-field",
+      title: "Barang titipan dari sales",
+      body: "Centang kalau barang ini dititipkan sales. Pilih penitipnya dan isi harga beli dengan harga patokan sales. Stok barang titipan tidak diisi di sini dan tidak lewat Barang Masuk: gunakan menu Titipan. Dengan begitu utang ke sales tidak tercampur dengan barang milik toko.",
+    },
+    {
       target: "damaged-field",
       title: "Barang rusak saat stok awal",
       body: "Kalau sebagian stok awal rusak, isi jumlahnya (mis. stok 45, rusak 5 → stok masuk 40). Kosongkan kalau tidak ada. Rusaknya tetap tercatat di riwayat.",
@@ -194,7 +199,7 @@ export const TOURS: Record<string, TourStep[]> = {
     {
       target: "receiving-scan",
       title: "Scan, atau cari berdasarkan nama",
-      body: "Scan satu per satu sambil membongkar. Barcode tidak terbaca? Ketik sebagian nama di kolom bawahnya lalu pilih dari daftar. Barang yang belum pernah didaftarkan tidak bisa dipilih — daftarkan dulu di Master Produk. Barang yang sudah ada tidak perlu didaftarkan lagi, cukup ditambah stoknya di sini.",
+      body: "Scan satu per satu sambil membongkar. Barcode tidak terbaca? Ketik sebagian nama di kolom bawahnya lalu pilih dari daftar. Barang yang belum pernah didaftarkan tidak bisa dipilih — daftarkan dulu di Master Produk. Barang yang sudah ada tidak perlu didaftarkan lagi, cukup ditambah stoknya di sini. Barang titipan dari sales tidak bisa diterima di sini: pakai menu Titipan.",
     },
     {
       target: "receiving-lines",
@@ -244,6 +249,33 @@ export const TOURS: Record<string, TourStep[]> = {
       target: "stockout-history",
       title: "Riwayat barang keluar",
       body: "Setiap pengeluaran tercatat dengan alasan dan siapa yang mencatat. Pilih periodenya di pojok kanan atas.",
+    },
+  ],
+
+  "/titipan": [
+    {
+      title: "Barang titipan dari sales",
+      body: "Halaman ini mencatat barang yang dititipkan sales untuk dijual di toko. Prinsipnya: toko berutang hanya untuk barang yang terjual, sebesar harga titip. Sisa yang tidak laku diretur.",
+    },
+    {
+      target: "titipan-kpi",
+      title: "Angka yang selalu terbaru",
+      body: "Total utang ke semua penitip, jumlah barang titipan yang masih di toko, dan jumlah penitip. Halaman ini menyegarkan diri sekitar tiap 15 detik, jadi barang yang baru terjual di kasir langsung menambah utang.",
+    },
+    {
+      target: "consignor-cards",
+      title: "Satu kartu per penitip",
+      body: "Utang = terjual × harga titip − yang sudah dibayar. Rincian barang menunjukkan masuk, retur, terjual, sisa, dan utang per barang. Tombol Bayar penitip mencatat pembayaran, dan tidak bisa melebihi utang. Pembayaran bukan pengeluaran, karena modalnya sudah dihitung saat barang terjual.",
+    },
+    {
+      target: "drop-form",
+      title: "Catat saat sales menitipkan",
+      body: "Pilih penitip, cari barangnya (hanya barang titipan milik penitip itu yang muncul), isi jumlah dan harga titip, lalu simpan. Stok langsung bertambah dan harga titip menjadi harga beli barang itu. Barang belum terdaftar? Daftarkan di Master Produk dengan pilihan Barang titipan.",
+    },
+    {
+      target: "drops-list",
+      title: "Riwayat dan retur",
+      body: "Setiap titipan tercatat dengan nomor TTP. Tombol Retur mengembalikan barang yang tidak laku: stok berkurang. Yang sudah terjual tidak bisa diretur. Titipan juga muncul di riwayat Barang Masuk dengan label Titipan.",
     },
   ],
 

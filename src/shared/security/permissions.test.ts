@@ -26,6 +26,7 @@ const ALL_PERMISSIONS = [
   "data.reset",
   "stockout.manage",
   "assets.manage",
+  "consignment.manage",
 ] as const;
 
 describe("RBAC: OWNER superset invariant", () => {

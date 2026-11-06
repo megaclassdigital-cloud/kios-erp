@@ -12,6 +12,7 @@ const SCOPE_PERMISSION: Record<string, Permission> = {
   stockout: "stockout.manage",
   opname: "stockopname.manage",
   audit: "inventory.view",
+  consignment: "consignment.manage",
 };
 
 /** Product picker: name, SKU or barcode digits. Read-only. */
@@ -22,7 +23,16 @@ export async function GET(req: NextRequest) {
     if (!permission) throw new Error("Lingkup pencarian tidak dikenal.");
     await requireSession(permission);
 
-    const all = await new PrismaProductRepository(prisma).listForSearch();
+    // Consigned goods enter only through Barang Titipan, so no other screen offers them,
+    // and Barang Titipan offers nothing else (optionally only one consignor's).
+    const scope = searchParams.get("scope");
+    const all = await new PrismaProductRepository(prisma).listForSearch(
+      scope === "consignment"
+        ? { consignment: "only", consignorId: searchParams.get("consignorId") ?? undefined }
+        : scope === "receiving"
+          ? { consignment: "exclude" }
+          : {}
+    );
     const found = searchProducts(all, searchParams.get("q") ?? "", 10);
     return NextResponse.json({
       products: found

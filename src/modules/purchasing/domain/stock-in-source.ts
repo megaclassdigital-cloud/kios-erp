@@ -2,6 +2,7 @@
  * the Excel file so both name each source the same way. */
 export const STOCK_IN_LABEL = {
   PURCHASE: "Penerimaan supplier",
+  CONSIGNMENT: "Titipan",
   INITIAL_STOCK: "Stok awal",
   STOCK_OPNAME: "Stok opname",
   ADJUSTMENT: "Penyesuaian",

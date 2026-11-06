@@ -46,6 +46,22 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setIndex(0);
   }, [pathname]);
 
+  // Arriving with ?tour=1 (from an announcement) starts the guide by itself, once,
+  // after the page has had a moment to draw what the steps point at.
+  useEffect(() => {
+    if (steps.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tour") !== "1") return;
+    params.delete("tour");
+    const query = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : "") + window.location.hash);
+    const timer = setTimeout(() => {
+      setIndex(0);
+      setRunning(true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [pathname, steps.length]);
+
   const stop = useCallback(() => setRunning(false), []);
 
   const start = useCallback(() => {

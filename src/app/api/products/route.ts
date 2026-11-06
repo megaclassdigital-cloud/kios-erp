@@ -26,6 +26,8 @@ const createProductSchema = z.object({
   initialStock: z.string().optional(),
   initialDamaged: z.string().optional(),
   acknowledgeSimilar: z.boolean().optional(),
+  isConsignment: z.boolean().optional(),
+  consignorId: z.string().optional(),
   barcode: z.union([
     z.object({ mode: z.literal("SCAN_EXISTING"), value: z.string(), unit: z.string(), conversionFactor: z.string().optional() }),
     z.object({ mode: z.literal("GENERATE_INTERNAL"), unit: z.string() }),

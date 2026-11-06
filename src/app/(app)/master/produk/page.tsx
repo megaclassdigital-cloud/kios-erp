@@ -28,6 +28,8 @@ interface ProductRow {
   serviceType: "PULSA" | "TOKEN_LISTRIK" | null;
   serviceProvider: string | null;
   categoryId: string | null;
+  isConsignment: boolean;
+  consignorId: string | null;
   purchasePrice: string;
   minimumStock: number;
   expiryDate: string | null;
@@ -206,7 +208,10 @@ export default function MasterProdukPage() {
               const activeBarcode = p.barcodes.find((b) => b.status === "ACTIVE");
               return (
                 <tr key={p.id} className="border-t border-border">
-                  <td className="px-3 py-2 text-foreground">{p.name}</td>
+                  <td className="px-3 py-2 text-foreground">
+                    {p.name}
+                    {p.isConsignment && <span className="ml-1.5 rounded-full bg-info-soft px-2 py-0.5 text-[10px] font-medium text-info">Titipan</span>}
+                  </td>
                   <td className="px-3 py-2">
                     <StatusBadge tone={p.productType === "SERVICE" ? "purple" : "neutral"}>
                       {p.productType === "SERVICE" ? "Layanan" : "Fisik"}
@@ -259,6 +264,7 @@ export default function MasterProdukPage() {
                         purchasePrice: p.purchasePrice, sellingPrice: p.sellingPrice,
                         minimumStock: p.minimumStock, active: p.active,
                         expiryDate: p.expiryDate, expiryWarnDays: p.expiryWarnDays,
+                        isConsignment: p.isConsignment, consignorId: p.consignorId,
                       })}
                       className="mr-3 text-xs text-primary hover:underline"
                     >

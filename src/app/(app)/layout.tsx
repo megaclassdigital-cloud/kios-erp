@@ -1,6 +1,7 @@
 import { NavBar } from "./nav-bar";
 import { TourProvider } from "./tour/tour-provider";
 import { TourOverlay } from "./tour/tour-overlay";
+import { AnnouncementGate } from "./announcement-gate";
 import { auth } from "@/shared/security/auth";
 
 // Every page under this layout reads the live session/DB (RBAC-scoped
@@ -22,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="flex-1 bg-background p-4 md:p-6">{children}</main>
       </div>
       <TourOverlay />
+      <AnnouncementGate />
     </TourProvider>
   );
 }

@@ -16,6 +16,9 @@ export interface CreateProductInput {
   /** Null for a service, which has nothing to expire. */
   expiryDate?: Date | null;
   expiryWarnDays?: number;
+  /** Goods left by a consignor, sold on their behalf (see Barang Titipan). */
+  isConsignment?: boolean;
+  consignorId?: string | null;
 }
 
 export interface UpdateProductInput {
@@ -30,6 +33,8 @@ export interface UpdateProductInput {
   serviceProvider?: string | null;
   expiryDate?: Date | null;
   expiryWarnDays?: number;
+  isConsignment?: boolean;
+  consignorId?: string | null;
 }
 
 export type ProductWithBarcodes = Product & { barcodes: ProductBarcode[] };
@@ -55,6 +60,7 @@ export interface ProductRepository {
     search?: string;
   }): Promise<ProductListItem[]>;
   listForDuplicateCheck(): Promise<{ id: string; name: string; sku: string; activeBarcodes: string[] }[]>;
+  hasConsignmentHistory(id: string): Promise<boolean>;
   incrementStock(id: string, deltaQuantity: string): Promise<void>;
   /** Atomically decrements stock only if enough is available, returning
    * false (no throw) when it isn't — used to resolve the last-unit race

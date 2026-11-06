@@ -21,7 +21,7 @@ export function buildReceivingReportSpec(
     title: productName ? `Riwayat Barang Masuk - ${productName}` : "Laporan Barang Masuk",
     subtitles: [
       `Periode: ${period.label} (${formatWibDate(period.start)} - ${formatWibDate(period.end)})`,
-      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk − Rusak · Subtotal supplier = Qty × Harga Beli · Subtotal baris lain (stok awal, opname) = estimasi: (Stok Sesudah − Stok Sebelum) × harga beli master`,
+      `${summary.receiptCount} penerimaan supplier · ${summary.lineCount} baris penambahan stok · Stok Sesudah = Stok Sebelum + Qty Masuk − Rusak · Subtotal supplier = Qty × Harga Beli · Subtotal titipan = Qty × harga titip (belum dibayar; hanya yang terjual yang menjadi utang) · Subtotal stok awal/opname = estimasi: (Stok Sesudah − Stok Sebelum) × harga beli master`,
       ...report.warnings.map((w) => `Perhatian: ${w}`),
       `Dicetak ${formatWibDateTime(new Date())} oleh ${printedBy}`,
     ],
@@ -74,7 +74,9 @@ export function buildReceivingReportSpec(
             ? "-"
             : fromSupplier
               ? { formula: "{qty}*{price}", result: num(r.subtotal) }
-              : { formula: "({after}-{before})*{price}", result: num(r.subtotal) },
+              : r.source === "CONSIGNMENT"
+                ? { formula: "{qty}*{price}", result: num(r.subtotal) }
+                : { formula: "({after}-{before})*{price}", result: num(r.subtotal) },
       };
     }),
     totals: [
@@ -88,8 +90,15 @@ export function buildReceivingReportSpec(
         subtotal: { formula: 'SUMIF({purchaseNumber:range},"PO-*",{subtotal:range})', result: num(summary.totalValue) },
       },
       {
+        product: "Nilai barang titipan (belum dibayar)",
+        subtotal: { formula: 'SUMIF({purchaseNumber:range},"TTP-*",{subtotal:range})', result: num(summary.consignmentValue) },
+      },
+      {
         product: "Estimasi stok awal / penyesuaian",
-        subtotal: { formula: "SUM({subtotal:range})-SUMIF({purchaseNumber:range},\"PO-*\",{subtotal:range})", result: num(summary.estimatedValue) },
+        subtotal: {
+          formula: 'SUM({subtotal:range})-SUMIF({purchaseNumber:range},"PO-*",{subtotal:range})-SUMIF({purchaseNumber:range},"TTP-*",{subtotal:range})',
+          result: num(summary.estimatedValue),
+        },
       },
       {
         product: "Rata-rata harga beli",

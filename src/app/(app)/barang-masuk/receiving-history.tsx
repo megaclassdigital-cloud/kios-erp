@@ -24,7 +24,7 @@ type PeriodKey = (typeof PERIODS)[number]["key"];
 interface Report {
   rows: HistoryItem[];
   warnings?: string[];
-  summary: { receiptCount: number; lineCount: number; totalQuantity: string; totalValue: string; estimatedValue: string };
+  summary: { receiptCount: number; lineCount: number; totalQuantity: string; totalValue: string; estimatedValue: string; consignmentValue: string };
 }
 
 const rupiah = (v: string) => `Rp${Number(v).toLocaleString("id-ID")}`;
@@ -160,7 +160,7 @@ export function ReceivingHistory({
       {report && (
         <p className="text-xs text-muted-foreground">
           {report.summary.receiptCount} penerimaan supplier · {report.summary.lineCount} baris · total qty masuk{" "}
-          {qty(report.summary.totalQuantity)} · dibayar ke supplier {rupiah(report.summary.totalValue)}{Number(report.summary.estimatedValue) > 0 ? ` · estimasi stok awal/penyesuaian ${rupiah(report.summary.estimatedValue)}` : ""}
+          {qty(report.summary.totalQuantity)} · dibayar ke supplier {rupiah(report.summary.totalValue)}{Number(report.summary.consignmentValue) > 0 ? ` · titipan (belum dibayar) ${rupiah(report.summary.consignmentValue)}` : ""}{Number(report.summary.estimatedValue) > 0 ? ` · estimasi stok awal/penyesuaian ${rupiah(report.summary.estimatedValue)}` : ""}
         </p>
       )}
 

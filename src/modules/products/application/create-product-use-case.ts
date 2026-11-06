@@ -28,6 +28,9 @@ export interface CreateProductRequest {
   expiryDate?: Date | null;
   expiryWarnDays?: number;
   initialStock?: string;
+  /** A consignment product: sold on behalf of `consignorId`, stocked only through Barang Titipan. */
+  isConsignment?: boolean;
+  consignorId?: string;
   /** The user saw the similar-product reminder and confirmed this one is different. */
   acknowledgeSimilar?: boolean;
   /** Part of initialStock that is damaged: counted in, then taken straight off. */
@@ -51,6 +54,16 @@ export class CreateProductUseCase {
       throw new Error("Jenis layanan (Pulsa/Token Listrik) wajib dipilih untuk produk layanan.");
     }
     const barcodeDomain = new BarcodeDomainService();
+    if (req.isConsignment && !req.consignorId) {
+      throw new Error("Pilih penitip untuk barang titipan.");
+    }
+    if (req.isConsignment && req.productType === "SERVICE") {
+      throw new Error("Layanan (pulsa, token) tidak bisa menjadi barang titipan.");
+    }
+    if (req.isConsignment && req.initialStock && Number(req.initialStock) > 0) {
+      // The opening quantity would arrive without a consignor's price or a record of what is owed.
+      throw new Error("Stok barang titipan diisi lewat menu Barang Titipan, bukan sebagai stok awal. Kosongkan stok awal.");
+    }
 
     return this.txManager.run(async (tx) => {
       const products = new PrismaProductRepository(tx);
@@ -96,6 +109,8 @@ export class CreateProductUseCase {
         // about pulsa going off.
         expiryDate: req.productType === "SERVICE" ? null : (req.expiryDate ?? null),
         expiryWarnDays: req.expiryWarnDays,
+        isConsignment: req.isConsignment ?? false,
+        consignorId: req.isConsignment ? req.consignorId : null,
       });
 
       if (req.barcode.mode === "SCAN_EXISTING") {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { Bell, LogOut, Moon, Search, ShoppingCart, Sun } from "lucide-react";
+import { Bell, HandCoins, LogOut, Moon, Search, ShoppingCart, Sun } from "lucide-react";
 import { hasPermission, type Permission } from "@/shared/security/permissions";
 import { isNight } from "@/shared/domain/time-of-day";
 import type { Role } from "@prisma/client";
@@ -40,6 +40,7 @@ const PRIMARY_TABS: {
   { href: "/kasir", label: "Kasir", permission: "pos.operate", Icon: KasirIcon },
   { href: "/stok", label: "Stok Barang", permission: "inventory.view", Icon: StokIcon },
   { href: "/barang-masuk", label: "Barang Masuk", permission: "receiving.manage", Icon: BarangMasukIcon },
+  { href: "/titipan", label: "Titipan", permission: "consignment.manage", Icon: (props) => <HandCoins {...props} /> },
   { href: "/barang-keluar", label: "Barang Keluar", permission: "stockout.manage", Icon: BarangMasukIcon },
   { href: "/transaksi", label: "Transaksi", permission: "transactions.view", Icon: TransaksiIcon },
   { href: "/keuangan", label: "Keuangan", permission: "finance.manage", Icon: KeuanganIcon },

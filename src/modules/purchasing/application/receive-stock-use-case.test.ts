@@ -5,6 +5,7 @@ const db = vi.hoisted(() => ({
   stock: new Map<string, string>(),
   movements: [] as { quantity: string; movementType: string; referenceType: string; referenceId: string; note?: string }[],
   purchases: 0,
+  consigned: new Set<string>(),
 }));
 
 vi.mock("@/shared/infrastructure/transaction-manager", () => ({
@@ -22,6 +23,9 @@ vi.mock("@/modules/products/infrastructure/prisma-product-repository", () => ({
       db.stock.set(id, new Decimal(db.stock.get(id) ?? 0).plus(d).toString());
     }
     async update() {}
+    async findByIds(ids: string[]) {
+      return ids.map((id) => ({ id, name: `Produk ${id}`, isConsignment: db.consigned.has(id) }));
+    }
   },
 }));
 vi.mock("@/modules/inventory/infrastructure/prisma-inventory-repository", () => ({
@@ -49,6 +53,7 @@ beforeEach(() => {
   db.movements.length = 0;
   db.purchases = 0;
   db.stock.set("p", "0");
+  db.consigned.clear();
 });
 
 describe("receiving with damaged goods", () => {
@@ -79,5 +84,14 @@ describe("receiving with damaged goods", () => {
     ).rejects.toThrow(/tidak boleh lebih banyak/);
     expect(db.purchases).toBe(0);
     expect(db.movements).toHaveLength(0);
+  });
+
+  it("refuses goods on consignment: they come in through Barang Titipan", async () => {
+    db.consigned.add("p");
+    await expect(
+      new ReceiveStockUseCase().execute({ ...base, items: [{ productId: "p", quantity: "5", purchasePrice: "1000" }] })
+    ).rejects.toThrow(/Barang Titipan/);
+    expect(db.purchases).toBe(0);
+    expect(db.stock.get("p")).toBe("0");
   });
 });

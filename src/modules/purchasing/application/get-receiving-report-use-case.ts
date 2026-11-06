@@ -15,6 +15,8 @@ export interface ReceivingReport {
     totalValue: string;
     /** Estimated value of stock that came in without a purchase, kept apart. */
     estimatedValue: string;
+    /** Value of consignment drop-offs at the consignor's price: owed only as units sell. */
+    consignmentValue: string;
   };
 }
 
@@ -32,8 +34,15 @@ export class GetReceivingReportUseCase {
     // adjustments). Stock is one ledger, so the history reads it too --
     // otherwise the Stok page could show goods the history never mentions.
     const warnings: string[] = [];
-    const [purchaseRows, otherRows] = await Promise.all([
+    const [purchaseRows, consignmentRows, otherRows] = await Promise.all([
       this.purchases.listReceivedItems(filter),
+      filter.only === "purchase"
+        ? Promise.resolve([])
+        : this.purchases.listConsignmentItems(filter).catch((error: unknown) => {
+            console.error("[receiving-report] could not load consignment drop-offs", error);
+            warnings.push("Barang titipan belum bisa dimuat. Penerimaan supplier tetap lengkap.");
+            return [] as ReceivedItemRow[];
+          }),
       filter.only === "purchase"
         ? Promise.resolve([])
         : this.purchases.listOtherStockIn(filter).catch((error: unknown) => {
@@ -44,17 +53,19 @@ export class GetReceivingReportUseCase {
             return [] as ReceivedItemRow[];
           }),
     ]);
-    const rows = [...purchaseRows, ...otherRows].sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
+    const rows = [...purchaseRows, ...consignmentRows, ...otherRows].sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
 
     let totalQuantity = new Decimal(0);
     let totalValue = new Decimal(0);
     let estimatedValue = new Decimal(0);
+    let consignmentValue = new Decimal(0);
     for (const r of rows) {
       totalQuantity = totalQuantity.plus(r.quantity);
       if (r.subtotal === null) continue;
       // What was paid to suppliers and what is only an estimate (initial stock,
       // opname...) are kept apart, so the paid figure is never inflated.
       if (r.source === "PURCHASE") totalValue = totalValue.plus(r.subtotal);
+      else if (r.source === "CONSIGNMENT") consignmentValue = consignmentValue.plus(r.subtotal);
       else estimatedValue = estimatedValue.plus(r.subtotal);
     }
 
@@ -67,6 +78,7 @@ export class GetReceivingReportUseCase {
         totalQuantity: totalQuantity.toString(),
         totalValue: totalValue.toFixed(2),
         estimatedValue: estimatedValue.toFixed(2),
+        consignmentValue: consignmentValue.toFixed(2),
       },
     };
   }

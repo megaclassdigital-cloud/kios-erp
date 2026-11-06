@@ -28,6 +28,8 @@ export class PrismaProductRepository implements ProductRepository {
         trackInventory: input.trackInventory,
         expiryDate: input.expiryDate ?? undefined,
         expiryWarnDays: input.expiryWarnDays ?? undefined,
+        isConsignment: input.isConsignment ?? false,
+        consignorId: input.isConsignment ? (input.consignorId ?? null) : null,
       },
     });
   }
@@ -81,12 +83,23 @@ export class PrismaProductRepository implements ProductRepository {
     );
   }
 
+  /** Whether the product has ever been dropped off on consignment. */
+  async hasConsignmentHistory(id: string): Promise<boolean> {
+    return (await this.db.consignmentItem.count({ where: { productId: id } })) > 0;
+  }
+
   /** Active physical products with what a picker lists. Small shop, a few
    * hundred rows: filtering happens in memory (see product-search.ts), which
    * is what allows word order and typo tolerance. */
-  async listForSearch() {
+  async listForSearch(options: { consignment?: "only" | "exclude"; consignorId?: string } = {}) {
     const rows = await this.db.product.findMany({
-      where: { deletedAt: null, active: true, trackInventory: true },
+      where: {
+        deletedAt: null,
+        active: true,
+        trackInventory: true,
+        ...(options.consignment === "only" ? { isConsignment: true } : options.consignment === "exclude" ? { isConsignment: false } : {}),
+        ...(options.consignorId ? { consignorId: options.consignorId } : {}),
+      },
       select: {
         id: true,
         name: true,
@@ -94,6 +107,7 @@ export class PrismaProductRepository implements ProductRepository {
         baseUnit: true,
         currentStock: true,
         sellingPrice: true,
+        purchasePrice: true,
         barcodes: { where: { status: "ACTIVE" }, select: { barcodeValue: true }, orderBy: { createdAt: "asc" } },
       },
       orderBy: { name: "asc" },
@@ -105,6 +119,7 @@ export class PrismaProductRepository implements ProductRepository {
       baseUnit: r.baseUnit,
       currentStock: r.currentStock.toString(),
       sellingPrice: r.sellingPrice.toString(),
+      purchasePrice: r.purchasePrice.toString(),
       barcodes: r.barcodes.map((b) => b.barcodeValue),
     }));
   }

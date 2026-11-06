@@ -16,6 +16,8 @@ export interface UpdateProductRequest {
   expiryWarnDays?: number;
   /** The user saw the similar-name reminder and confirmed the new name is deliberate. */
   acknowledgeSimilar?: boolean;
+  isConsignment?: boolean;
+  consignorId?: string | null;
 }
 
 export class ProductNotFoundError extends Error {}
@@ -51,13 +53,33 @@ export class UpdateProductUseCase {
         }
       }
 
+      // Whose goods these are can only change while there is nothing to account for:
+      // no stock on the shelf and no drop-off on record, or the owed amounts would be wrong.
+      const consignmentChanging =
+        (req.isConsignment !== undefined && req.isConsignment !== before.isConsignment) ||
+        (req.consignorId !== undefined && req.consignorId !== before.consignorId);
+      if (consignmentChanging) {
+        if (before.productType === "SERVICE") throw new Error("Layanan tidak bisa menjadi barang titipan.");
+        if (Number(before.currentStock) !== 0) {
+          throw new Error("Status titipan hanya bisa diubah saat stok 0. Habiskan, retur, atau catat keluar stoknya dulu.");
+        }
+        if (await products.hasConsignmentHistory(id)) {
+          throw new Error("Barang ini sudah punya riwayat titipan, jadi status penitipnya tidak bisa diubah.");
+        }
+        if (req.isConsignment && !(req.consignorId ?? before.consignorId)) throw new Error("Pilih penitip untuk barang titipan.");
+      }
+
       // A service has nothing physical to expire, so a date sent for one is
       // dropped rather than stored and later shown as a warning about pulsa
       // going off — same rule as when the product was created.
       const expiryDate =
         before.productType === "SERVICE" ? null : req.expiryDate;
 
-      const product = await products.update(id, { ...req, expiryDate });
+      const product = await products.update(id, {
+        ...req,
+        expiryDate,
+        ...(req.isConsignment === false ? { consignorId: null } : {}),
+      });
 
       await audit.record({
         actorId,

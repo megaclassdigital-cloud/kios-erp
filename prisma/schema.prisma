@@ -95,6 +95,13 @@ model Product {
   expiryWarnDays  Int         @default(30)
   currentStock    Decimal     @default(0) @db.Decimal(14, 3)
   trackInventory  Boolean     @default(true)
+  /// Goods left by a sales rep to be sold on their behalf: the shop owes the
+  /// consignor for the units that sell, at the consignor's price (this product's
+  /// purchasePrice), and returns the rest. Such a product only receives stock
+  /// through Barang Titipan, never through a normal purchase.
+  isConsignment   Boolean     @default(false)
+  consignorId     String?
+  consignor       Supplier?   @relation("ConsignedProducts", fields: [consignorId], references: [id])
   active          Boolean     @default(true)
   /// Set when the product is deleted from Master Produk. A soft delete: sales,
   /// receipts and the stock ledger still point at the row, and its barcodes
@@ -108,6 +115,7 @@ model Product {
   saleItems       SaleItem[]
   purchaseItems   PurchaseItem[]
   opnameItems     StockOpnameItem[]
+  consignmentItems ConsignmentItem[]
 
   @@index([active])
   @@map("products")
@@ -202,6 +210,10 @@ model Supplier {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   purchases Purchase[]
+
+  consignedProducts   Product[]            @relation("ConsignedProducts")
+  consignments        Consignment[]
+  consignmentPayments ConsignmentPayment[]
 
   @@map("suppliers")
 }
@@ -511,6 +523,72 @@ model AssetCategory {
   createdAt DateTime @default(now())
 
   @@map("asset_categories")
+}
+
+// ---------------------------------------------------------------------------
+// Barang titipan (consignment): a rep drops goods with a quantity and their own
+// price. The shop owes them only for what sells (quantity sold x their price,
+// the product's purchasePrice snapshot on each sale), and returns the rest.
+// Stock moves through the normal ledger; nothing here is an expense.
+// ---------------------------------------------------------------------------
+
+model Consignment {
+  id           String   @id @default(uuid())
+  number       String   @unique
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  receivedById String
+  note         String?
+  createdAt    DateTime @default(now())
+
+  items ConsignmentItem[]
+
+  @@index([supplierId, createdAt])
+  @@map("consignments")
+}
+
+model ConsignmentItem {
+  id               String      @id @default(uuid())
+  consignmentId    String
+  consignment      Consignment @relation(fields: [consignmentId], references: [id])
+  productId        String
+  product          Product     @relation(fields: [productId], references: [id])
+  quantity         Decimal     @db.Decimal(14, 3)
+  /// The consignor's price per unit for this drop.
+  unitCost         Decimal     @db.Decimal(14, 2)
+  /// Units handed back to the consignor (unsold).
+  quantityReturned Decimal     @default(0) @db.Decimal(14, 3)
+
+  @@index([consignmentId])
+  @@index([productId])
+  @@map("consignment_items")
+}
+
+/// Money paid to a consignor for the units that sold. Not an expense: the cost
+/// already reached the books as cost of goods sold when the units sold.
+model ConsignmentPayment {
+  id          String   @id @default(uuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  amount      Decimal  @db.Decimal(14, 2)
+  paidAt      DateTime
+  note        String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([supplierId, paidAt])
+  @@map("consignment_payments")
+}
+
+/// Which announcements a user has already seen and completed.
+model AnnouncementAck {
+  id        String   @id @default(uuid())
+  userId    String
+  key       String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@map("announcement_acks")
 }
 
 // ---------------------------------------------------------------------------

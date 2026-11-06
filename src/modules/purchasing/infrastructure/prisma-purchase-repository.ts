@@ -190,6 +190,57 @@ export class PrismaPurchaseRepository implements PurchaseRepository {
     });
   }
 
+  /**
+   * Consignment drop-offs, shown in the same history so every way stock arrives
+   * is in one place. Priced at the consignor's price; the value is what the shop
+   * would owe if all of it sold, not money paid.
+   */
+  async listConsignmentItems(filter: ReceivedItemFilter): Promise<ReceivedItemRow[]> {
+    const items = await this.db.consignmentItem.findMany({
+      where: { productId: filter.productId, consignment: { createdAt: { gte: filter.start, lte: filter.end } } },
+      orderBy: [{ consignment: { createdAt: "desc" } }, { id: "asc" }],
+      include: {
+        consignment: { include: { supplier: { select: { name: true } } } },
+        product: { select: { name: true, sku: true, baseUnit: true, purchasePrice: true, sellingPrice: true } },
+      },
+    });
+    if (items.length === 0) return [];
+
+    const [balanceAfter, users] = await Promise.all([
+      this.balancesAfterReceiving([...new Set(items.map((i) => i.productId))], [...new Set(items.map((i) => i.consignmentId))]),
+      this.db.user.findMany({ where: { id: { in: [...new Set(items.map((i) => i.consignment.receivedById))] } }, select: { id: true, name: true } }),
+    ]);
+    const userName = new Map(users.map((u) => [u.id, u.name]));
+
+    return items.map((i) => {
+      const ledger = balanceAfter.get(`${i.consignmentId}:${i.productId}`)?.shift();
+      const before = ledger ? ledger.balance.minus(ledger.quantity) : new Decimal(0);
+      return {
+        source: "CONSIGNMENT" as const,
+        itemId: i.id,
+        purchaseId: null,
+        receivedAt: i.consignment.createdAt,
+        purchaseNumber: i.consignment.number,
+        invoiceNumber: null,
+        supplierName: i.consignment.supplier.name,
+        receivedByName: userName.get(i.consignment.receivedById) ?? "-",
+        productId: i.productId,
+        productName: i.product.name,
+        sku: i.product.sku,
+        unit: i.product.baseUnit,
+        quantity: i.quantity.toString(),
+        damagedQuantity: "0",
+        purchasePrice: i.unitCost.toString(),
+        masterPurchasePrice: i.product.purchasePrice.toString(),
+        sellingPrice: i.product.sellingPrice.toString(),
+        subtotal: new Decimal(i.quantity.toString()).times(i.unitCost.toString()).toFixed(2),
+        expiryDate: null,
+        stockBefore: before.toString(),
+        stockAfter: before.plus(i.quantity.toString()).toString(),
+      };
+    });
+  }
+
   async findItem(itemId: string): Promise<PurchaseItemDetail | null> {
     const i = await this.db.purchaseItem.findUnique({
       where: { id: itemId },

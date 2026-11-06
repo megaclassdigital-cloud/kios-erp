@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { formatWibDateTime } from "@/shared/format/wib";
 import { stockInLabel } from "@/modules/purchasing/domain/stock-in-source";
 
 export interface HistoryItem {
-  source: "PURCHASE" | "INITIAL_STOCK" | "STOCK_OPNAME" | "ADJUSTMENT";
+  source: "PURCHASE" | "CONSIGNMENT" | "INITIAL_STOCK" | "STOCK_OPNAME" | "ADJUSTMENT";
   itemId: string;
   purchaseId: string | null;
   receivedAt: string;
@@ -228,12 +229,19 @@ export function HistoryRow({
         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{row.expiryDate ? dateLabel(row.expiryDate) : "-"}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">
           {rupiah(row.subtotal)}
-          {!fromSupplier && row.subtotal !== null && (
-            <span className="block text-[10px] font-normal text-muted-foreground">estimasi: {qty(String(Number(row.stockAfter) - Number(row.stockBefore)))} masuk stok</span>
+          {row.source === "CONSIGNMENT" ? (
+            <span className="block text-[10px] font-normal text-muted-foreground">nilai titipan, belum dibayar</span>
+          ) : (
+            !fromSupplier && row.subtotal !== null && (
+              <span className="block text-[10px] font-normal text-muted-foreground">estimasi: {qty(String(Number(row.stockAfter) - Number(row.stockBefore)))} masuk stok</span>
+            )
           )}
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-right">
-          {canEdit && (
+          {row.source === "CONSIGNMENT" && (
+            <Link href="/titipan" className="text-xs text-primary hover:underline">Kelola di Titipan</Link>
+          )}
+          {canEdit && row.source !== "CONSIGNMENT" && (
             <>
               <button onClick={openEdit} className="mr-3 text-xs text-primary hover:underline">Ubah</button>
               <button onClick={openDelete} className="text-xs text-destructive hover:underline">Hapus</button>

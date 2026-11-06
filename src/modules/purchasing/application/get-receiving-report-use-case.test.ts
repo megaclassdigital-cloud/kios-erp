@@ -36,6 +36,7 @@ function repoOf(rows: ReceivedItemRow[]): PurchaseRepository {
   return {
     listReceivedItems: async () => rows.filter(isPurchase),
     listOtherStockIn: async () => rows.filter((r) => !isPurchase(r)),
+    listConsignmentItems: async () => [],
   } as unknown as PurchaseRepository;
 }
 
@@ -80,6 +81,7 @@ describe("GetReceivingReportUseCase", () => {
   it("keeps the supplier receipts and says so when the other stock additions cannot load", async () => {
     const repo = {
       listReceivedItems: async () => [row({})],
+      listConsignmentItems: async () => [],
       listOtherStockIn: async () => {
         throw new Error("boom");
       },
@@ -96,6 +98,7 @@ describe("GetReceivingReportUseCase", () => {
     let called = false;
     const repo = {
       listReceivedItems: async () => [row({})],
+      listConsignmentItems: async () => [],
       listOtherStockIn: async () => {
         called = true;
         return [];
@@ -158,8 +161,25 @@ describe("GetReceivingReportUseCase", () => {
     // What was paid and what is only an estimate are separate rows.
     expect(cell(first + 3, 15)).toEqual({ formula: 'SUMIF(C7:C8,"PO-*",O7:O8)', result: 635000 });
     // (exceljs does not read back a cached result of 0, so only the formula is checked)
-    expect(cell(first + 4, 15)).toMatchObject({ formula: 'SUM(O7:O8)-SUMIF(C7:C8,"PO-*",O7:O8)' });
-    expect(cell(first + 5, 12)).toEqual({ formula: "AVERAGE(L7:L8)", result: 37000 });
+    expect(cell(first + 4, 15)).toMatchObject({ formula: 'SUMIF(C7:C8,"TTP-*",O7:O8)' });
+    expect(cell(first + 5, 15)).toMatchObject({ formula: 'SUM(O7:O8)-SUMIF(C7:C8,"PO-*",O7:O8)-SUMIF(C7:C8,"TTP-*",O7:O8)' });
+    expect(cell(first + 6, 12)).toEqual({ formula: "AVERAGE(L7:L8)", result: 37000 });
     expect(report.summary.totalValue).toBe("635000.00");
+  });
+
+  it("counts consignment drop-offs apart: not as paid to suppliers, not as an estimate", async () => {
+    const repo = {
+      listReceivedItems: async () => [row({ quantity: "5", subtotal: "5000.00" })],
+      listConsignmentItems: async () => [
+        row({ source: "CONSIGNMENT", itemId: "ci1", purchaseId: null, purchaseNumber: "TTP-20261106-000001", supplierName: "Sales Roti", purchasePrice: "9000.00", subtotal: "180000.00", quantity: "20", stockBefore: "0", stockAfter: "20" }),
+      ],
+      listOtherStockIn: async () => [],
+    } as unknown as PurchaseRepository;
+    const report = await new GetReceivingReportUseCase(repo).execute({ start: new Date(0), end: new Date() });
+    expect(report.summary.totalValue).toBe("5000.00");
+    expect(report.summary.consignmentValue).toBe("180000.00");
+    expect(report.summary.estimatedValue).toBe("0.00");
+    expect(report.summary.receiptCount).toBe(2); // the supplier receipt and the drop-off both have a document number
+    expect(report.rows.map((r) => r.source)).toContain("CONSIGNMENT");
   });
 });

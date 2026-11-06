@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { KnownProductRef } from "@/modules/products/domain/duplicate-product";
 import { findReminders } from "@/modules/products/domain/similar-products";
@@ -23,6 +23,8 @@ export interface EditableProduct {
   active: boolean;
   expiryDate: string | null;
   expiryWarnDays: number;
+  isConsignment: boolean;
+  consignorId: string | null;
 }
 
 /** `<input type="date">` wants YYYY-MM-DD; the API returns an ISO instant. */
@@ -66,10 +68,23 @@ export function ProductEditModal({
   const [expiryDate, setExpiryDate] = useState(toDateInput(product.expiryDate));
   const [expiryWarnDays, setExpiryWarnDays] = useState(String(product.expiryWarnDays));
   const [active, setActive] = useState(product.active);
+  const [isConsignment, setIsConsignment] = useState(product.isConsignment);
+  const [consignorId, setConsignorId] = useState(product.consignorId ?? "");
+  const [consignors, setConsignors] = useState<{ id: string; name: string }[] | null>(null);
+  // Whose goods these are can only change while there is no stock to account for.
+  const consignmentLocked = Number(product.currentStock) !== 0;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isService = product.productType === "SERVICE";
+
+  useEffect(() => {
+    if (!isConsignment || consignors) return;
+    fetch("/api/suppliers")
+      .then((r) => r.json())
+      .then((d) => setConsignors((d.suppliers ?? []).filter((s: { active?: boolean }) => s.active !== false)))
+      .catch(() => setConsignors([]));
+  }, [isConsignment, consignors]);
 
   // Renaming into another product's name would recreate the duplicate the
   // add form refuses. The server checks the same thing.
@@ -90,6 +105,9 @@ export function ProductEditModal({
         body: JSON.stringify({
           name,
           acknowledgeSimilar: reminders.length > 0 ? true : undefined,
+          ...(!isService && (isConsignment !== product.isConsignment || (isConsignment && consignorId !== (product.consignorId ?? "")))
+            ? { isConsignment, consignorId: isConsignment ? consignorId : null }
+            : {}),
           categoryId: categoryId || null,
           purchasePrice,
           sellingPrice,
@@ -235,6 +253,33 @@ export function ProductEditModal({
             )}
           </div>
         </fieldset>
+
+        {!isService && (
+          <div className="rounded-lg border border-border p-3">
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={isConsignment} disabled={consignmentLocked} onChange={(e) => setIsConsignment(e.target.checked)} className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium text-foreground">Barang titipan (dari sales)</span>
+                <span className="block text-[11px] leading-relaxed text-muted-foreground">
+                  {consignmentLocked
+                    ? "Status titipan hanya bisa diubah saat stok 0. Habiskan, retur, atau catat keluar stoknya dulu."
+                    : "Toko hanya berutang untuk yang terjual. Stoknya diisi lewat menu Titipan."}
+                </span>
+              </span>
+            </label>
+            {isConsignment && (
+              <label className="mt-2 block text-xs font-medium text-foreground">
+                Penitip
+                <select value={consignorId} onChange={(e) => setConsignorId(e.target.value)} disabled={consignmentLocked} required className={`${input} mt-1`}>
+                  <option value="">{consignors || !consignorId ? "Pilih penitip" : "Memuat..."}</option>
+                  {(consignors ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        )}
 
         <label className="flex items-start gap-2 rounded-lg border border-border p-3">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="mt-0.5" />

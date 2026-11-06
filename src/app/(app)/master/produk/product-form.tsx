@@ -40,6 +40,10 @@ export function ProductForm({
   const [minimumStock, setMinimumStock] = useState("5");
   const [initialStock, setInitialStock] = useState("0");
   const [initialDamaged, setInitialDamaged] = useState("");
+  // Goods left by a sales rep to be sold for them: see Barang Titipan.
+  const [isConsignment, setIsConsignment] = useState(false);
+  const [consignorId, setConsignorId] = useState("");
+  const [consignors, setConsignors] = useState<{ id: string; name: string }[] | null>(null);
   const [expiryDate, setExpiryDate] = useState("");
   const [expiryWarnDays, setExpiryWarnDays] = useState("30");
   // No default: see barcode-step.tsx for why letting this be picked
@@ -84,7 +88,7 @@ export function ProductForm({
     [candidate, name, duplicate]
   );
   const [reminderOk, setReminderOk] = useState(true);
-  const canSubmit = !loading && !duplicate && reminderOk && (!needsBarcodeChoice || barcodeMode !== null);
+  const canSubmit = !loading && !duplicate && reminderOk && (!needsBarcodeChoice || barcodeMode !== null) && (!isConsignment || !!consignorId);
 
   // This page has two things a scan could mean: find an existing product, or
   // fill in the barcode of the one being added. The capture itself lives in
@@ -125,7 +129,9 @@ export function ProductForm({
         expiryDate: isService || !expiryDate ? undefined : expiryDate,
         expiryWarnDays: isService ? undefined : Number(expiryWarnDays || 30),
         acknowledgeSimilar: reminders.length > 0 ? true : undefined,
-        initialStock: isService ? undefined : initialStock,
+        initialStock: isService ? undefined : isConsignment ? "0" : initialStock,
+        isConsignment: !isService && isConsignment ? true : undefined,
+        consignorId: !isService && isConsignment ? consignorId : undefined,
         initialDamaged: isService || !initialDamaged ? undefined : initialDamaged,
         barcode,
       }),
@@ -343,13 +349,50 @@ export function ProductForm({
             </Field>
             {!isService && (
               <>
+                <div data-tour="consignment-field" className="md:col-span-2 rounded-lg border border-border p-3">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isConsignment}
+                      onChange={(e) => {
+                        setIsConsignment(e.target.checked);
+                        if (e.target.checked && !consignors) {
+                          fetch("/api/suppliers")
+                            .then((r) => r.json())
+                            .then((d) => setConsignors((d.suppliers ?? []).filter((s: { active?: boolean }) => s.active !== false)))
+                            .catch(() => setConsignors([]));
+                        }
+                      }}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-foreground">Barang titipan (dari sales)</span>
+                      <span className="block text-[11px] leading-relaxed text-muted-foreground">
+                        Dititipkan untuk dijual, harga beli = harga patokan sales. Toko hanya berutang untuk yang terjual. Stoknya diisi lewat menu Titipan, bukan stok awal atau Barang Masuk.
+                      </span>
+                    </span>
+                  </label>
+                  {isConsignment && (
+                    <label className="mt-2 block text-xs font-medium text-foreground">
+                      Penitip
+                      <select value={consignorId} onChange={(e) => setConsignorId(e.target.value)} required className={`${inputClass} mt-1`}>
+                        <option value="">{consignors ? "Pilih penitip" : "Memuat..."}</option>
+                        {(consignors ?? []).map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <span className="mt-1 block text-[11px] font-normal text-muted-foreground">Belum terdaftar? Tambahkan dulu di menu Supplier.</span>
+                    </label>
+                  )}
+                </div>
                 <Field
                   label="Stok awal"
                   hint="Jumlah barang yang ada sekarang. Isi 0 bila barangnya belum datang."
                 >
                   <input
                     type="number"
-                    value={initialStock}
+                    value={isConsignment ? "0" : initialStock}
+                    disabled={isConsignment}
                     onChange={(e) => setInitialStock(e.target.value)}
                     className={inputClass}
                   />
