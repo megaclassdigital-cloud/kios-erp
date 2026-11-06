@@ -1,35 +1,28 @@
 /**
- * Remembers, in this tab, which announcement's tutorial is running, so that
- * finishing the tutorial is what completes the announcement -- not merely
- * reading it. sessionStorage survives the navigation to the feature's page and
- * is gone when the tab closes, which is exactly the lifetime wanted.
+ * Which announcements this device has already shown. Stored on the device, so
+ * each tablet or computer reads an announcement once, whoever is signed in, and
+ * it does not come back on later reloads.
  */
-const KEY = "kios-erp.announcement.tour";
+const KEY = "kios-erp.announcements.seen";
 
-export function markTourPending(announcementKey: string): void {
+/** Within a private window with blocked storage, at least not twice in one visit. */
+const inMemory = new Set<string>();
+
+export function seenOnDevice(): Set<string> {
   try {
-    window.sessionStorage.setItem(KEY, announcementKey);
+    const raw = window.localStorage.getItem(KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return new Set([...(Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : []), ...inMemory]);
   } catch {
-    // Without storage the announcement simply comes back after a reload.
+    return new Set(inMemory);
   }
 }
 
-export function pendingTourKey(): string | null {
+export function markSeenOnDevice(key: string): void {
+  inMemory.add(key);
   try {
-    return window.sessionStorage.getItem(KEY);
+    window.localStorage.setItem(KEY, JSON.stringify([...seenOnDevice()]));
   } catch {
-    return null;
-  }
-}
-
-/** Called when a guided tour reaches its last step. Records the announcement as completed, once. */
-export async function completePendingTour(): Promise<void> {
-  const key = pendingTourKey();
-  if (!key) return;
-  try {
-    const res = await fetch("/api/announcements/ack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }) });
-    if (res.ok) window.sessionStorage.removeItem(KEY);
-  } catch {
-    // Left pending: the next completed tour (or a reload) tries again.
+    // Kept in memory for this visit.
   }
 }

@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Megaphone } from "lucide-react";
 import { nextToShow, type Announcement } from "@/modules/announcements/announcements";
-import { useAutoRefresh } from "@/shared/ui/use-auto-refresh";
-import { markTourPending, pendingTourKey } from "./announcement-state";
+import { markSeenOnDevice, seenOnDevice } from "./announcement-state";
 
 /** **bold** in a slide's text, nothing else: the copy is ours, so this is all the markup it needs. */
 function Rich({ text }: { text: string }) {
@@ -22,54 +21,46 @@ function Rich({ text }: { text: string }) {
  * The "what's new" box: a centred card over a dimmed screen, big icon, title,
  * text and a button, in the style of a confirmation dialog.
  *
- *  - It appears by itself, on every open screen, within a few seconds of an
- *    announcement being published: the app asks the server every 5 seconds
- *    (and the moment a tab regains focus), so nobody has to reload.
- *  - It cannot be dismissed. Reading the slides leads to the tutorial, and only
- *    finishing the tutorial records it as done for that person. Quit the
- *    tutorial early and the box returns on the next reload.
+ *  - It appears when a page is loaded or refreshed, once per device. A device
+ *    that has already shown it never shows it again.
+ *  - It cannot be dismissed: the slides lead to the guided tutorial, which opens
+ *    on the new page by itself.
+ *  - Nothing polls: it does not appear under someone in the middle of a sale.
  */
 export function AnnouncementGate() {
   const router = useRouter();
   const [current, setCurrent] = useState<Announcement | null>(null);
   const [slide, setSlide] = useState(0);
-  // Announcements whose tutorial was started in this page session and not finished yet.
-  const inProgress = useRef<Set<string>>(new Set());
 
-  const check = useCallback(async () => {
-    try {
-      const res = await fetch("/api/announcements", { cache: "no-store" });
-      if (!res.ok) return; // a failed check must never lock anyone out of the app
-      const data = await res.json();
-      const wanted = pendingTourKey();
-      if (wanted) inProgress.current.add(wanted);
-      const next = nextToShow<Announcement>(data.announcements ?? [], inProgress.current);
-      // Keep the one on screen (and the slide being read) as it is; only open a new one.
-      setCurrent((shown) => shown ?? next);
-    } catch {
-      // Offline for a moment: the next check will catch up.
-    }
-  }, []);
-
-  useAutoRefresh(check, 5_000);
-  // The first check should not wait five seconds.
+  // Once per page load. The layout stays mounted while moving between pages,
+  // so this does not run again until the page is reloaded.
   useEffect(() => {
-    void check();
-  }, [check]);
+    let cancelled = false;
+    fetch("/api/announcements", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { announcements: [] }))
+      .then((d) => {
+        if (!cancelled) setCurrent(nextToShow<Announcement>(d.announcements ?? [], seenOnDevice()));
+      })
+      .catch(() => undefined); // a failed check must never lock anyone out of the app
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!current) return null;
 
   const last = slide === current.slides.length - 1;
   const s = current.slides[slide];
 
+  /** Read to the end: remember it on this device (and on the server, as a record), then open the tutorial. */
   function startTutorial() {
     if (!current) return;
-    markTourPending(current.key);
-    inProgress.current.add(current.key);
-    const href = current.href;
+    markSeenOnDevice(current.key);
+    void fetch("/api/announcements/ack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: current.key }) }).catch(() => undefined);
+    const { href, startTour } = current;
     setCurrent(null);
     setSlide(0);
-    router.push(`${href}${current.startTour ? "?tour=1" : ""}`);
+    router.push(`${href}${startTour ? "?tour=1" : ""}`);
   }
 
   return (
@@ -109,7 +100,7 @@ export function AnnouncementGate() {
             </button>
           )}
         </div>
-        <p className="mt-4 text-[11px] text-muted-foreground">Wajib dibaca sampai tutorial selesai.</p>
+        <p className="mt-4 text-[11px] text-muted-foreground">Pengumuman ini hanya muncul sekali di perangkat ini.</p>
       </div>
     </div>
   );

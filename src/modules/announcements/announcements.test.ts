@@ -28,7 +28,7 @@ describe("nextToShow", () => {
   it("shows the first the server lists", () => {
     expect(nextToShow(list, new Set())?.key).toBe("a");
   });
-  it("skips one whose tutorial is under way, until the page is reloaded", () => {
+  it("skips what this device has already shown, so it appears once per device", () => {
     expect(nextToShow(list, new Set(["a"]))?.key).toBe("b");
     expect(nextToShow(list, new Set(["a", "b"]))).toBeNull();
   });

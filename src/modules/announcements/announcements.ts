@@ -6,7 +6,7 @@ export interface AnnouncementSlide {
 }
 
 export interface Announcement {
-  /** Never reused: acknowledging is remembered per user under this key. */
+  /** Never reused: what a device has shown is remembered under this key. */
   key: string;
   title: string;
   /** Who needs to know. Undefined: everyone signed in. */
@@ -18,7 +18,7 @@ export interface Announcement {
   startTour?: boolean;
 }
 
-/** New features worth stopping everyone for. Newest last; each shows once per user, until completed. */
+/** New features worth stopping everyone for. Newest last; each shows once per device. */
 export const ANNOUNCEMENTS: Announcement[] = [
   {
     key: "titipan-v2",
@@ -59,7 +59,7 @@ export const ANNOUNCEMENTS: Announcement[] = [
         title: "Angkanya selalu terbaru",
         body: [
           "Halaman Titipan menyegarkan diri otomatis (sekitar tiap 15 detik dan saat Anda kembali ke tab ini), jadi penjualan di kasir langsung terlihat sebagai penambahan utang.",
-          "Tekan **Lihat tutorial**: halaman Titipan terbuka dengan panduan langkah demi langkah. Pengumuman ini baru selesai setelah tutorialnya dibaca sampai langkah terakhir. Tombol **?** di pojok kanan atas bisa dipakai kapan saja.",
+          "Tekan **Lihat tutorial**: halaman Titipan terbuka dengan panduan langkah demi langkah. Tombol **?** di pojok kanan atas bisa dipakai kapan saja.",
         ],
       },
     ],
@@ -71,12 +71,7 @@ export function pendingAnnouncements(opts: { has: (p: Permission) => boolean; do
   return ANNOUNCEMENTS.filter((a) => !opts.done.has(a.key) && (!a.permission || opts.has(a.permission)));
 }
 
-/**
- * What the screen should show now: the first announcement the server still
- * lists, skipping any whose tutorial this browser has already started and not
- * finished (they come back on the next full reload, so the tutorial stays
- * mandatory without the window reappearing under the person mid-tutorial).
- */
-export function nextToShow<T extends { key: string }>(fromServer: T[], inProgress: ReadonlySet<string>): T | null {
-  return fromServer.find((a) => !inProgress.has(a.key)) ?? null;
+/** The first announcement this device has not shown yet, or none. */
+export function nextToShow<T extends { key: string }>(fromServer: T[], seenOnDevice: ReadonlySet<string>): T | null {
+  return fromServer.find((a) => !seenOnDevice.has(a.key)) ?? null;
 }

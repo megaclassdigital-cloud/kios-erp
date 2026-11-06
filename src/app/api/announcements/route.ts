@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/shared/infrastructure/prisma";
 import { requireSession, toErrorResponse } from "@/shared/security/require-session";
 import { hasPermission } from "@/shared/security/permissions";
 import { pendingAnnouncements } from "@/modules/announcements/announcements";
 
-/** Announcements this user has not completed yet. */
+/** Announcements that apply to this role. The device remembers which it has shown. */
 export async function GET() {
   try {
     const session = await requireSession();
-    const acks = await prisma.announcementAck.findMany({ where: { userId: session.user.id }, select: { key: true } });
-    const pending = pendingAnnouncements({
-      has: (p) => hasPermission(session.user.role, p),
-      done: new Set(acks.map((a) => a.key)),
-    });
+    // Which ones this *device* has already shown is decided on the device, so a
+    // second tablet still shows what the first one did. The list is only filtered by role.
+    const pending = pendingAnnouncements({ has: (p) => hasPermission(session.user.role, p), done: new Set() });
     return NextResponse.json({ announcements: pending }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return toErrorResponse(error);
