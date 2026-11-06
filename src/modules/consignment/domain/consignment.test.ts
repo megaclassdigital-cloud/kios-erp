@@ -111,3 +111,18 @@ describe("buildConsignorPositions", () => {
     expect(roti.products[0]).toMatchObject({ sellingPrice: "12000.00", unitCost: "9000.00", margin: "30000.00" });
   });
 });
+
+describe("selling price on a drop line", () => {
+  it("keeps a valid selling price and leaves it out when blank", () => {
+    const [a, b] = cleanDropLines([
+      { productId: "a", quantity: "2", unitCost: "9000", sellingPrice: "12000" },
+      { productId: "b", quantity: "2", unitCost: "9000", sellingPrice: "" },
+    ]);
+    expect(a.sellingPrice).toBe("12000.00");
+    expect(b.sellingPrice).toBeUndefined();
+  });
+  it("rejects a negative or non-numeric selling price", () => {
+    expect(() => cleanDropLines([{ productId: "a", quantity: "1", unitCost: "1", sellingPrice: "-5" }])).toThrow(/negatif/);
+    expect(() => cleanDropLines([{ productId: "a", quantity: "1", unitCost: "1", sellingPrice: "abc" }])).toThrow(/angka/);
+  });
+});

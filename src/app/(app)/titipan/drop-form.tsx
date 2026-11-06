@@ -11,6 +11,7 @@ interface Line {
   name: string;
   quantity: string;
   unitCost: string;
+  sellingPrice: string;
 }
 
 /**
@@ -31,10 +32,11 @@ export function DropForm({ suppliers, onSaved }: { suppliers: { id: string; name
   function add(item: PickerItem) {
     if (!item.id) return;
     if (lines.some((l) => l.productId === item.id)) return void toast.info(`${item.name} sudah ada di daftar. Ubah jumlahnya di sana.`);
-    setLines((prev) => [...prev, { productId: item.id!, name: item.name, quantity: "1", unitCost: String(Math.round(Number(item.purchasePrice ?? 0))) }]);
+    setLines((prev) => [...prev, { productId: item.id!, name: item.name, quantity: "1", unitCost: String(Math.round(Number(item.purchasePrice ?? 0))), sellingPrice: String(Math.round(Number(item.sellingPrice ?? 0))) }]);
   }
   const update = (id: string, patch: Partial<Line>) => setLines((prev) => prev.map((l) => (l.productId === id ? { ...l, ...patch } : l)));
   const total = lines.reduce((sum, l) => sum + Number(l.quantity || 0) * Number(l.unitCost || 0), 0);
+  const totalSales = lines.reduce((sum, l) => sum + Number(l.quantity || 0) * Number(l.sellingPrice || 0), 0);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +45,7 @@ export function DropForm({ suppliers, onSaved }: { suppliers: { id: string; name
     const { error: problem, data } = await send("/api/consignment", "POST", {
       supplierId,
       note: note || undefined,
-      lines: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitCost: l.unitCost })),
+      lines: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitCost: l.unitCost, sellingPrice: l.sellingPrice })),
     });
     setBusy(false);
     if (problem) return setError(problem);
@@ -105,7 +107,9 @@ export function DropForm({ suppliers, onSaved }: { suppliers: { id: string; name
                 <th className="px-3 py-2">Barang</th>
                 <th className="px-3 py-2">Jumlah</th>
                 <th className="px-3 py-2">Harga titip / unit</th>
-                <th className="px-3 py-2 text-right">Nilai</th>
+                <th className="px-3 py-2">Harga jual / unit</th>
+                <th className="px-3 py-2 text-right">Margin / unit</th>
+                <th className="px-3 py-2 text-right">Nilai titip</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -115,6 +119,11 @@ export function DropForm({ suppliers, onSaved }: { suppliers: { id: string; name
                   <td className="px-3 py-2 text-foreground">{l.name}</td>
                   <td className="px-3 py-2"><input type="number" min="0" step="any" value={l.quantity} onChange={(e) => update(l.productId, { quantity: e.target.value })} aria-label="Jumlah" className="w-20 rounded border border-input px-2 py-1" /></td>
                   <td className="px-3 py-2"><input type="number" min="0" value={l.unitCost} onChange={(e) => update(l.productId, { unitCost: e.target.value })} aria-label="Harga titip" className="w-28 rounded border border-input px-2 py-1" /></td>
+                  <td className="px-3 py-2"><input type="number" min="0" value={l.sellingPrice} onChange={(e) => update(l.productId, { sellingPrice: e.target.value })} aria-label="Harga jual" className="w-28 rounded border border-input px-2 py-1" /></td>
+                  <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${Number(l.sellingPrice || 0) <= Number(l.unitCost || 0) ? "font-medium text-destructive" : "text-success"}`}>
+                    {rupiah(Number(l.sellingPrice || 0) - Number(l.unitCost || 0))}
+                    {Number(l.sellingPrice) > 0 && <span className="block text-[11px] font-normal">{Math.round(((Number(l.sellingPrice) - Number(l.unitCost || 0)) / Number(l.sellingPrice)) * 100)}%</span>}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(Number(l.quantity || 0) * Number(l.unitCost || 0))}</td>
                   <td className="px-3 py-2 text-right"><button type="button" onClick={() => setLines((p) => p.filter((x) => x.productId !== l.productId))} className="text-xs text-destructive hover:underline">Hapus</button></td>
                 </tr>
@@ -122,14 +131,16 @@ export function DropForm({ suppliers, onSaved }: { suppliers: { id: string; name
             </tbody>
             <tfoot>
               <tr className="border-t border-border bg-muted/50 font-semibold">
-                <td className="px-3 py-2" colSpan={3}>Nilai titipan (jika semua terjual)</td>
+                <td className="px-3 py-2" colSpan={5}>
+                  Jika semua terjual: bayar ke penitip {rupiah(total)} · penjualan {rupiah(totalSales)} · untung toko {rupiah(totalSales - total)}
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">{rupiah(total)}</td>
                 <td />
               </tr>
             </tfoot>
           </table>
           <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
-            Harga titip menjadi harga beli barang ini, jadi modal saat terjual mengikuti harga sales. Belum menjadi utang: utang baru muncul saat barangnya terjual.
+            Harga titip menjadi harga beli barang ini, jadi modal saat terjual mengikuti harga sales. Harga jual yang Anda ubah di sini ikut mengubah harga jual di Master Produk. Margin dihitung otomatis dari selisihnya. Belum menjadi utang: utang baru muncul saat barangnya terjual.
           </p>
         </div>
       )}

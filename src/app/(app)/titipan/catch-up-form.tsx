@@ -21,6 +21,7 @@ export function CatchUpForm({ suppliers, onSaved }: { suppliers: { id: string; n
 
   const search = useMemo(() => (supplierId ? serverSearch("consignment", `&consignorId=${encodeURIComponent(supplierId)}`) : async () => []), [supplierId]);
   const cost = Number(product?.purchasePrice ?? 0);
+  const price = Number(product?.sellingPrice ?? 0);
   const today = new Date().toISOString().slice(0, 10);
 
   async function submit(e: React.FormEvent) {
@@ -86,13 +87,13 @@ export function CatchUpForm({ suppliers, onSaved }: { suppliers: { id: string; n
         <div className="grid items-end gap-3 rounded-lg border border-border p-3 md:grid-cols-[1fr_8rem_auto]">
           <div className="text-sm text-foreground">
             <p className="font-medium">{product.name}</p>
-            <p className="text-xs text-muted-foreground">Harga titip {rupiah(cost)} / unit</p>
+            <p className="text-xs text-muted-foreground">Harga titip {rupiah(cost)} · harga jual {rupiah(price)} · margin {rupiah(price - cost)} / unit</p>
           </div>
           <label className="block text-xs font-medium text-foreground">
             Jumlah terjual
             <input type="number" min="0" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} required className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm" />
           </label>
-          <p className="text-sm font-semibold tabular-nums text-foreground">Utang {rupiah(Number(quantity || 0) * cost)}</p>
+          <p className="text-sm font-semibold tabular-nums text-foreground">Utang {rupiah(Number(quantity || 0) * cost)}<span className="block text-xs font-normal text-success">Untung toko {rupiah(Number(quantity || 0) * (price - cost))}</span></p>
           <label className="block text-xs font-medium text-foreground md:col-span-3">
             Catatan (opsional)
             <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Mis. terjual Sabtu, lupa dikasir" className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm" />

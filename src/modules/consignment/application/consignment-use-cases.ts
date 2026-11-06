@@ -84,11 +84,12 @@ export class ReceiveConsignmentUseCase {
         supplierId: req.supplierId,
         receivedById: req.actorId,
         note: req.note?.trim() || null,
-        items: lines,
+        items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitCost: l.unitCost })),
       });
 
       const warnings: string[] = [];
       const priceChanges: { product: string; from: string; to: string }[] = [];
+      const sellingChanges: { product: string; from: string; to: string }[] = [];
       for (const line of lines) {
         const p = byId.get(line.productId)!;
         await inventory.recordMovement({
@@ -108,8 +109,14 @@ export class ReceiveConsignmentUseCase {
           await products.update(p.id, { purchasePrice: line.unitCost });
           priceChanges.push({ product: p.name, from: current.toFixed(2), to: line.unitCost });
         }
-        if (new Decimal(p.sellingPrice.toString()).lte(line.unitCost)) {
-          warnings.push(`Harga jual ${p.name} (Rp${Math.round(Number(p.sellingPrice)).toLocaleString("id-ID")}) tidak lebih tinggi dari harga titip. Cek harga jual di Master Produk.`);
+        // The shop is upping the consignor's price, so the selling price is set here too.
+        const selling = line.sellingPrice ?? new Decimal(p.sellingPrice.toString()).toFixed(2);
+        if (line.sellingPrice && !new Decimal(p.sellingPrice.toString()).eq(line.sellingPrice)) {
+          await products.update(p.id, { sellingPrice: line.sellingPrice });
+          sellingChanges.push({ product: p.name, from: new Decimal(p.sellingPrice.toString()).toFixed(2), to: line.sellingPrice });
+        }
+        if (new Decimal(selling).lte(line.unitCost)) {
+          warnings.push(`Harga jual ${p.name} (Rp${Math.round(Number(selling)).toLocaleString("id-ID")}) tidak lebih tinggi dari harga titip. Cek harga jual di Master Produk.`);
         }
       }
 
@@ -119,7 +126,7 @@ export class ReceiveConsignmentUseCase {
         entityType: "Consignment",
         entityId: consignment.id,
         afterValue: { number, supplier: supplier.name, lines: lines.length },
-        metadata: { priceChanges },
+        metadata: { priceChanges, sellingChanges },
       });
       return { consignment, warnings };
     });

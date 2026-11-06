@@ -56,6 +56,14 @@ beforeEach(() => {
 });
 
 describe("receiving a drop-off", () => {
+  it("sets the shop's selling price from the drop-off and warns only when it is not above cost", async () => {
+    const ok = await new ReceiveConsignmentUseCase().execute({ supplierId: "s1", actorId: "u", lines: [{ productId: "p1", quantity: "5", unitCost: "9000", sellingPrice: "13000" }] });
+    expect((db.products.get("p1") as Prod).sellingPrice).toBe("13000.00");
+    expect(ok.warnings).toHaveLength(0);
+    const low = await new ReceiveConsignmentUseCase().execute({ supplierId: "s1", actorId: "u", lines: [{ productId: "p1", quantity: "5", unitCost: "9000", sellingPrice: "9000" }] });
+    expect(low.warnings[0]).toMatch(/tidak lebih tinggi/);
+  });
+
   it("raises stock through the ledger, adopts the consignor's price, and books no expense", async () => {
     const { warnings } = await new ReceiveConsignmentUseCase().execute({ supplierId: "s1", actorId: "u", lines: [{ productId: "p1", quantity: "20", unitCost: "9000" }] });
     const p = db.products.get("p1") as Prod;

@@ -7,12 +7,15 @@ export interface DropLineInput {
   quantity: string;
   /** The consignor's price per unit. */
   unitCost: string;
+  /** The shop's selling price; when given and different, it replaces the product's. */
+  sellingPrice?: string;
 }
 
 export interface CleanDropLine {
   productId: string;
   quantity: string;
   unitCost: string;
+  sellingPrice?: string;
 }
 
 function dec(value: string, label: string): Decimal {
@@ -45,7 +48,14 @@ export function cleanDropLines(lines: DropLineInput[]): CleanDropLine[] {
     if (cost.lt(0)) throw new InvalidConsignmentError("Harga titip tidak boleh negatif.");
     if (cost.decimalPlaces() > 2) throw new InvalidConsignmentError("Harga titip maksimal 2 angka di belakang koma.");
 
-    return { productId: line.productId, quantity: quantity.toString(), unitCost: cost.toFixed(2) };
+    let sellingPrice: string | undefined;
+    if (line.sellingPrice !== undefined && line.sellingPrice !== "") {
+      const selling = dec(line.sellingPrice, "Harga jual");
+      if (selling.lt(0)) throw new InvalidConsignmentError("Harga jual tidak boleh negatif.");
+      if (selling.decimalPlaces() > 2) throw new InvalidConsignmentError("Harga jual maksimal 2 angka di belakang koma.");
+      sellingPrice = selling.toFixed(2);
+    }
+    return { productId: line.productId, quantity: quantity.toString(), unitCost: cost.toFixed(2), sellingPrice };
   });
 }
 

@@ -6,7 +6,7 @@ import { GetConsignmentOverviewUseCase, ReceiveConsignmentUseCase } from "@/modu
 const receiveSchema = z.object({
   supplierId: z.string().min(1),
   note: z.string().max(300).optional(),
-  lines: z.array(z.object({ productId: z.string(), quantity: z.string(), unitCost: z.string() })).min(1),
+  lines: z.array(z.object({ productId: z.string(), quantity: z.string(), unitCost: z.string(), sellingPrice: z.string().optional() })).min(1),
 });
 
 /** Each consignor's position, the drop-offs and the payments. Polled by the page for live numbers. */
