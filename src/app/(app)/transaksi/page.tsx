@@ -28,6 +28,7 @@ function formatRupiah(value: number) {
 const STATUS_LABEL: Record<string, string> = { PAID: "Lunas", PENDING: "Menunggu", CANCELLED: "Dibatalkan", REFUNDED: "Direfund" };
 const PAGE_SIZE = 50;
 const DETAIL_LIMIT = 200;
+const MAX_LINES = 4;
 
 /**
  * Transaction history for a chosen period (WIB days). The cards and the table
@@ -76,7 +77,10 @@ export default async function TransaksiPage({
         grandTotal: true,
         status: true,
         cashier: { select: { name: true } },
-        _count: { select: { items: true } },
+        items: {
+          orderBy: { id: "asc" },
+          select: { id: true, productNameSnapshot: true, quantity: true, unitPriceAtSale: true, discountAmount: true },
+        },
       },
     }),
     prisma.sale.count({ where: inPeriod }),
@@ -165,12 +169,10 @@ export default async function TransaksiPage({
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-xs text-muted-foreground">
             <tr>
-              <th className="px-3 py-2">No. Transaksi</th>
               <th className="px-3 py-2">Waktu (WIB)</th>
-              <th className="px-3 py-2">Kasir</th>
-              <th className="px-3 py-2">Item</th>
+              <th className="px-3 py-2">Barang</th>
               <th className="px-3 py-2">Metode</th>
-              <th className="px-3 py-2">Total</th>
+              <th className="px-3 py-2 text-right">Total</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -178,19 +180,40 @@ export default async function TransaksiPage({
           <tbody>
             {sales.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
                   Belum ada transaksi pada periode ini.
                 </td>
               </tr>
             )}
             {sales.map((s) => (
-              <tr key={s.id} className="border-t border-border">
-                <td className="px-3 py-2 font-mono text-xs text-foreground">{s.transactionNumber}</td>
-                <td className="px-3 py-2 text-muted-foreground">{formatWibDateTime(s.paidAt ?? s.createdAt)}</td>
-                <td className="px-3 py-2 text-foreground">{s.cashier.name}</td>
-                <td className="px-3 py-2 text-muted-foreground">{s._count.items} item</td>
-                <td className="px-3 py-2 text-muted-foreground">{s.paymentMethod === "CASH" ? "Tunai" : "Cashless"}</td>
-                <td className="px-3 py-2 font-medium text-foreground tabular-nums">
+              <tr key={s.id} className="border-t border-border align-top">
+                <td className="whitespace-nowrap px-3 py-2">
+                  <div className="text-foreground">{formatWibDateTime(s.paidAt ?? s.createdAt)}</div>
+                  <div className="text-xs text-muted-foreground">{s.cashier.name}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground/80">{s.transactionNumber}</div>
+                </td>
+                <td className="min-w-[16rem] px-3 py-2">
+                  <ul className="space-y-0.5">
+                    {s.items.slice(0, MAX_LINES).map((i) => {
+                      const qty = Number(i.quantity);
+                      const line = qty * Number(i.unitPriceAtSale) - Number(i.discountAmount);
+                      return (
+                        <li key={i.id} className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 text-foreground">
+                            {i.productNameSnapshot}
+                            <span className="text-muted-foreground"> · {qty.toLocaleString("id-ID", { maximumFractionDigits: 3 })} × {formatRupiah(Number(i.unitPriceAtSale))}</span>
+                          </span>
+                          <span className="shrink-0 tabular-nums text-foreground">{formatRupiah(line)}</span>
+                        </li>
+                      );
+                    })}
+                    {s.items.length > MAX_LINES && (
+                      <li className="text-xs text-muted-foreground">+ {s.items.length - MAX_LINES} barang lain (lihat Detail)</li>
+                    )}
+                  </ul>
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{s.paymentMethod === "CASH" ? "Tunai" : "Cashless"}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-foreground tabular-nums">
                   {formatRupiah(Number(s.grandTotal))}
                 </td>
                 <td className="px-3 py-2">

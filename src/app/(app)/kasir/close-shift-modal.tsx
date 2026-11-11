@@ -6,11 +6,14 @@ import { formatWibDate } from "@/shared/format/wib";
 interface Takings {
   transactions: number;
   omzet: string;
-  grossProfit: string | null;
+  cogs: string;
+  grossProfit: string;
+  cash: string;
+  cashless: string;
 }
 interface Summary {
   shift: Takings;
-  day: Takings & { expense: string | null; netProfit: string | null };
+  day: Takings & { expense: string; netProfit: string };
 }
 interface ClosedShift {
   expectedCash: string | null;
@@ -33,17 +36,20 @@ function Row({ label, value, tone, bold }: { label: string; value: string; tone?
   );
 }
 
+/** Same elements, order and words as the Keuangan page. */
 function Block({ title, t, day }: { title: string; t: Takings; day?: Summary["day"] }) {
+  const sign = (v: string) => (Number(v) >= 0 ? "good" : "bad");
   return (
     <div className="rounded-lg border border-border p-3">
       <h3 className="mb-1 text-sm font-semibold text-foreground">{title}</h3>
-      <Row label="Transaksi lunas" value={String(t.transactions)} />
-      <Row label="Omzet" value={rupiah(t.omzet)} bold />
-      {t.grossProfit !== null && <Row label="Untung kotor" value={rupiah(t.grossProfit)} tone={Number(t.grossProfit) >= 0 ? "good" : "bad"} bold />}
-      {day && day.expense !== null && <Row label="Pengeluaran toko hari ini" value={`− ${rupiah(day.expense)}`} />}
-      {day && day.netProfit !== null && (
-        <Row label="Untung bersih" value={rupiah(day.netProfit)} tone={Number(day.netProfit) >= 0 ? "good" : "bad"} bold />
-      )}
+      <Row label="Jumlah transaksi" value={String(t.transactions)} />
+      <Row label="Omzet (uang masuk)" value={rupiah(t.omzet)} bold />
+      <Row label="− Modal barang terjual" value={rupiah(t.cogs)} />
+      <Row label="= Untung kotor" value={rupiah(t.grossProfit)} tone={sign(t.grossProfit)} bold />
+      {day && <Row label="− Pengeluaran toko" value={rupiah(day.expense)} />}
+      {day && <Row label="= Untung bersih" value={rupiah(day.netProfit)} tone={sign(day.netProfit)} bold />}
+      <Row label="Diterima tunai" value={rupiah(t.cash)} />
+      <Row label="Diterima non-tunai" value={rupiah(t.cashless)} />
     </div>
   );
 }
@@ -128,7 +134,7 @@ export function CloseShiftModal({ shiftId, onCancel, onDone }: { shiftId: string
                 <Block title="Shift ini" t={result.summary.shift} />
                 <Block title={`Hari ini (${formatWibDate(new Date())} WIB)`} t={result.summary.day} day={result.summary.day} />
                 <p className="text-xs text-muted-foreground">
-                  Hari ini = semua kasir sejak 00.00 WIB. Untung kotor = omzet dikurangi modal barang terjual (setelah promo); angkanya sama dengan halaman Keuangan.
+                  Hari ini = semua kasir sejak 00.00 WIB. Pengeluaran toko dihitung per hari, bukan per shift, jadi untung bersih hanya ada di ringkasan hari. Angkanya sama dengan halaman Keuangan &quot;Hari Ini&quot;.
                 </p>
               </>
             ) : (
