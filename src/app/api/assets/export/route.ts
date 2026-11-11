@@ -4,6 +4,7 @@ import { ListAssetsUseCase } from "@/modules/assets/application/asset-use-cases"
 import { buildAssetSpec, buildAssetXlsx } from "@/modules/assets/infrastructure/asset-export-spec";
 import { buildA4Preview } from "@/shared/export/a4-preview";
 import { XLSX_CONTENT_TYPE } from "@/shared/export/a4-workbook";
+import { wibDayKey } from "@/shared/format/wib";
 
 /** Aset Toko as an A4 sheet. `?format=preview` returns it as display text for the preview window. */
 export async function GET(req: NextRequest) {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ sheets: buildA4Preview(buildAssetSpec(assets, by)) });
     }
     const file = await buildAssetXlsx(assets, by);
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = wibDayKey(new Date());
     return new NextResponse(new Uint8Array(file), {
       headers: {
         "Content-Type": XLSX_CONTENT_TYPE,

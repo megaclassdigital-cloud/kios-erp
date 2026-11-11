@@ -5,14 +5,10 @@ import { ListTerminalsUseCase } from "@/modules/terminals/application/terminal-u
 import { PageHeader } from "@/components/kios/page-header";
 import { EmptyState } from "@/components/kios/empty-state";
 import { StatusBadge } from "@/components/kios/status-badge";
+import { formatWibDateTime } from "@/shared/format/wib";
 
 function formatDateTime(value: Date) {
-  return value.toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return `${formatWibDateTime(value)} WIB`;
 }
 
 /** Answers the operational question that justified storing hardware in the

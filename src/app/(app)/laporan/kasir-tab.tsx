@@ -1,4 +1,5 @@
 import { prisma } from "@/shared/infrastructure/prisma";
+import { formatWibDateTime } from "@/shared/format/wib";
 
 function formatRupiah(value: string | number) {
   return `Rp${Number(value).toLocaleString("id-ID")}`;
@@ -80,7 +81,7 @@ export async function KasirTab({ start, end }: { start: Date; end: Date }) {
                 {shifts.map((s) => (
                   <tr key={s.id} className="border-t border-border">
                     <td className="whitespace-nowrap py-1.5 text-foreground">{s.cashier.name}</td>
-                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{s.closedAt?.toLocaleString("id-ID")}</td>
+                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{s.closedAt ? formatWibDateTime(s.closedAt) : "-"}</td>
                     <td className="whitespace-nowrap py-1.5 text-muted-foreground tabular-nums">{formatRupiah(s.expectedCash?.toString() ?? "0")}</td>
                     <td className="whitespace-nowrap py-1.5 text-muted-foreground tabular-nums">{formatRupiah(s.actualCash?.toString() ?? "0")}</td>
                     <td

@@ -1,3 +1,4 @@
+import { wibYmd } from "@/shared/format/wib";
 /**
  * Classifies how close a product is to its expiry date.
  *
@@ -41,8 +42,10 @@ export class ExpiryService {
   /** Whole days from `now` to `expiryDate`, compared date-to-date so a sale
    * at 09:00 and one at 21:00 on the same day agree. */
   daysUntil(expiryDate: Date, now: Date): number {
-    const expiry = Date.UTC(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
-    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    // Expiry is a date-only value (stored at UTC midnight); "today" is the shop's day (WIB).
+    const expiry = Date.UTC(expiryDate.getUTCFullYear(), expiryDate.getUTCMonth(), expiryDate.getUTCDate());
+    const t = wibYmd(now);
+    const today = Date.UTC(t.year, t.month - 1, t.day);
     return Math.round((expiry - today) / 86_400_000);
   }
 

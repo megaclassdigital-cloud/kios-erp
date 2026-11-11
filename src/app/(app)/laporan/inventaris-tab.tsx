@@ -1,4 +1,5 @@
 import { prisma } from "@/shared/infrastructure/prisma";
+import { formatWibDateTime } from "@/shared/format/wib";
 
 const MOVEMENT_LABEL: Record<string, string> = {
   PURCHASE: "Barang Masuk",
@@ -54,7 +55,7 @@ export async function InventarisTab({ start, end }: { start: Date; end: Date }) 
               <tbody>
                 {movements.map((m) => (
                   <tr key={m.id} className="border-t border-border">
-                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{m.createdAt.toLocaleString("id-ID")}</td>
+                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{formatWibDateTime(m.createdAt)}</td>
                     <td className="whitespace-nowrap py-1.5 text-foreground">{m.product.name}</td>
                     <td className="whitespace-nowrap py-1.5 text-muted-foreground">{MOVEMENT_LABEL[m.movementType] ?? m.movementType}</td>
                     <td

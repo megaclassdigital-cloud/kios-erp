@@ -39,7 +39,7 @@ export function ConsignmentManager() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
-          {updatedAt ? `Diperbarui ${updatedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Memuat..."}
+          {updatedAt ? `Diperbarui ${updatedAt.toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Memuat..."}
         </span>
         <button onClick={() => void load()} className="text-primary hover:underline">Muat ulang sekarang</button>
       </div>

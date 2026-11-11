@@ -2,6 +2,7 @@ import { auth } from "@/shared/security/auth";
 import { hasPermission } from "@/shared/security/permissions";
 import { prisma } from "@/shared/infrastructure/prisma";
 import { redirect } from "next/navigation";
+import { formatWibDateTime } from "@/shared/format/wib";
 
 /** Owner-only monitoring surface (PRD 4, 74): every sensitive action across
  * every role, with before/after values, in one place. */
@@ -35,7 +36,7 @@ export default async function AuditPage() {
             {logs.map((log) => (
               <tr key={log.id} className="border-t border-gray-100 align-top">
                 <td className="whitespace-nowrap px-3 py-2 text-gray-500">
-                  {log.createdAt.toLocaleString("id-ID")}
+                  {formatWibDateTime(log.createdAt)}
                 </td>
                 <td className="px-3 py-2 text-gray-700">
                   {log.actor.name} <span className="text-xs text-gray-400">({log.actor.role})</span>

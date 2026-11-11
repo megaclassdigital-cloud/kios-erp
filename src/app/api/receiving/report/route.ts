@@ -5,6 +5,7 @@ import { buildReceivingReportSpec, buildReceivingReportXlsx } from "@/modules/pu
 import { buildA4Preview } from "@/shared/export/a4-preview";
 import { XLSX_CONTENT_TYPE } from "@/shared/export/a4-workbook";
 import { resolvePeriod } from "@/app/(app)/laporan/resolve-period";
+import { wibDayKey } from "@/shared/format/wib";
 
 /** Barang Masuk history for a period. `?format=xlsx` returns the same rows as
  * an A4 workbook; otherwise JSON for the on-screen table. */
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
 
     if (searchParams.get("format") === "xlsx") {
       const file = await buildReceivingReportXlsx(report, period, session.user.name ?? "-", productId ? report.rows[0]?.productName : undefined);
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = wibDayKey(new Date());
       return new NextResponse(new Uint8Array(file), {
         headers: {
           "Content-Type": XLSX_CONTENT_TYPE,

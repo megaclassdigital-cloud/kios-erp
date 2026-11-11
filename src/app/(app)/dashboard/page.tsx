@@ -215,7 +215,7 @@ export default async function DashboardPage({
                 <li key={shift.id} className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
                   <span className="min-w-0 break-words text-foreground">{shift.cashier.name}</span>
                   <span className="text-muted-foreground">
-                    Sejak {shift.openedAt.toLocaleTimeString("id-ID")} · Modal{" "}
+                    Sejak {formatWibTime(shift.openedAt)} · Modal{" "}
                     {formatRupiah(shift.openingCash.toString())}
                   </span>
                 </li>

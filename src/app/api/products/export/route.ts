@@ -4,6 +4,7 @@ import { GetProductExportUseCase } from "@/modules/products/application/get-prod
 import { buildProductExportSpecs, buildProductExportXlsx } from "@/modules/products/infrastructure/product-export-xlsx";
 import { buildA4Preview } from "@/shared/export/a4-preview";
 import { XLSX_CONTENT_TYPE } from "@/shared/export/a4-workbook";
+import { wibDayKey } from "@/shared/format/wib";
 
 /** Master Produk as an A4 XLSX. `?search=` applies the same filter as the
  * search box on the screen. */
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ sheets: buildA4Preview(buildProductExportSpecs(data, search, session.user.name ?? "-")) });
     }
     const file = await buildProductExportXlsx(data, search, session.user.name ?? "-");
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = wibDayKey(new Date());
     return new NextResponse(new Uint8Array(file), {
       headers: {
         "Content-Type": XLSX_CONTENT_TYPE,

@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { TourButton } from "./tour/tour-button";
+import { formatWibTime } from "@/shared/format/wib";
 import {
   DashboardIcon,
   KasirIcon,
@@ -86,13 +87,13 @@ function LiveClock() {
     <div className="hidden items-center gap-2 md:flex">
       <div className="text-right leading-tight">
         <p className="hidden text-xs text-muted-foreground lg:block">
-          {now.toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "short", year: "numeric" })}
+          {now.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", weekday: "long", day: "2-digit", month: "short", year: "numeric" })}
         </p>
         <p className="text-sm font-semibold text-foreground tabular-nums">
-          {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+          {now.toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
-      {isNight(now.getHours()) ? (
+      {isNight(Number(formatWibTime(now).slice(0, 2))) ? (
         <Moon aria-label="Malam" className="h-5 w-5 shrink-0 text-info" />
       ) : (
         <Sun aria-label="Siang" className="h-5 w-5 shrink-0 text-warning" />
