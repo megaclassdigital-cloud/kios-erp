@@ -8,6 +8,7 @@ import { KpiCard } from "@/components/kios/kpi-card";
 import { KpiDetail, KpiLink, type DetailRow } from "@/components/kios/kpi-detail";
 import { EmptyState } from "@/components/kios/empty-state";
 import { resolvePeriod } from "../laporan/resolve-period";
+import { addWibDays, endOfWibDay, formatWibTime, startOfWibDay, wibDayKey, wibDayLabel } from "@/shared/format/wib";
 import { SalesTrendWidget } from "./sales-trend-widget";
 import { CashCashlessWidget } from "./cash-cashless-widget";
 import { ExpenseWidget } from "./expense-widget";
@@ -26,13 +27,9 @@ function formatRupiah(value: string) {
   return `Rp${Number(value).toLocaleString("id-ID")}`;
 }
 
-function dayLabel(d: Date) {
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit" });
-}
-
-function dayKey(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
+// Days are the shop's days (WIB): a sale at 06:00 WIB is today's, not yesterday's.
+const dayLabel = wibDayLabel;
+const dayKey = wibDayKey;
 
 function greeting(hour: number) {
   if (hour < 11) return "Selamat Pagi";
@@ -55,10 +52,10 @@ function buildDailySeries(
     totals.set(key, (totals.get(key) ?? 0) + Number(sale.grandTotal));
   }
   const series: { label: string; value: number }[] = [];
-  const cursor = new Date(start);
+  let cursor = new Date(start);
   while (cursor <= end) {
     series.push({ label: dayLabel(cursor), value: totals.get(dayKey(cursor)) ?? 0 });
-    cursor.setDate(cursor.getDate() + 1);
+    cursor = addWibDays(cursor, 1);
   }
   return series;
 }
@@ -70,14 +67,17 @@ export default async function DashboardPage({
 }) {
   const session = await auth();
   const canMonitorShifts = session ? hasPermission(session.user.role, "shifts.monitor") : false;
-  const startOfDay = new Date(new Date().setHours(0, 0, 0, 0));
   const now = new Date();
+  const startOfDay = startOfWibDay(now);
+  // End of the WIB day, same window as Keuangan's "Hari Ini": an expense dated today
+  // (stored at 07:00 WIB) must count even before 07:00.
+  const endOfDay = endOfWibDay(now);
   const trend = resolvePeriod(await searchParams);
 
   const [summary, transactionCount, products, recentSales, openShifts, trendSales, expenseByCategory, topProductsToday, todaySales] =
     await Promise.all([
-      new GetFinancialSummaryUseCase().execute(startOfDay, now),
-      prisma.sale.count({ where: { status: "PAID", paidAt: { gte: startOfDay, lte: now } } }),
+      new GetFinancialSummaryUseCase().execute(startOfDay, endOfDay),
+      prisma.sale.count({ where: { status: "PAID", paidAt: { gte: startOfDay, lte: endOfDay } } }),
       prisma.product.findMany({
         where: { active: true, trackInventory: true },
         select: { id: true, name: true, currentStock: true, minimumStock: true },
@@ -101,12 +101,12 @@ export default async function DashboardPage({
       }),
       prisma.expense.groupBy({
         by: ["category"],
-        where: { expenseDate: { gte: startOfDay, lte: now } },
+        where: { expenseDate: { gte: startOfDay, lte: endOfDay } },
         _sum: { amount: true },
       }),
       prisma.saleItem.groupBy({
         by: ["productId", "productNameSnapshot"],
-        where: { sale: { status: "PAID", paidAt: { gte: startOfDay, lte: now } } },
+        where: { sale: { status: "PAID", paidAt: { gte: startOfDay, lte: endOfDay } } },
         _sum: { quantity: true, subtotal: true },
         orderBy: { _sum: { subtotal: "desc" } },
         take: 5,
@@ -114,7 +114,7 @@ export default async function DashboardPage({
       // Behind the day's sales cards; opening one must not be able to break the page.
       prisma.sale
         .findMany({
-          where: { status: "PAID", paidAt: { gte: startOfDay, lte: now } },
+          where: { status: "PAID", paidAt: { gte: startOfDay, lte: endOfDay } },
           orderBy: { paidAt: "desc" },
           take: 100,
           select: { transactionNumber: true, paidAt: true, paymentMethod: true, grandTotal: true },
@@ -135,7 +135,7 @@ export default async function DashboardPage({
     (todaySales ?? [])
       .filter((s) => !method || s.paymentMethod === method)
       .map((s) => ({
-        cells: [s.transactionNumber, (s.paidAt ?? now).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }), s.paymentMethod === "CASH" ? "Tunai" : "Non-tunai", formatRupiah(s.grandTotal.toString())],
+        cells: [s.transactionNumber, formatWibTime(s.paidAt ?? now), s.paymentMethod === "CASH" ? "Tunai" : "Non-tunai", formatRupiah(s.grandTotal.toString())],
       }));
   const saleColumns = [{ header: "No. Transaksi" }, { header: "Jam" }, { header: "Metode" }, { header: "Total", align: "right" as const }];
   const saleEmpty = todaySales ? "Belum ada transaksi hari ini." : "Rincian belum bisa dimuat. Muat ulang halaman untuk mencoba lagi.";
@@ -151,7 +151,7 @@ export default async function DashboardPage({
         <div className="pointer-events-none absolute -bottom-16 right-28 h-28 w-28 rounded-full bg-info/10" />
         <div className="relative">
           <h1 className="text-xl font-bold text-foreground md:text-2xl">
-            {greeting(now.getHours())}, {firstName}!
+            {greeting(Number(formatWibTime(now).slice(0, 2)))}, {firstName}!
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Semangat hari ini! Berikut ringkasan aktivitas toko Anda.</p>
         </div>

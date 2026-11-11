@@ -2,8 +2,12 @@ import type { PeriodKey } from "./resolve-period";
 
 const PRESETS: { key: PeriodKey; label: string }[] = [
   { key: "today", label: "Hari Ini" },
+  { key: "yesterday", label: "Kemarin" },
   { key: "7d", label: "7 Hari" },
   { key: "30d", label: "30 Hari" },
+  { key: "month", label: "Bulan Ini" },
+  { key: "lastmonth", label: "Bulan Lalu" },
+  { key: "year", label: "Tahun Ini" },
 ];
 
 /** Server-rendered period picker — presets are plain links, custom range is
@@ -13,11 +17,14 @@ export function PeriodSelector({
   active,
   extraParams,
   presets = PRESETS,
+  custom,
 }: {
   basePath: string;
   active: PeriodKey;
   extraParams?: Record<string, string>;
   presets?: { key: PeriodKey; label: string }[];
+  /** The range currently applied, so the date boxes keep showing it. */
+  custom?: { from?: string; to?: string };
 }) {
   const qs = new URLSearchParams(extraParams);
 
@@ -43,9 +50,9 @@ export function PeriodSelector({
           <input key={k} type="hidden" name={k} value={v} />
         ))}
         <input type="hidden" name="period" value="custom" />
-        <input type="date" name="from" required className="rounded-md border border-input px-2 py-1 text-sm" />
+        <input type="date" name="from" required defaultValue={custom?.from} className="rounded-md border border-input px-2 py-1 text-sm" />
         <span className="text-muted-foreground">—</span>
-        <input type="date" name="to" required className="rounded-md border border-input px-2 py-1 text-sm" />
+        <input type="date" name="to" required defaultValue={custom?.to} className="rounded-md border border-input px-2 py-1 text-sm" />
         <button
           type="submit"
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${

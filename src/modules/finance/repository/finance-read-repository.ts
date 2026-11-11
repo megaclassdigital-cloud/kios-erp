@@ -17,7 +17,18 @@ export interface ProductBreakdownRow {
   cogs: string;
 }
 
+/** Takings of a period or a shift, from the same snapshots as the finance page. */
+export interface SalesTotals {
+  revenue: string;
+  cogs: string;
+  transactions: number;
+}
+
 export interface FinanceReadRepository {
+  /** Paid sales in a period (by payment time), optionally only one cashier's. */
+  periodTotals(start: Date, end: Date, cashierId?: string): Promise<SalesTotals>;
+  /** Paid sales rung up on one cashier shift. */
+  shiftTotals(shiftId: string): Promise<SalesTotals>;
   summary(start: Date, end: Date): Promise<FinancialAggregate>;
   /** Paid sales grouped by product, biggest revenue first (for the card details). */
   productBreakdown(start: Date, end: Date, limit: number): Promise<ProductBreakdownRow[]>;

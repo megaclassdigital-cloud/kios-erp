@@ -1,3 +1,13 @@
+import {
+  addWibDays,
+  endOfWibDay,
+  parseWibDateInput,
+  startOfWibDay,
+  wibStartOf,
+  wibWeekday,
+  wibYmd,
+} from "@/shared/format/wib";
+
 export type PeriodKey =
   | "today"
   | "yesterday"
@@ -16,67 +26,54 @@ export interface ResolvedPeriod {
   label: string;
 }
 
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function endOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-}
-
-/** PRD 54: report periods are Today/Weekly/Monthly/Custom, driven entirely
- * by the URL so report pages stay server components with no client JS. */
-export function resolvePeriod(searchParams: {
-  period?: string;
-  from?: string;
-  to?: string;
-}): ResolvedPeriod {
-  const now = new Date();
+/**
+ * Report periods (PRD 54), driven entirely by the URL so pages stay server
+ * components. Every boundary is a WIB calendar day: the server runs in UTC, and
+ * a UTC "day" would begin at 07:00 WIB and split the shop's evening sales from
+ * its morning ones.
+ */
+export function resolvePeriod(
+  searchParams: { period?: string; from?: string; to?: string },
+  now: Date = new Date()
+): ResolvedPeriod {
+  const today = startOfWibDay(now);
+  const { year, month } = wibYmd(now);
 
   if (searchParams.period === "custom" && searchParams.from && searchParams.to) {
-    const from = new Date(searchParams.from);
-    const to = new Date(searchParams.to);
-    if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
-      return { key: "custom", start: startOfDay(from), end: endOfDay(to), label: "Custom" };
+    const from = parseWibDateInput(searchParams.from);
+    const to = parseWibDateInput(searchParams.to);
+    if (from && to && from.getTime() <= to.getTime()) {
+      return { key: "custom", start: from, end: endOfWibDay(to), label: "Custom" };
     }
   }
 
-  if (searchParams.period === "today") {
-    return { key: "today", start: startOfDay(now), end: endOfDay(now), label: "Hari Ini" };
+  switch (searchParams.period) {
+    case "today":
+      return { key: "today", start: today, end: endOfWibDay(now), label: "Hari Ini" };
+    case "yesterday": {
+      const y = addWibDays(today, -1);
+      return { key: "yesterday", start: y, end: endOfWibDay(y), label: "Kemarin" };
+    }
+    case "week": {
+      // Calendar week, Monday first, as a shop week is counted here.
+      const sinceMonday = (wibWeekday(now) + 6) % 7;
+      return { key: "week", start: addWibDays(today, -sinceMonday), end: endOfWibDay(now), label: "Minggu Ini" };
+    }
+    case "lastmonth":
+      return {
+        key: "lastmonth",
+        start: wibStartOf(year, month - 1, 1),
+        // Day 0 of this month is the last day of the previous one.
+        end: endOfWibDay(wibStartOf(year, month, 0)),
+        label: "Bulan Lalu",
+      };
+    case "30d":
+      return { key: "30d", start: addWibDays(today, -29), end: endOfWibDay(now), label: "30 Hari Terakhir" };
+    case "month":
+      return { key: "month", start: wibStartOf(year, month, 1), end: endOfWibDay(now), label: "Bulan Ini" };
+    case "year":
+      return { key: "year", start: wibStartOf(year, 1, 1), end: endOfWibDay(now), label: "Tahun Ini" };
+    default:
+      return { key: "7d", start: addWibDays(today, -6), end: endOfWibDay(now), label: "7 Hari Terakhir" };
   }
-
-  if (searchParams.period === "yesterday") {
-    const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-    return { key: "yesterday", start: startOfDay(y), end: endOfDay(y), label: "Kemarin" };
-  }
-
-  if (searchParams.period === "week") {
-    // Calendar week, Monday first, as a shop week is counted here.
-    const sinceMonday = (now.getDay() + 6) % 7;
-    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - sinceMonday);
-    return { key: "week", start: monday, end: endOfDay(now), label: "Minggu Ini" };
-  }
-
-  if (searchParams.period === "lastmonth") {
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    // Day 0 of this month is the last day of the previous one.
-    const end = endOfDay(new Date(now.getFullYear(), now.getMonth(), 0));
-    return { key: "lastmonth", start, end, label: "Bulan Lalu" };
-  }
-
-  if (searchParams.period === "30d") {
-    const start = startOfDay(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000));
-    return { key: "30d", start, end: endOfDay(now), label: "30 Hari Terakhir" };
-  }
-
-  if (searchParams.period === "month") {
-    return { key: "month", start: new Date(now.getFullYear(), now.getMonth(), 1), end: endOfDay(now), label: "Bulan Ini" };
-  }
-
-  if (searchParams.period === "year") {
-    return { key: "year", start: new Date(now.getFullYear(), 0, 1), end: endOfDay(now), label: "Tahun Ini" };
-  }
-
-  const start = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
-  return { key: "7d", start, end: endOfDay(now), label: "7 Hari Terakhir" };
 }

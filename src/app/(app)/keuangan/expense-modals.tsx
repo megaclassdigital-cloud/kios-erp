@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { wibDayKey } from "@/shared/format/wib";
 
 export interface ExpenseRow {
   id: string;
@@ -21,10 +22,8 @@ const CATEGORIES = [
   { value: "OTHER", label: "Lain-lain" },
 ];
 const input = "w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:border-ring focus:outline-none";
-const dateOnly = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+// Dates are the shop's days (WIB), whatever zone the browser is in.
+const dateOnly = (iso: string) => wibDayKey(new Date(iso));
 
 async function send(url: string, method: string, body: unknown): Promise<string | null> {
   try {

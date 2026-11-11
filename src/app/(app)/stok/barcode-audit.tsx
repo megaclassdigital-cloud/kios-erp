@@ -6,6 +6,7 @@ import { ProductPicker, serverSearch } from "../product-picker";
 import { ScanSources } from "../scan-sources";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { InventoryService } from "@/modules/inventory/domain/inventory-service";
+import { formatWibDateTime } from "@/shared/format/wib";
 
 const inventoryService = new InventoryService();
 
@@ -174,7 +175,7 @@ export function BarcodeAudit() {
                 ) : (
                   result.movements.map((m) => (
                     <tr key={m.id} className="border-t border-border">
-                      <td className="py-1.5 text-muted-foreground">{new Date(m.createdAt).toLocaleString("id-ID")}</td>
+                      <td className="py-1.5 text-muted-foreground">{formatWibDateTime(new Date(m.createdAt))}</td>
                       <td className="py-1.5 text-foreground">{MOVEMENT_LABEL[m.movementType] ?? m.movementType}</td>
                       <td
                         className={`py-1.5 font-medium tabular-nums ${

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { buildReceiptBytes, type PrintableSale } from "@/shared/printing/receipt-escpos";
 import type { ShiftSalesSummary } from "@/modules/pos/domain/shift-sales-summary";
 import { ThermalPrintButton } from "../thermal-print-button";
+import { formatWibTime } from "@/shared/format/wib";
 
 interface SaleLine {
   productNameSnapshot: string;
@@ -89,7 +90,7 @@ export function ShiftHistory({ shiftId, refreshKey }: { shiftId: string; refresh
               <header className="flex flex-wrap items-center justify-between gap-2 bg-muted px-3 py-2 text-xs">
                 <span className="font-mono text-foreground">{sale.transactionNumber}</span>
                 <span className="text-muted-foreground">
-                  {new Date(sale.paidAt ?? sale.createdAt).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" })} · {sale.paymentMethod === "CASH" ? "Tunai" : "Non-tunai"}
+                  {formatWibTime(new Date(sale.paidAt ?? sale.createdAt))} · {sale.paymentMethod === "CASH" ? "Tunai" : "Non-tunai"}
                 </span>
                 <span className={`rounded-full px-2 py-0.5 font-medium ${status.className}`}>{status.label}</span>
               </header>

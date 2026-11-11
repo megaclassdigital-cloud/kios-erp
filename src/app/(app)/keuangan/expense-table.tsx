@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/kios/empty-state";
 import { ExpenseEditModal, ExpenseMoveModal, type ExpenseRow } from "./expense-modals";
+import { formatWibDate } from "@/shared/format/wib";
 
 const LABEL: Record<string, string> = {
   SUPPLIER: "Supplier (tidak dipakai lagi)",
@@ -94,7 +95,7 @@ export function ExpenseTable({
             )}
             {shown.map((e) => (
               <tr key={e.id} className="border-t border-border">
-                <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{new Date(e.expenseDate).toLocaleDateString("id-ID")}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatWibDate(new Date(e.expenseDate))}</td>
                 <td className="px-3 py-2 text-foreground">{LABEL[e.category] ?? e.category}</td>
                 <td className="px-3 py-2 text-muted-foreground">
                   {e.description ?? "—"}

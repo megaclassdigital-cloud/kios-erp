@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { Db } from "@/shared/infrastructure/transaction-manager";
-import type { FinanceReadRepository, FinancialAggregate, ProductBreakdownRow } from "../repository/finance-read-repository";
+import type { FinanceReadRepository, FinancialAggregate, ProductBreakdownRow, SalesTotals } from "../repository/finance-read-repository";
 
 /** Revenue/cogs and cash/cashless are deliberately two separate queries
  * rather than one join: sale_items joined to sales would duplicate each
@@ -23,6 +23,33 @@ export class PrismaFinanceReadRepository implements FinanceReadRepository {
       ORDER BY SUM(si.quantity * si."unitPriceAtSale" - si."discountAmount") DESC
       LIMIT ${limit}
     `);
+  }
+
+  async periodTotals(start: Date, end: Date, cashierId?: string): Promise<SalesTotals> {
+    const who = cashierId ? Prisma.sql`AND s."cashierId" = ${cashierId}` : Prisma.empty;
+    const rows = await this.db.$queryRaw<{ revenue: string; cogs: string; transactions: number }[]>(Prisma.sql`
+      SELECT
+        COALESCE(SUM(si.quantity * si."unitPriceAtSale" - si."discountAmount"), 0)::text AS revenue,
+        COALESCE(SUM(si.quantity * si."costPriceAtSale"), 0)::text AS cogs,
+        COUNT(DISTINCT s.id)::int AS transactions
+      FROM sale_items si
+      JOIN sales s ON s.id = si."saleId"
+      WHERE s.status = 'PAID' AND s."paidAt" >= ${start} AND s."paidAt" <= ${end} ${who}
+    `);
+    return { revenue: rows[0]?.revenue ?? "0", cogs: rows[0]?.cogs ?? "0", transactions: rows[0]?.transactions ?? 0 };
+  }
+
+  async shiftTotals(shiftId: string): Promise<SalesTotals> {
+    const rows = await this.db.$queryRaw<{ revenue: string; cogs: string; transactions: number }[]>(Prisma.sql`
+      SELECT
+        COALESCE(SUM(si.quantity * si."unitPriceAtSale" - si."discountAmount"), 0)::text AS revenue,
+        COALESCE(SUM(si.quantity * si."costPriceAtSale"), 0)::text AS cogs,
+        COUNT(DISTINCT s.id)::int AS transactions
+      FROM sale_items si
+      JOIN sales s ON s.id = si."saleId"
+      WHERE s.status = 'PAID' AND s."shiftId" = ${shiftId}
+    `);
+    return { revenue: rows[0]?.revenue ?? "0", cogs: rows[0]?.cogs ?? "0", transactions: rows[0]?.transactions ?? 0 };
   }
 
   async summary(start: Date, end: Date): Promise<FinancialAggregate> {

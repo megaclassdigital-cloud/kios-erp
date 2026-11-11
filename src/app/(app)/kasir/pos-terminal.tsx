@@ -10,6 +10,7 @@ import { PaymentModal } from "./payment-modal";
 import { PromoEditor } from "./promo-editor";
 import { PrinterSettingsModal } from "../printer-settings";
 import { ShiftHistory } from "./shift-history";
+import { CloseShiftModal } from "./close-shift-modal";
 import { ProductPicker, type PickerItem } from "../product-picker";
 import { searchProducts } from "@/modules/products/domain/product-search";
 import { cartTotals, clampPromo, lineDiscount, lineGross, lineNet, promoLabel } from "./cart-math";
@@ -23,6 +24,7 @@ import { PageHeader } from "@/components/kios/page-header";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { BarcodeValue } from "@/shared/barcode/barcode-value";
 import type { PosCatalogItem } from "@/modules/products/repository/pos-catalog-repository";
+import { formatWibTime } from "@/shared/format/wib";
 
 const inventoryService = new InventoryService();
 const expiryService = new ExpiryService();
@@ -73,6 +75,7 @@ function useShiftDuration(openedAt: string) {
 
 export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShiftClosed: () => void }) {
   const shiftId = shift.id;
+  const [closing, setClosing] = useState(false);
   const { data: session } = useSession();
   const duration = useShiftDuration(shift.openedAt);
   const queryClient = useQueryClient();
@@ -323,17 +326,6 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
     setCart((prev) => prev.filter((l) => l.lineId !== lineId));
   }
 
-  async function closeShift() {
-    const actualCash = window.prompt("Masukkan jumlah kas aktual saat ini:");
-    if (actualCash === null) return;
-    const res = await fetch("/api/pos/shifts/close", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shiftId, actualCash }),
-    });
-    if (res.ok) onShiftClosed();
-  }
-
   return (
     <div className="space-y-4">
       <PageHeader
@@ -361,7 +353,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
               Printer
             </button>
             <button
-              onClick={closeShift}
+              onClick={() => setClosing(true)}
               data-tour="close-shift"
               className="flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive-soft px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/20"
             >
@@ -571,7 +563,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Mulai Shift</dt>
                 <dd className="text-foreground tabular-nums">
-                  {new Date(shift.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                  {formatWibTime(new Date(shift.openedAt))}
                 </dd>
               </div>
               <div className="flex justify-between">
@@ -601,6 +593,7 @@ export function PosTerminal({ shift, onShiftClosed }: { shift: OpenShift; onShif
       {/* Below the till and the payment panel: the shift's own transactions, with their lines. */}
       <ShiftHistory shiftId={shiftId} refreshKey={completedSaleCount} />
 
+      {closing && <CloseShiftModal shiftId={shiftId} onCancel={() => setClosing(false)} onDone={onShiftClosed} />}
       {printerOpen && <PrinterSettingsModal onClose={() => setPrinterOpen(false)} />}
 
       {showPayment && (

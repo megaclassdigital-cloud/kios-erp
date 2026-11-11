@@ -16,6 +16,7 @@ import { FinanceSlipButton } from "./finance-slip-button";
 import { ExpenseTable } from "./expense-table";
 import Link from "next/link";
 import { ListAssetsUseCase } from "@/modules/assets/application/asset-use-cases";
+import { formatWibDateTime } from "@/shared/format/wib";
 
 function formatRupiah(value: string) {
   return `Rp${Number(value).toLocaleString("id-ID")}`;
@@ -74,7 +75,7 @@ export default async function KeuanganPage({
     (sales ?? [])
       .filter((s) => !method || s.paymentMethod === method)
       .map((s) => ({
-        cells: [s.transactionNumber, (s.paidAt ?? new Date()).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), s.cashier.name, s.paymentMethod === "CASH" ? "Tunai" : "Non-tunai", formatRupiah(s.grandTotal.toString())],
+        cells: [s.transactionNumber, formatWibDateTime(s.paidAt ?? new Date()), s.cashier.name, s.paymentMethod === "CASH" ? "Tunai" : "Non-tunai", formatRupiah(s.grandTotal.toString())],
       }));
   const saleColumns = [{ header: "No. Transaksi" }, { header: "Waktu" }, { header: "Kasir" }, { header: "Metode" }, { header: "Total", align: "right" as const }];
   const salesNote = sales && transactionCount > sales.length ? `Menampilkan ${sales.length} terbaru dari ${transactionCount} transaksi.` : undefined;
@@ -137,7 +138,7 @@ export default async function KeuanganPage({
       />
 
       <div data-tour="period" className="flex flex-wrap items-center justify-between gap-2">
-        <PeriodSelector basePath="/keuangan" active={period.key} />
+        <PeriodSelector basePath="/keuangan" active={period.key} custom={params} />
         <div data-tour="print-slip" className="flex flex-wrap items-center gap-2">
         <FinanceSlipButton
           title="Ringkasan Keuangan"

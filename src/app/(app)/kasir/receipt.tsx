@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { printReceipt } from "@/shared/printing/print-receipt";
 import { readPrinterConfig } from "@/shared/printing/printer-config";
 import { PrinterSettingsModal } from "../printer-settings";
+import { formatWibDateTime } from "@/shared/format/wib";
 
 interface ReceiptItem {
   productNameSnapshot: string;
@@ -80,7 +81,7 @@ export function Receipt({ sale, onClose }: { sale: ReceiptSale; onClose: () => v
           <div className="my-2 border-t border-dashed border-gray-300" />
           <p>No: {sale.transactionNumber}</p>
           <p>
-            {date.toLocaleDateString("id-ID")} {date.toLocaleTimeString("id-ID")}
+            {formatWibDateTime(date)} WIB
           </p>
           <p>Kasir: {sale.cashier?.name ?? "-"}</p>
           <div className="my-2 border-t border-dashed border-gray-300" />

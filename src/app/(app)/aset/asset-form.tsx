@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CONDITION_LABEL } from "@/modules/assets/domain/asset";
+import { wibDayKey } from "@/shared/format/wib";
 
 export interface AssetFormValues {
   name: string;
@@ -13,7 +14,7 @@ export interface AssetFormValues {
   note: string;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => wibDayKey(new Date());
 export const emptyAsset = (category = ""): AssetFormValues => ({
   name: "",
   category,

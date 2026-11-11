@@ -1,9 +1,13 @@
+import { wibYmd } from "@/shared/format/wib";
+
 function pad(n: number, width: number): string {
   return n.toString().padStart(width, "0");
 }
 
 function todayCompact(date: Date): string {
-  return `${date.getFullYear()}${pad(date.getMonth() + 1, 2)}${pad(date.getDate(), 2)}`;
+  // The shop's day (WIB), so the number's date matches the date on the receipt.
+  const { year, month, day } = wibYmd(date);
+  return `${year}${pad(month, 2)}${pad(day, 2)}`;
 }
 
 /** Formats a concurrency-safe daily counter (see DailyCounterRepository)

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ProductPicker, serverSearch, type PickerItem } from "../product-picker";
 import { rupiah, send } from "./types";
+import { wibDayKey } from "@/shared/format/wib";
 
 /**
  * "Catat penjualan susulan": consigned goods that sold but were never rung up
@@ -22,7 +23,7 @@ export function CatchUpForm({ suppliers, onSaved }: { suppliers: { id: string; n
   const search = useMemo(() => (supplierId ? serverSearch("consignment", `&consignorId=${encodeURIComponent(supplierId)}`) : async () => []), [supplierId]);
   const cost = Number(product?.purchasePrice ?? 0);
   const price = Number(product?.sellingPrice ?? 0);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = wibDayKey(new Date());
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

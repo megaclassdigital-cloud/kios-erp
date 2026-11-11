@@ -53,7 +53,7 @@ export default async function LaporanPage({
         </div>
       </div>
 
-      <PeriodSelector basePath="/laporan" active={period.key} extraParams={{ tab }} />
+      <PeriodSelector basePath="/laporan" active={period.key} extraParams={{ tab }} custom={params} />
       <TabNav active={tab} periodQuery={periodQuery} />
 
       {tab === "produk" && <ProdukTab start={period.start} end={period.end} />}
