@@ -2,7 +2,46 @@
 
 Dokumen ini satu-satunya ringkasan yang dibutuhkan agent (atau developer) baru
 untuk memahami proyek ini. Baca juga `AGENTS.md` (aturan arsitektur, wajib) dan
-`docs/ROADMAP.md` (rencana jangka panjang). Terakhir diperbarui 14 Nov 2026.
+`docs/ROADMAP.md` (rencana jangka panjang). Terakhir diperbarui 14 Nov 2026 (lihat `docs/CHANGELOG.md` untuk apa yang berubah).
+
+## 0. Mulai di sini (baca 1 menit)
+
+**Tiga dokumen, satu pintu masuk:** file ini (konteks dan aturan),
+`docs/API.md` (semua route + izin), `docs/CHANGELOG.md` (apa yang baru berubah
+dan kenapa). Baca bagian 0, 4, 6 dan 9 sebelum menyentuh kode; sisanya sebagai
+rujukan.
+
+**Kewajiban dokumentasi:** setiap perbaikan, penambahan, atau penghapusan
+memperbarui dokumen di commit yang sama (aturan lengkap di `AGENTS.md`).
+`src/docs-consistency.test.ts` gagal bila `docs/API.md` tidak cocok dengan route
+atau file yang disebut di sini sudah tidak ada. Bila Anda menemukan keterangan
+yang salah, perbaiki saat itu juga.
+
+**Sebelum commit, checklist:** `npx tsc --noEmit` · `npx eslint src` ·
+`npx vitest run` · build penuh bila menyentuh halaman/route · dokumen
+diperbarui · tidak ada nilai rahasia.
+
+### Peta: mau mengubah apa → mulai dari file mana
+
+| Tugas | Mulai dari |
+|---|---|
+| Rumus omzet / modal / untung | `src/modules/finance/infrastructure/prisma-finance-read-repository.ts`, `src/modules/finance/domain/profit-service.ts` |
+| Ringkasan tutup shift | `src/modules/pos/domain/shift-close-summary.ts`, `src/modules/pos/application/get-shift-close-summary-use-case.ts`, `src/app/(app)/kasir/close-shift-modal.tsx` |
+| Checkout / refund / shift | `src/modules/pos/application/` (use case), `src/app/api/pos/**` |
+| Periode laporan, batas hari | `src/app/(app)/laporan/resolve-period.ts`, `src/shared/format/wib.ts` |
+| Menampilkan jam/tanggal | hanya helper di `src/shared/format/wib.ts` |
+| Lembar laporan (kolom, rumus Excel) | `src/modules/reports/domain/report-specs.ts` |
+| Query data laporan/ekspor | `src/modules/reports/infrastructure/prisma-report-repository.ts` |
+| Format ekspor (xlsx/pdf/csv/preview) | `src/shared/export/` (`a4-workbook.ts`, `a4-pdf.ts`, `a4-preview.ts`, `export-response.ts`) |
+| Tombol ekspor/cetak di halaman | `src/app/(app)/laporan/export-toolbar.tsx`, `src/app/(app)/export-preview.tsx` |
+| CSS cetak (struk, label, A4) | `src/app/globals.css` (blok `@media print`) |
+| Struk / slip thermal | `src/shared/printing/` |
+| Halaman Transaksi | `src/app/(app)/transaksi/page.tsx` |
+| Titipan | `src/modules/consignment/`, `src/app/(app)/titipan/` |
+| Izin / peran | `src/shared/security/permissions.ts` (lalu `docs/API.md`) |
+| Model data / migrasi | `prisma/schema.prisma` + migrasi baru di `prisma/migrations/` |
+| Stok | `moveStock` di modul inventory; jangan ubah `currentStock` langsung |
+| Pengumuman / tur | `src/modules/announcements/announcements.ts`, `src/app/(app)/tour/tour-steps.ts` |
 
 > **Aturan keamanan dokumen ini:** hanya *nama* variabel dan kunci yang dicatat.
 > Nilai rahasia (password, token, API key) **tidak pernah** ditulis di repo,
@@ -286,11 +325,6 @@ Jangan mengedit migrasi yang sudah diterapkan.
 - Tampilan layar belum pernah diuji otomatis di browser; cek manual setelah
   perubahan UI besar.
 
-## 12. Riwayat singkat perubahan terbaru (Nov 2026)
+## 12. Riwayat perubahan
 
-1. Ledger titipan tercatat saat checkout; polling dihapus.
-2. Penjualan susulan, lencana Titipan, harga jual + margin otomatis.
-3. Semua batas periode dan tampilan jam dipindah ke WIB; filter periode di Transaksi.
-4. Ringkasan omzet/untung setelah tutup shift; daftar barang+harga di Transaksi.
-5. Ekspor terpadu (preview/cetak, Excel, PDF, CSV) untuk semua laporan;
-   perbaikan CSS cetak yang menghasilkan halaman kosong.
+Lihat `docs/CHANGELOG.md` (terbaru di atas). Daftar route: `docs/API.md`.

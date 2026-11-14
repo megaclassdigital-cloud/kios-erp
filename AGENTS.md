@@ -38,3 +38,25 @@ checked into this repo). Key non-negotiables when touching this codebase:
 - **No god files.** Keep modules under ~300 lines; split by responsibility
   before that, not after.
 
+
+# Dokumentasi untuk agent (wajib diperbarui)
+
+Konteks proyek ada di [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) —
+**baca dulu** sebelum mengubah kode. Dokumen pendampingnya:
+[`docs/API.md`](docs/API.md) (semua route + izin) dan
+[`docs/CHANGELOG.md`](docs/CHANGELOG.md) (riwayat perubahan, terbaru di atas).
+
+Aturan: **setiap perubahan yang menambah, mengubah, atau menghapus** fitur,
+aturan bisnis, route API, model/migrasi, izin, halaman, atau cara kerja
+developer harus memperbarui dokumen yang relevan **di commit yang sama**:
+
+1. `docs/CHANGELOG.md`: tambah entri di atas (apa, kenapa, file kunci, jebakan).
+2. `docs/PROJECT_CONTEXT.md`: perbarui bagian yang terdampak (peta "ubah apa →
+   file mana", aturan bisnis, halaman, status/rencana). Hapus yang sudah tidak
+   benar; jangan menumpuk catatan usang.
+3. `docs/API.md`: satu baris per route (metode, izin, fungsi).
+
+`src/docs-consistency.test.ts` menggagalkan tes bila `docs/API.md` tidak sama
+dengan route di kode atau bila `PROJECT_CONTEXT.md` menunjuk file yang tidak
+ada. Tulis dokumen ringkas dan konkret: nama file lengkap dalam backtick,
+aturan sebagai kalimat tegas, tanpa nilai rahasia (hanya nama variabel).
