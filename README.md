@@ -4,6 +4,8 @@ Internal retail ERP/POS for a sembako store (kasir, inventory, barcode,
 receiving, stock opname, finance, reporting). Next.js (App Router) +
 TypeScript + PostgreSQL (Prisma), modular monolith with 7 logical layers.
 
+> Agent atau developer baru: mulai dari [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md).
+
 ## Getting started
 
 ```bash

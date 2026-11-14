@@ -35,7 +35,7 @@ export default async function LaporanPage({
     ...(period.key === "custom" ? { from: params.from ?? "", to: params.to ?? "" } : {}),
   }).toString();
 
-  const csvHref = `/api/reports/export?tab=${tab}&${periodQuery}`;
+  const exportUrl = `/api/reports/export?tab=${tab}&${periodQuery}`;
 
   return (
     <div className="space-y-4">
@@ -49,7 +49,7 @@ export default async function LaporanPage({
               Pantau perkembangan usaha Anda dengan laporan yang lengkap dan akurat — {period.label}.
             </p>
           </div>
-          <ExportToolbar csvHref={csvHref} />
+          <ExportToolbar exportUrl={exportUrl} />
         </div>
       </div>
 

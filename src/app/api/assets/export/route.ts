@@ -1,29 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireSession, toErrorResponse } from "@/shared/security/require-session";
 import { ListAssetsUseCase } from "@/modules/assets/application/asset-use-cases";
-import { buildAssetSpec, buildAssetXlsx } from "@/modules/assets/infrastructure/asset-export-spec";
-import { buildA4Preview } from "@/shared/export/a4-preview";
-import { XLSX_CONTENT_TYPE } from "@/shared/export/a4-workbook";
+import { buildAssetSpec } from "@/modules/assets/infrastructure/asset-export-spec";
+import { parseExportFormat, respondWithSpecs } from "@/shared/export/export-response";
 import { wibDayKey } from "@/shared/format/wib";
 
-/** Aset Toko as an A4 sheet. `?format=preview` returns it as display text for the preview window. */
+/** Aset Toko as an A4 sheet (preview, Excel, PDF, CSV). */
 export async function GET(req: NextRequest) {
   try {
     const session = await requireSession("assets.manage");
     const { assets } = await new ListAssetsUseCase().execute();
-    const by = session.user.name ?? "-";
-    if (new URL(req.url).searchParams.get("format") === "preview") {
-      return NextResponse.json({ sheets: buildA4Preview(buildAssetSpec(assets, by)) });
-    }
-    const file = await buildAssetXlsx(assets, by);
-    const stamp = wibDayKey(new Date());
-    return new NextResponse(new Uint8Array(file), {
-      headers: {
-        "Content-Type": XLSX_CONTENT_TYPE,
-        "Content-Disposition": `attachment; filename="aset-toko-${stamp}.xlsx"`,
-        "Cache-Control": "no-store",
-      },
-    });
+    const spec = buildAssetSpec(assets, session.user.name ?? "-");
+    return await respondWithSpecs([spec], parseExportFormat(new URL(req.url).searchParams.get("format")), `aset-toko-${wibDayKey(new Date())}`);
   } catch (error) {
     return toErrorResponse(error);
   }

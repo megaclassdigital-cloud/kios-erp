@@ -6,7 +6,7 @@ import { Boxes, Wallet, Wrench } from "lucide-react";
 import { KpiCard } from "@/components/kios/kpi-card";
 import { CONDITION_LABEL, type AssetSummary } from "@/modules/assets/domain/asset";
 import { formatWibDate } from "@/shared/format/wib";
-import { ExportPreviewButton } from "../export-preview";
+import { ExportToolbar } from "../laporan/export-toolbar";
 import { AssetForm, emptyAsset, type AssetFormValues } from "./asset-form";
 import { AssetGuide } from "./asset-guide";
 import { AssetCategories, type CategoryRow } from "./asset-categories";
@@ -177,10 +177,7 @@ export function AssetManager() {
             <option key={k} value={k}>{l}</option>
           ))}
         </select>
-        <ExportPreviewButton previewUrl={`${EXPORT_URL}?format=preview`} downloadUrl={EXPORT_URL} disabled={!assets?.length} />
-        <a href={EXPORT_URL} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover">
-          Download Excel (A4)
-        </a>
+        <ExportToolbar exportUrl={EXPORT_URL} disabled={!assets?.length} />
       </div>
 
       <div id="daftar-aset" data-tour="asset-table" className="scroll-mt-24 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">

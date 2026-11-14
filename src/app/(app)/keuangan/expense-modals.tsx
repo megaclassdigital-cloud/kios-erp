@@ -62,7 +62,7 @@ export function ExpenseEditModal({ expense, onClose, onDone }: { expense: Expens
     setBusy(true);
     setError(null);
     // Keep the original time of day when the date is untouched, so the order of the day's entries does not change.
-    const expenseDate = date === dateOnly(expense.expenseDate) ? expense.expenseDate : new Date(`${date}T12:00:00`).toISOString();
+    const expenseDate = date === dateOnly(expense.expenseDate) ? expense.expenseDate : new Date(`${date}T12:00:00+07:00`).toISOString();
     const problem = await send(`/api/expenses/${expense.id}`, "PATCH", { category, amount, description: description || undefined, expenseDate });
     setBusy(false);
     if (problem) return setError(problem);

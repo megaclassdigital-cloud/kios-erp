@@ -8,6 +8,8 @@ import { KpiCard } from "@/components/kios/kpi-card";
 import { KpiDetail, type DetailRow } from "@/components/kios/kpi-detail";
 import { StatusBadge } from "@/components/kios/status-badge";
 import { PrismaFinanceReadRepository } from "@/modules/finance/infrastructure/prisma-finance-read-repository";
+import { PrismaReportRepository } from "@/modules/reports/infrastructure/prisma-report-repository";
+import { ExportToolbar } from "../laporan/export-toolbar";
 import { formatWibDateTime } from "@/shared/format/wib";
 import { PeriodSelector } from "../laporan/period-selector";
 import { resolvePeriod } from "../laporan/resolve-period";
@@ -53,13 +55,7 @@ export default async function TransaksiPage({
 
   // A sale belongs to the day it was paid; one never paid (waiting, cancelled)
   // falls back to the day it was started.
-  const inPeriod = {
-    ...(cashierId ? { cashierId } : {}),
-    OR: [
-      { paidAt: { gte: period.start, lte: period.end } },
-      { paidAt: null, createdAt: { gte: period.start, lte: period.end } },
-    ],
-  };
+  const inPeriod = PrismaReportRepository.saleWhere(period.start, period.end, cashierId);
 
   const [sales, total, groups, totals, detail] = await Promise.all([
     prisma.sale.findMany({
@@ -113,6 +109,7 @@ export default async function TransaksiPage({
   const unavailable = "Rincian belum bisa dimuat. Muat ulang halaman untuk mencoba lagi.";
   const note = detail && total > detail.length ? `Menampilkan ${detail.length} terbaru dari ${total} transaksi pada periode ini.` : undefined;
 
+  const exportUrl = `/api/transactions/export?period=${period.key}${period.key === "custom" ? `&from=${params.from ?? ""}&to=${params.to ?? ""}` : ""}`;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageHref = (p: number) => {
     const q = new URLSearchParams({ period: period.key });
@@ -131,6 +128,7 @@ export default async function TransaksiPage({
         description={`Pantau semua transaksi penjualan, refund, dan aktivitas kasir ${seeAll ? "di toko Anda" : "pada shift Anda"} — ${period.label}.`}
       />
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <PeriodSelector
         basePath="/transaksi"
         active={period.key}
@@ -144,6 +142,8 @@ export default async function TransaksiPage({
           { key: "year", label: "Tahun Ini" },
         ]}
       />
+      <ExportToolbar exportUrl={exportUrl} disabled={total === 0} />
+      </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <KpiDetail title="Transaksi lunas" description={period.label} columns={columns} rows={rowsFor((s) => s.status === "PAID")} emptyText={detail ? "Belum ada transaksi lunas pada periode ini." : unavailable} note={note}>

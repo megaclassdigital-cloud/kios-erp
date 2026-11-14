@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, Eye, Printer, X } from "lucide-react";
+import { Download, Eye, FileText, Printer, X } from "lucide-react";
 import type { PreviewSheet } from "@/shared/export/a4-preview";
 
 /** Rows that fit on one printed A4 page, roughly (the titles take the first
@@ -26,15 +26,7 @@ function paginate(sheet: PreviewSheet): { rows: string[][]; last: boolean }[] {
  * built from, so what is shown is what is in the file. From the preview the
  * user can download the Excel file or print the pages (Save as PDF).
  */
-export function ExportPreviewButton({
-  previewUrl,
-  downloadUrl,
-  disabled,
-}: {
-  previewUrl: string;
-  downloadUrl: string;
-  disabled?: boolean;
-}) {
+export function ExportPreviewButton({ exportUrl, disabled }: { exportUrl: string; disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -45,14 +37,20 @@ export function ExportPreviewButton({
         className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
       >
         <Eye className="h-4 w-4" />
-        Preview
+        Preview &amp; Cetak
       </button>
-      {open && <PreviewModal previewUrl={previewUrl} downloadUrl={downloadUrl} onClose={() => setOpen(false)} />}
+      {open && <PreviewModal exportUrl={exportUrl} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function PreviewModal({ previewUrl, downloadUrl, onClose }: { previewUrl: string; downloadUrl: string; onClose: () => void }) {
+/** `exportUrl` is the endpoint with its filters; the format is added here. */
+export function exportHref(exportUrl: string, format: "preview" | "xlsx" | "pdf" | "csv"): string {
+  return `${exportUrl}${exportUrl.includes("?") ? "&" : "?"}format=${format}`;
+}
+
+function PreviewModal({ exportUrl, onClose }: { exportUrl: string; onClose: () => void }) {
+  const previewUrl = exportHref(exportUrl, "preview");
   const [sheets, setSheets] = useState<PreviewSheet[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState(0);
@@ -116,13 +114,21 @@ function PreviewModal({ previewUrl, downloadUrl, onClose }: { previewUrl: string
             onClick={() => window.print()}
             disabled={!sheet}
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
-            title="Pilih 'Simpan sebagai PDF' di jendela cetak"
+            title="Kirim ke printer"
           >
             <Printer className="h-4 w-4" />
-            Cetak / PDF
+            Cetak
           </button>
+          <a href={exportHref(exportUrl, "pdf")} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
+            <FileText className="h-4 w-4" />
+            Unduh PDF
+          </a>
+          <a href={exportHref(exportUrl, "csv")} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
+            <Download className="h-4 w-4" />
+            CSV
+          </a>
           <a
-            href={downloadUrl}
+            href={exportHref(exportUrl, "xlsx")}
             className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
           >
             <Download className="h-4 w-4" />

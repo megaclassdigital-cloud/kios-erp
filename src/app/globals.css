@@ -68,20 +68,32 @@
 /* Kios-ERP is a fixed-light, data-focused POS UI (PRD 9) — it does not
    follow the OS dark-mode preference. */
 
-/* Isolate a [data-print-area] element (struk PRD 21, barcode label PRD 42)
-   — everything else on the page is hidden while printing so only that
-   element comes out. */
+/* Isolate a [data-print-area] element (struk PRD 21, barcode label PRD 42).
+   Everything that neither holds nor sits inside it is removed from the
+   printout (display:none), not just made invisible: invisible elements still
+   take up room, which printed the whole page's height as blank sheets. The
+   elements that wrap it are flattened so it flows from the top of page 1. */
 @media print {
-  body * {
-    visibility: hidden;
+  body:has([data-print-area]) :not(:has([data-print-area])):not([data-print-area]):not([data-print-area] *) {
+    display: none !important;
   }
-  [data-print-area],
-  [data-print-area] * {
-    visibility: visible;
+  body:has([data-print-area]) :has([data-print-area]) {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: none !important;
+    transform: none !important;
   }
   [data-print-area] {
-    position: absolute;
-    inset: 0;
+    position: static !important;
     width: 100%;
   }
 }

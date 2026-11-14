@@ -149,7 +149,7 @@ export default async function KeuanganPage({
           ]}
         />
         <ExportToolbar
-          csvHref={`/api/reports/export?tab=keuangan&period=${period.key}${
+          exportUrl={`/api/reports/export?tab=keuangan&period=${period.key}${
             period.key === "custom" ? `&from=${params.from ?? ""}&to=${params.to ?? ""}` : ""
           }`}
         />

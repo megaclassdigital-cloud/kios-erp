@@ -32,7 +32,8 @@ function toDateInput(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Expiry is a date-only value stored at UTC midnight, so read it back in UTC.
+  return d.toISOString().slice(0, 10);
 }
 
 /**

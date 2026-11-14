@@ -33,7 +33,7 @@ export function CatchUpForm({ suppliers, onSaved }: { suppliers: { id: string; n
     const { error: problem, data } = await send("/api/consignment/catchup", "POST", {
       productId: product.id,
       quantity,
-      soldAt: soldAt ? new Date(`${soldAt}T12:00:00`).toISOString() : undefined,
+      soldAt: soldAt ? new Date(`${soldAt}T12:00:00+07:00`).toISOString() : undefined,
       note: note || undefined,
     });
     setBusy(false);
